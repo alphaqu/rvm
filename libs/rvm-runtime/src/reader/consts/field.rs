@@ -1,19 +1,15 @@
-use crate::consts::class::ClassConst;
-use crate::consts::{Constant, ConstantInfo, ConstPtr};
-use crate::consts::method::MethodConst;
-use crate::consts::name_and_type::NameAndTypeConst;
+use std::cell::Cell;
+use rvm_core::Id;
+use crate::{ConstantPool, Field, impl_constant, JResult, Runtime};
+use crate::reader::consts::class::ClassConst;
+use crate::reader::consts::{ConstPtr};
+use crate::reader::consts::name_and_type::NameAndTypeConst;
 
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub struct FieldConst {
 	pub class: ConstPtr<ClassConst>,
-	pub name_and_type: ConstPtr<NameAndTypeConst>
+	pub name_and_type: ConstPtr<NameAndTypeConst>,
+	pub link: Cell<Option<Id<Field>>>
 }
 
-impl Constant for FieldConst {
-	fn get(value: &ConstantInfo) -> &Self {
-		if let ConstantInfo::Field(v) = value {
-			return v;
-		}
-		panic!("Wrong type")
-	}
-}
+impl_constant!(Field FieldConst);

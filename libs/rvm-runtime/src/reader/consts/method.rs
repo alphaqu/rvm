@@ -1,12 +1,17 @@
-use crate::consts::class::ClassConst;
-use crate::consts::{Constant, ConstantInfo, ConstPtr};
-use crate::consts::name_and_type::NameAndTypeConst;
-use crate::consts::utf_8::UTF8Const;
+use std::cell::Cell;
+use tracing::debug;
+use rvm_core::Id;
+use crate::{ClassKind, ConstantPool, impl_constant, JResult, Method, MethodIdentifier, Runtime};
+use crate::reader::consts::class::ClassConst;
+use crate::reader::consts::{Constant, ConstantInfo, ConstPtr};
+use crate::reader::consts::name_and_type::NameAndTypeConst;
+use crate::reader::consts::utf_8::UTF8Const;
 
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub struct MethodConst {
 	pub class: ConstPtr<ClassConst>,
-	pub name_and_type: ConstPtr<NameAndTypeConst>
+	pub name_and_type: ConstPtr<NameAndTypeConst>,
+	pub link: Cell<Option<Id<Method>>>
 }
 
 #[derive(Copy, Clone)]
@@ -20,29 +25,6 @@ pub struct MethodTypeConst {
 	pub descriptor: ConstPtr<UTF8Const>
 }
 
-impl Constant for MethodConst {
-	fn get(value: &ConstantInfo) -> &Self {
-		if let ConstantInfo::Method(v) = value {
-			return v;
-		}
-		panic!("Wrong type")
-	}
-}
-
-impl Constant for MethodHandleConst {
-	fn get(value: &ConstantInfo) -> &Self {
-		if let ConstantInfo::MethodHandle(v) = value {
-			return v;
-		}
-		panic!("Wrong type")
-	}
-}
-
-impl Constant for MethodTypeConst {
-	fn get(value: &ConstantInfo) -> &Self {
-		if let ConstantInfo::MethodType(v) = value {
-			return v;
-		}
-		panic!("Wrong type")
-	}
-}
+impl_constant!(Method MethodConst);
+impl_constant!(MethodHandle MethodHandleConst);
+impl_constant!(MethodType MethodTypeConst);

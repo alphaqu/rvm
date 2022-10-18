@@ -1,79 +1,142 @@
-use std::collections::{HashMap, VecDeque};
-use std::fs::File;
-use std::io::Read;
+use std::fs::read;
+use std::mem::forget;
+use std::thread::Builder;
+use tracing::trace;
 
-use time::macros::format_description;
-use tracing::{debug, event, info, Level, span};
-use tracing_subscriber::fmt::time::UtcTime;
-use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::util::SubscriberInitExt;
+use rvm_core::init;
+use rvm_runtime::class::ClassKind;
+use rvm_runtime::executor::{Frame, Stack};
+use rvm_runtime::object::{MethodIdentifier, NativeCode};
+use rvm_runtime::reader::{BinaryName, ValueDesc};
 
-use crate::class_reader::{AttributeInfo, ClassInfo, ConstantInfo, IResult};
-use crate::stack::{Stack, StackValue};
-use crate::variable::Locals;
-
-mod class_reader;
-mod consts;
-mod code;
-mod stack;
-mod variable;
-mod interop;
-mod reader;
-
-
-pub type MethodId = u32;
-pub type ClassId = u32;
+use rvm_runtime::Runtime;
 
 fn main() {
-    let mut result = File::open("./Main.class").unwrap();
-    let mut data = Vec::new();
-    result.read_to_end(&mut data);
+    Builder::new().name("hi".to_string()).stack_size(1024 * 1024 * 32).spawn(|| {
+        run();
+    }).unwrap().join().unwrap();
 
+}
+fn run() {
+    init();
+    let mut runtime = Runtime::new();
+    // bind
+    {
+        // bindhi(&mut runtime);
+        runtime.cl.register_native(
+            "rvm/Main".to_string(),
+            MethodIdentifier {
+                name: "hi".to_string(),
+                descriptor: "(I)V".to_string(),
+            },
+            NativeCode {
+                func: |local_table, runtime| {
+                    println!("{:?}", local_table.get_raw(0));
+                    Ok(None)
+                },
+                max_locals: 1,
+            },
+        );
+        runtime.cl.register_native(
+            "java/lang/Object".to_string(),
+            MethodIdentifier {
+                name: "registerNatives".to_string(),
+                descriptor: "()V".to_string(),
+            },
+            NativeCode {
+                func: |local_table, runtime| {
+                    println!("Object registered natives");
+                    Ok(None)
+                },
+                max_locals: 1,
+            },
+        );
 
-    let timer = UtcTime::new(format_description!(
-        "[hour]:[minute]:[second].[subsecond digits:3]"
-    ));
-    let format = tracing_subscriber::fmt::format()
-        .with_timer(timer)
-        .compact();
-    let fmt_layer = tracing_subscriber::fmt::layer().event_format(format);
-    tracing_subscriber::registry()
-        .with(fmt_layer)
-        .init();
-
-
-
-    if let Ok((x, info)) = ClassInfo::parse(&data) {
-
-        for method in info.methods {
-            for x in method.attribute_info {
-                match x {
-                    AttributeInfo::CodeAttribute { code } => {
-                        let mut stack = Stack::new(code.max_stack);
-                        let mut locals = Locals::new(code.max_locals);
-                        if let Some(ConstantInfo::UTF8 { text }) = info.constant_pool.get( method.name_index) {
-                            info!("Running {}", text);
-                        }
-                        for x in code.code {
-                            x.run(&mut stack, &mut locals, &info.constant_pool);
-                        }
-                    }
-                    _ => {}
-                }
-            }
+        fn fake_define(runtime: &mut Runtime, class_name: &str, name: &str, desc: &str) {
+            runtime.cl.register_native(
+                class_name.to_string(),
+                MethodIdentifier {
+                    name: name.to_string(),
+                    descriptor: desc.to_string(),
+                },
+                NativeCode {
+                    func: |local_table, runtime| {
+                        Ok(None)
+                    },
+                    max_locals: 1,
+                },
+            );
         }
-    };
+        fake_define(&mut runtime, "java/lang/Object", "hashCode", "()I");
+        fake_define(&mut runtime, "java/lang/Object", "getClass", "()Ljava/lang/Class;");
+        fake_define(&mut runtime, "java/lang/Object", "clone", "()Ljava/lang/Object;");
+        fake_define(&mut runtime, "java/lang/Object", "notify", "()V");
+        fake_define(&mut runtime, "java/lang/Object", "notifyAll", "()V");
+        fake_define(&mut runtime, "java/lang/Object", "wait", "(J)V");
+    }
+
+    runtime
+        .cl
+        .load_jar(read("./rt.jar").unwrap(), |v| {
+            v == "java/lang/Object.class"
+        }).unwrap();
+    runtime
+        .cl
+        .load_jar(read("./YourMom.jar").unwrap(), |_| true)
+        .unwrap();
+    let class_id = runtime
+        .cl
+        .get_class_id(&BinaryName::Object("rvm.Main".to_string()));
+
+    let class_guard = runtime.cl.get(class_id);
+    if let ClassKind::Object(class) = &class_guard.kind {
+        let method_id = class
+            .methods
+            .get_id(&MethodIdentifier {
+                name: "run".to_string(),
+                descriptor: "()I".to_string(),
+            })
+            .unwrap();
+        drop(class_guard);
+
+        let mut stack = Stack::new(1);
+        stack.push(0);
+        let mut frame = Frame::raw_frame(class_id, stack);
+        // args
+        let executor = Frame::new(class_id, method_id, &runtime, &mut frame).unwrap();
+        if let Some(value) = executor.execute(&runtime, method_id).unwrap()  {
+            println!("{value:?}");
+        }
+        // match executor.run(&runtime) {
+        //             Ok(v) => {
+        //
+        //             }
+        //             Err(err) => {}
+        //         }
+        //         executor.run(&runtime).map_err(|e| {
+        //             let mut out = String::new();
+        //             e.fmt(&mut out, &runtime).unwrap();
+        //             out
+        //         }).unwrap();
+    }
 }
+// pub fn value_bind(runtime: &mut Runtime) {
+//     runtime.load_native(
+//         "ClassName".to_string(),
+//         "value".to_string(),
+//         "(I)L".to_string(),
+//         NativeCode {
+//             func: |local_table, runtime| {
+//                 Ok(Some(StackValue::from(
+//                     value(local_table.get(0)?)?.to_java(runtime)?,
+//                 )))
+//             },
+//             max_locals: 1,
+//         },
+//     );
+// }
 
-pub struct RVM {
-    methods: HashMap<String, Method>,
-    classes: HashMap<String, Class>,
-}
-
-impl RVM {
-    pub fn load(&mut self, info: ClassInfo) {}
-}
-
-pub struct Method {}
-
-pub struct Class {}
+// #[rvm_bind::method(ClassName, (I)V)]
+// pub fn hi(hi: i8) -> Result<()> {
+//     Ok(hi as i64)
+// }

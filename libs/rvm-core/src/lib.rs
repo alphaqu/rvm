@@ -1,14 +1,31 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+#![feature(map_try_insert)]
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+mod storage;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
+use tracing::Level;
+use tracing_subscriber::filter;
+use tracing_subscriber::fmt::writer::MakeWriterExt;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
+pub use storage::*;
+
+static mut INITIALIZED: bool = false;
+
+pub fn init() {
+    if !unsafe {
+        let initialized = INITIALIZED;
+        INITIALIZED = true;
+        initialized
+    } {
+        let filter = filter::Targets::new()
+            .with_default(Level::TRACE)
+            .with_target("gc", Level::INFO)
+            .with_target("exec", Level::INFO);
+
+        tracing_subscriber::registry()
+            .with(tracing_subscriber::fmt::layer())
+            .with(filter)
+            .init();
+
     }
 }

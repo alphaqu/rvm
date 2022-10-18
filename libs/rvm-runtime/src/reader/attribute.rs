@@ -2,9 +2,10 @@ use nom::bytes::complete::take;
 use nom::combinator::{map, map_opt};
 use nom::number::complete::{be_u16, be_u32};
 use nom::sequence::tuple;
-use crate::code::Code;
-use crate::consts::{ConstantInfo, ConstantPool};
-use crate::IResult;
+use tracing::trace;
+use crate::reader::code::Code;
+use crate::reader::consts::{ConstantInfo, ConstantPool};
+use crate::reader::IResult;
 
 pub struct AttributeException {
 	start_pc: u16,
@@ -116,7 +117,9 @@ pub enum AttributeInfo {
 
 impl AttributeInfo {
 	pub fn parse<'a>(input: &'a [u8], constant_pool: &ConstantPool) -> IResult<'a, Self> {
-		let (input, info) = map_opt(be_u16, |index| constant_pool.get(index))(input)?;
+		trace!("AttributeInfo");
+		let (input, info) = map_opt(be_u16, |index| constant_pool.get_raw(index))(input)?;
+		trace!("AttributeInfo length");
 		let (input, length) = be_u32(input)?;
 
 		match info {

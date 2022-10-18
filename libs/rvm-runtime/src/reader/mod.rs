@@ -1,4 +1,3 @@
-#![feature(box_syntax)]
 #![allow(dead_code)]
 
 mod consts;
@@ -8,6 +7,7 @@ mod field;
 mod class;
 mod code;
 mod descriptor;
+mod name;
 
 pub use consts::*;
 pub use attribute::*;
@@ -16,5 +16,6 @@ pub use field::*;
 pub use class::*;
 pub use code::*;
 pub use descriptor::*;
+pub use name::*;
 
 pub type IResult<'a, O> = nom::IResult<&'a [u8], O>;

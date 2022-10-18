@@ -1,13 +1,15 @@
 use nom::bytes::complete::tag;
 use nom::combinator::{map, map_opt};
+use nom::error::{Error, ErrorKind, make_error};
 use nom::multi::length_count;
 use nom::number::complete::be_u16;
+use tracing::trace;
 use rvm_consts::ClassAccessFlags;
-use crate::attribute::AttributeInfo;
-use crate::consts::{ConstantInfo, ConstantPool};
-use crate::field::FieldInfo;
-use crate::{ClassConst, ConstPtr, InterfaceConst, IResult};
-use crate::method::MethodInfo;
+use crate::reader::attribute::AttributeInfo;
+use crate::reader::consts::{ConstantInfo, ConstantPool};
+use crate::reader::field::FieldInfo;
+use crate::reader::{ClassConst, ConstPtr, InterfaceConst, IResult};
+use crate::reader::method::MethodInfo;
 
 pub struct ClassInfo {
 	pub minor_version: u16,
@@ -30,24 +32,35 @@ impl ClassInfo {
 		let (input, minor_version) = be_u16(input)?;
 		let (input, major_version) = be_u16(input)?;
 
+		trace!("constant pool");
 		let (input, constant_pool) = map(
 			length_count(map(be_u16, |num| num - 1), ConstantInfo::parse),
 			ConstantPool::new,
 		)(input)?;
 
+		trace!("Access flags");
+
 		let (input, access_flags) = map_opt(be_u16, ClassAccessFlags::from_bits)(input)?;
+
+		trace!("this class");
 		let (input, this_class) = be_u16(input)?;
+		trace!("super class");
+
 		let (input, super_class) = be_u16(input)?;
+		trace!("interfaces");
 		let (input, interfaces) = length_count(be_u16, |v| {
 			let (out, value) = be_u16(v)?;
 			Ok((out, ConstPtr::new(value)))
 		})(input)?;
 
+		trace!("field");
 		let (input, fields) =
 			length_count(be_u16, |input| FieldInfo::parse(input, &constant_pool))(input)?;
-
+		trace!("method");
 		let (input, methods) =
 			length_count(be_u16, |input| MethodInfo::parse(input, &constant_pool))(input)?;
+
+		trace!("attribute");
 		let (input, attributes) =
 			length_count(be_u16, |input| AttributeInfo::parse(input, &constant_pool))(input)?;
 

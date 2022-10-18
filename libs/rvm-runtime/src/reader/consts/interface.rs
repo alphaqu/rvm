@@ -1,7 +1,7 @@
-use crate::consts::class::ClassConst;
-use crate::consts::{Constant, ConstantInfo, ConstPtr};
-use crate::consts::method::MethodConst;
-use crate::consts::name_and_type::NameAndTypeConst;
+use crate::impl_constant;
+use crate::reader::consts::class::ClassConst;
+use crate::reader::consts::{ConstPtr};
+use crate::reader::consts::name_and_type::NameAndTypeConst;
 
 #[derive(Copy, Clone)]
 pub struct InterfaceConst {
@@ -9,11 +9,4 @@ pub struct InterfaceConst {
 	pub name_and_type: ConstPtr<NameAndTypeConst>
 }
 
-impl Constant for InterfaceConst {
-	fn get(value: &ConstantInfo) -> &Self {
-		if let ConstantInfo::Interface(v) = value {
-			return v;
-		}
-		panic!("Wrong type")
-	}
-}
+impl_constant!(Interface InterfaceConst);
