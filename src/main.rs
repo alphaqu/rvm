@@ -51,20 +51,6 @@ fn run() {
                 max_locals: 1,
             },
         );
-        runtime.cl.register_native(
-            "Intrinsics".to_string(),
-            MethodIdentifier {
-                name: "assertEquals".to_string(),
-                descriptor: "(II)V".to_string()
-            },
-            NativeCode {
-                func: |local_table, runtime| {
-                    assert_eq!(local_table.get::<i32>(0), local_table.get::<i32>(1));
-                    Ok(None)
-                },
-                max_locals: 2
-            }
-        );
 
         fn fake_define(runtime: &mut Runtime, class_name: &str, name: &str, desc: &str) {
             runtime.cl.register_native(

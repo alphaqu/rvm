@@ -35,11 +35,11 @@ subprojects {
     }
 
     task runRvm(type: Exec) {
-        dependsOn(project(":rvm-classpath").jar)
+        dependsOn(rootProject.jar)
         dependsOn(jar)
 
         workingDir(rootProject.file(".."))
-        commandLine("cargo", "+nightly", "run", project(":rvm-classpath").jar.archivePath, jar.archivePath)
+        commandLine("cargo", "+nightly", "run", rootProject.jar.archivePath, jar.archivePath)
     }
 
     application {

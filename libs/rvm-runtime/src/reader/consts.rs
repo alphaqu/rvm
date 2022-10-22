@@ -26,7 +26,7 @@ use std::marker::PhantomData;
 use std::ops::RangeFrom;
 use nom::error::ParseError;
 use nom::{InputIter, InputLength, Slice};
-use tracing::trace;
+use tracing::{trace, error};
 
 #[macro_export]
 macro_rules! impl_constant {
@@ -214,8 +214,8 @@ impl ConstantInfo {
             //		name_and_type_index,
             //	},
             //)(input),
-            _ => {
-                println!("unknown");
+            opcode => {
+                error!("unknown {opcode}");
                 return Ok((input, ConstantInfo::Unknown));
             }
         }
