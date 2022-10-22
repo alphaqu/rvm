@@ -24,7 +24,7 @@ fn run() {
     {
         // bindhi(&mut runtime);
         runtime.cl.register_native(
-            "rvm/Main".to_string(),
+            "Main".to_string(),
             MethodIdentifier {
                 name: "hi".to_string(),
                 descriptor: "(I)V".to_string(),
@@ -50,6 +50,20 @@ fn run() {
                 },
                 max_locals: 1,
             },
+        );
+        runtime.cl.register_native(
+            "Intrinsics".to_string(),
+            MethodIdentifier {
+                name: "assertEquals".to_string(),
+                descriptor: "(II)V".to_string()
+            },
+            NativeCode {
+                func: |local_table, runtime| {
+                    assert_eq!(local_table.get::<1, i32>(0), local_table.get::<1, i32>(1));
+                    Ok(None)
+                },
+                max_locals: 2
+            }
         );
 
         fn fake_define(runtime: &mut Runtime, class_name: &str, name: &str, desc: &str) {
@@ -80,21 +94,25 @@ fn run() {
         .load_jar(read("./rt.jar").unwrap(), |v| {
             v == "java/lang/Object.class"
         }).unwrap();
-    runtime
-        .cl
-        .load_jar(read("./YourMom.jar").unwrap(), |_| true)
-        .unwrap();
+
+    for jar in std::env::args().skip(1) {
+        runtime
+            .cl
+            .load_jar(read(jar).unwrap(), |_| true)
+            .unwrap();
+    }
+
     let class_id = runtime
         .cl
-        .get_class_id(&BinaryName::Object("rvm.Main".to_string()));
+        .get_class_id(&BinaryName::Object("Main".to_string()));
 
     let class_guard = runtime.cl.get(class_id);
     if let ClassKind::Object(class) = &class_guard.kind {
         let method_id = class
             .methods
             .get_id(&MethodIdentifier {
-                name: "run".to_string(),
-                descriptor: "()I".to_string(),
+                name: "main".to_string(),
+                descriptor: "([Ljava/lang/String;)V".to_string(),
             })
             .unwrap();
         drop(class_guard);
@@ -104,9 +122,7 @@ fn run() {
         let mut frame = Frame::raw_frame(class_id, stack);
         // args
         let executor = Frame::new(class_id, method_id, &runtime, &mut frame).unwrap();
-        if let Some(value) = executor.execute(&runtime, method_id).unwrap()  {
-            println!("{value:?}");
-        }
+        println!("{:?}", executor.execute(&runtime, method_id));
         // match executor.run(&runtime) {
         //             Ok(v) => {
         //
