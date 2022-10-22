@@ -1,3 +1,4 @@
+#![feature(generic_const_exprs)]
 #![feature(drain_filter)]
 #![feature(array_try_from_fn)]
 #![feature(box_syntax)]

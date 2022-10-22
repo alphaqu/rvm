@@ -51,24 +51,30 @@ impl LocalVariables {
             | ValueType::Byte
             | ValueType::Short
             | ValueType::Int
-            | ValueType::Char => <i32 as StackCast>::push(self.get::<1, i32>(local)?),
-            ValueType::Long => <i64 as StackCast>::push(self.get::<2, i64>(local)?),
-            ValueType::Float => <f32 as StackCast>::push(self.get::<1, f32>(local)?),
-            ValueType::Double => <f64 as StackCast>::push(self.get::<2, f64>(local)?),
-            ValueType::Reference => <Ref as StackCast>::push(self.get::<1, Ref>(local)?),
+            | ValueType::Char => <i32 as StackCast>::push(self.get::<i32>(local)?),
+            ValueType::Long => <i64 as StackCast>::push(self.get::<i64>(local)?),
+            ValueType::Float => <f32 as StackCast>::push(self.get::<f32>(local)?),
+            ValueType::Double => <f64 as StackCast>::push(self.get::<f64>(local)?),
+            ValueType::Reference => <Ref as StackCast>::push(self.get::<Ref>(local)?),
         })
     }
 
-    pub fn set<const L: usize, V: LocalCast<L>>(&mut self, local: u16, value: V) -> JResult<()> {
-        let output = value.push();
-        for i in 0..L {
+    pub fn set<V: LocalCast>(&mut self, local: u16, value: V) -> JResult<()>
+    where
+        [(); V::L]:,
+    {
+        let output: [_; V::L] = value.push();
+        for i in 0..V::L {
             self.set_raw(local + i as u16, output[i].clone())?;
         }
         Ok(())
     }
 
-    pub fn get<const L: usize, R: LocalCast<L>>(&self, local: u16) -> JResult<R> {
-        let from_fn = try_from_fn::<_, L, _>(|i| self.get_raw(local + i as u16))?;
+    pub fn get<R: LocalCast>(&self, local: u16) -> JResult<R>
+    where
+        [(); { R::L }]:,
+    {
+        let from_fn = try_from_fn::<_, { R::L }, _>(|i| self.get_raw(local + i as u16))?;
         R::pop(from_fn)
     }
 
@@ -112,12 +118,16 @@ impl Display for LocalVar {
     }
 }
 
-pub trait LocalCast<const L: usize>: Sized {
-    fn pop(value: [LocalVar; L]) -> Result<Self, JError>;
-    fn push(self) -> [LocalVar; L];
+pub trait LocalCast: Sized {
+    const L: usize;
+
+    fn pop(value: [LocalVar; Self::L]) -> Result<Self, JError>;
+    fn push(self) -> [LocalVar; Self::L];
 }
 
-impl LocalCast<2> for i64 {
+impl LocalCast for i64 {
+    const L: usize = 2;
+
     fn pop(value: [LocalVar; 2]) -> Result<Self, JError> {
         match value {
             [LocalVar::Int(v0), LocalVar::Int(v1)] => {
@@ -136,7 +146,9 @@ impl LocalCast<2> for i64 {
     }
 }
 
-impl LocalCast<2> for f64 {
+impl LocalCast for f64 {
+    const L: usize = 2;
+
     fn pop(value: [LocalVar; 2]) -> Result<Self, JError> {
         match value {
             [LocalVar::Float(v0), LocalVar::Float(v1)] => {
@@ -157,7 +169,9 @@ impl LocalCast<2> for f64 {
 
 macro_rules! into_cast {
     ($VAR:ident $TY:ty) => {
-        impl LocalCast<1> for $TY {
+        impl LocalCast for $TY {
+            const L: usize = 1;
+
             fn pop([value]: [LocalVar; 1]) -> Result<Self, JError> {
                 if let LocalVar::$VAR(v0) = value {
                     Ok(v0)

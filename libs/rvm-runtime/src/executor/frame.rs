@@ -944,18 +944,24 @@ impl<'a> Frame<'a> {
     }
 
     fn handle_local_op(&mut self, inst: &Inst) -> JResult<()> {
-        fn load<const L: usize, V: StackCast + LocalCast<L>>(
+        fn load<V: StackCast + LocalCast>(
             frame: &mut Frame,
             local: u16,
-        ) -> JResult<()> {
-            frame.stack.push(frame.locals.get::<L, V>(local)?);
+        ) -> JResult<()>
+        where
+            [(); { V::L }]:,
+        {
+            frame.stack.push(frame.locals.get::<V>(local)?);
             Ok(())
         }
 
-        fn store<const L: usize, V: StackCast + LocalCast<L>>(
+        fn store<V: StackCast + LocalCast>(
             frame: &mut Frame,
             local: u16,
-        ) -> JResult<()> {
+        ) -> JResult<()>
+        where
+            [(); V::L]:,
+        {
             let value = frame.stack.pop::<V>()?;
             frame.locals.set(local, value)?;
             Ok(())
@@ -964,76 +970,76 @@ impl<'a> Frame<'a> {
         // cringetastic:tm:
         // it is also your responsibility to ensure this works
         match inst {
-            Inst::ALOAD(v) => load::<1, Ref>(self, *v as u16),
-            Inst::ALOAD_W(v) => load::<1, Ref>(self, *v),
-            Inst::ALOAD0 => load::<1, Ref>(self, 0),
-            Inst::ALOAD1 => load::<1, Ref>(self, 1),
-            Inst::ALOAD2 => load::<1, Ref>(self, 2),
-            Inst::ALOAD3 => load::<1, Ref>(self, 3),
-            Inst::FLOAD(v) => load::<1, f32>(self, *v as u16),
-            Inst::FLOAD_W(v) => load::<1, f32>(self, *v),
-            Inst::FLOAD0 => load::<1, f32>(self, 0),
-            Inst::FLOAD1 => load::<1, f32>(self, 1),
-            Inst::FLOAD2 => load::<1, f32>(self, 2),
-            Inst::FLOAD3 => load::<1, f32>(self, 3),
-            Inst::ILOAD(v) => load::<1, i32>(self, *v as u16),
-            Inst::ILOAD_W(v) => load::<1, i32>(self, *v),
-            Inst::ILOAD0 => load::<1, i32>(self, 0),
-            Inst::ILOAD1 => load::<1, i32>(self, 1),
-            Inst::ILOAD2 => load::<1, i32>(self, 2),
-            Inst::ILOAD3 => load::<1, i32>(self, 3),
-            Inst::DLOAD(v) => load::<2, f64>(self, *v as u16),
-            Inst::DLOAD_W(v) => load::<2, f64>(self, *v),
-            Inst::DLOAD0 => load::<2, f64>(self, 0),
-            Inst::DLOAD1 => load::<2, f64>(self, 1),
-            Inst::DLOAD2 => load::<2, f64>(self, 2),
-            Inst::DLOAD3 => load::<2, f64>(self, 3),
-            Inst::LLOAD(v) => load::<2, i64>(self, *v as u16),
-            Inst::LLOAD_W(v) => load::<2, i64>(self, *v),
-            Inst::LLOAD0 => load::<2, i64>(self, 0),
-            Inst::LLOAD1 => load::<2, i64>(self, 1),
-            Inst::LLOAD2 => load::<2, i64>(self, 2),
-            Inst::LLOAD3 => load::<2, i64>(self, 3),
-            Inst::ASTORE(v) => store::<1, Ref>(self, *v as u16),
-            Inst::ASTORE_W(v) => store::<1, Ref>(self, *v),
-            Inst::ASTORE0 => store::<1, Ref>(self, 0),
-            Inst::ASTORE1 => store::<1, Ref>(self, 1),
-            Inst::ASTORE2 => store::<1, Ref>(self, 2),
-            Inst::ASTORE3 => store::<1, Ref>(self, 3),
-            Inst::FSTORE(v) => store::<1, f32>(self, *v as u16),
-            Inst::FSTORE_W(v) => store::<1, f32>(self, *v),
-            Inst::FSTORE0 => store::<1, f32>(self, 0),
-            Inst::FSTORE1 => store::<1, f32>(self, 1),
-            Inst::FSTORE2 => store::<1, f32>(self, 2),
-            Inst::FSTORE3 => store::<1, f32>(self, 3),
-            Inst::ISTORE(v) => store::<1, i32>(self, *v as u16),
-            Inst::ISTORE_W(v) => store::<1, i32>(self, *v),
-            Inst::ISTORE0 => store::<1, i32>(self, 0),
-            Inst::ISTORE1 => store::<1, i32>(self, 1),
-            Inst::ISTORE2 => store::<1, i32>(self, 2),
-            Inst::ISTORE3 => store::<1, i32>(self, 3),
-            Inst::DSTORE(v) => store::<2, f64>(self, *v as u16),
-            Inst::DSTORE_W(v) => store::<2, f64>(self, *v),
-            Inst::DSTORE0 => store::<2, f64>(self, 0),
-            Inst::DSTORE1 => store::<2, f64>(self, 1),
-            Inst::DSTORE2 => store::<2, f64>(self, 2),
-            Inst::DSTORE3 => store::<2, f64>(self, 3),
-            Inst::LSTORE(v) => store::<2, i64>(self, *v as u16),
-            Inst::LSTORE_W(v) => store::<2, i64>(self, *v),
-            Inst::LSTORE0 => store::<2, i64>(self, 0),
-            Inst::LSTORE1 => store::<2, i64>(self, 1),
-            Inst::LSTORE2 => store::<2, i64>(self, 2),
-            Inst::LSTORE3 => store::<2, i64>(self, 3),
+            Inst::ALOAD(v) => load::<Ref>(self, *v as u16),
+            Inst::ALOAD_W(v) => load::<Ref>(self, *v),
+            Inst::ALOAD0 => load::<Ref>(self, 0),
+            Inst::ALOAD1 => load::<Ref>(self, 1),
+            Inst::ALOAD2 => load::<Ref>(self, 2),
+            Inst::ALOAD3 => load::<Ref>(self, 3),
+            Inst::FLOAD(v) => load::<f32>(self, *v as u16),
+            Inst::FLOAD_W(v) => load::<f32>(self, *v),
+            Inst::FLOAD0 => load::<f32>(self, 0),
+            Inst::FLOAD1 => load::<f32>(self, 1),
+            Inst::FLOAD2 => load::<f32>(self, 2),
+            Inst::FLOAD3 => load::<f32>(self, 3),
+            Inst::ILOAD(v) => load::<i32>(self, *v as u16),
+            Inst::ILOAD_W(v) => load::<i32>(self, *v),
+            Inst::ILOAD0 => load::<i32>(self, 0),
+            Inst::ILOAD1 => load::<i32>(self, 1),
+            Inst::ILOAD2 => load::<i32>(self, 2),
+            Inst::ILOAD3 => load::<i32>(self, 3),
+            Inst::DLOAD(v) => load::<f64>(self, *v as u16),
+            Inst::DLOAD_W(v) => load::<f64>(self, *v),
+            Inst::DLOAD0 => load::<f64>(self, 0),
+            Inst::DLOAD1 => load::<f64>(self, 1),
+            Inst::DLOAD2 => load::<f64>(self, 2),
+            Inst::DLOAD3 => load::<f64>(self, 3),
+            Inst::LLOAD(v) => load::<i64>(self, *v as u16),
+            Inst::LLOAD_W(v) => load::<i64>(self, *v),
+            Inst::LLOAD0 => load::<i64>(self, 0),
+            Inst::LLOAD1 => load::<i64>(self, 1),
+            Inst::LLOAD2 => load::<i64>(self, 2),
+            Inst::LLOAD3 => load::<i64>(self, 3),
+            Inst::ASTORE(v) => store::<Ref>(self, *v as u16),
+            Inst::ASTORE_W(v) => store::<Ref>(self, *v),
+            Inst::ASTORE0 => store::<Ref>(self, 0),
+            Inst::ASTORE1 => store::<Ref>(self, 1),
+            Inst::ASTORE2 => store::<Ref>(self, 2),
+            Inst::ASTORE3 => store::<Ref>(self, 3),
+            Inst::FSTORE(v) => store::<f32>(self, *v as u16),
+            Inst::FSTORE_W(v) => store::<f32>(self, *v),
+            Inst::FSTORE0 => store::<f32>(self, 0),
+            Inst::FSTORE1 => store::<f32>(self, 1),
+            Inst::FSTORE2 => store::<f32>(self, 2),
+            Inst::FSTORE3 => store::<f32>(self, 3),
+            Inst::ISTORE(v) => store::<i32>(self, *v as u16),
+            Inst::ISTORE_W(v) => store::<i32>(self, *v),
+            Inst::ISTORE0 => store::<i32>(self, 0),
+            Inst::ISTORE1 => store::<i32>(self, 1),
+            Inst::ISTORE2 => store::<i32>(self, 2),
+            Inst::ISTORE3 => store::<i32>(self, 3),
+            Inst::DSTORE(v) => store::<f64>(self, *v as u16),
+            Inst::DSTORE_W(v) => store::<f64>(self, *v),
+            Inst::DSTORE0 => store::<f64>(self, 0),
+            Inst::DSTORE1 => store::<f64>(self, 1),
+            Inst::DSTORE2 => store::<f64>(self, 2),
+            Inst::DSTORE3 => store::<f64>(self, 3),
+            Inst::LSTORE(v) => store::<i64>(self, *v as u16),
+            Inst::LSTORE_W(v) => store::<i64>(self, *v),
+            Inst::LSTORE0 => store::<i64>(self, 0),
+            Inst::LSTORE1 => store::<i64>(self, 1),
+            Inst::LSTORE2 => store::<i64>(self, 2),
+            Inst::LSTORE3 => store::<i64>(self, 3),
             Inst::IINC(index, amount) => {
-                let mut value = self.locals.get::<1, i32>(*index as u16)?;
+                let mut value = self.locals.get::<i32>(*index as u16)?;
                 value = value.wrapping_add((*amount) as i32);
-                self.locals.set::<1, i32>(*index as u16, value)?;
+                self.locals.set::<i32>(*index as u16, value)?;
                 Ok(())
             }
             Inst::IINC_W(index, amount) => {
-                let mut value = self.locals.get::<1, i32>(*index)?;
+                let mut value = self.locals.get::<i32>(*index)?;
                 value = value.wrapping_add((*amount) as i32);
-                self.locals.set::<1, i32>(*index, value)?;
+                self.locals.set::<i32>(*index, value)?;
                 Ok(())
             }
             _ => {

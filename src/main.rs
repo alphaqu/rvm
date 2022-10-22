@@ -59,7 +59,7 @@ fn run() {
             },
             NativeCode {
                 func: |local_table, runtime| {
-                    assert_eq!(local_table.get::<1, i32>(0), local_table.get::<1, i32>(1));
+                    assert_eq!(local_table.get::<i32>(0), local_table.get::<i32>(1));
                     Ok(None)
                 },
                 max_locals: 2
