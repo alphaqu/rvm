@@ -3,7 +3,6 @@ use crate::object::{Ref, Value};
 use crate::{GarbageCollector, JError};
 use std::any::type_name;
 use std::fmt::{Display, Formatter};
-use std::i32;
 use crate::executor::LocalVar;
 
 #[derive(Debug)]

@@ -26,6 +26,9 @@ pub mod gc;
 pub mod object;
 pub mod reader;
 
+#[cfg(feature = "native")]
+pub mod native;
+
 pub struct Runtime {
     pub cl: ClassLoader,
     pub gc: RwLock<GarbageCollector>,
