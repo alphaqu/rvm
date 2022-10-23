@@ -60,7 +60,6 @@ impl Runtime {
             }
 
             let desc1 = class_const.name.get(&class.cp).as_str().replace('/', ".");
-            info!("{desc1}");
             BinaryName::parse(&desc1)
         };
 

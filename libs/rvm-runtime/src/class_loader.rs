@@ -6,7 +6,7 @@ use std::io::{Cursor, Read};
 use anyways::ext::AuditExt;
 use parking_lot::{RawRwLock, RwLock, RwLockReadGuard};
 use parking_lot::lock_api::MappedRwLockReadGuard;
-use tracing::{debug, info, warn};
+use tracing::{debug, info, instrument, warn};
 use crate::class::{ArrayClass, ObjectClass};
 use crate::object::ValueType;
 use crate::reader::{BaseDesc, BinaryName, ValueDesc};
@@ -138,11 +138,13 @@ impl ClassLoader {
     }
 
     /// Loads a java class to the JVM and injects it to the class table by locking it.
+    #[instrument(skip_all)]
     pub fn load_class(&mut self, data: Vec<u8>) -> anyways::Result<Id<Class>> {
-        debug!("Loading class");
         let (_, info) =
             ClassInfo::parse(&data).map_err(|_| Audit::new("Failed to parse classfile"))?;
         let class = ObjectClass::parse(info, self)?;
+
+        debug!("Parsed class {}", class.binary_name);
 
         // Safe because we are adding it at the end
         let string = class.binary_name.clone();

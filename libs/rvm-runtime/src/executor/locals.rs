@@ -63,10 +63,10 @@ impl LocalVariables {
     where
         [(); V::L]:,
     {
-        let output: [_; V::L] = value.push();
-        for i in 0..V::L {
-            self.set_raw(local + i as u16, output[i].clone())?;
+        for (i, x) in value.push().into_iter().enumerate() {
+            self.set_raw(local + i as u16, x)?;
         }
+
         Ok(())
     }
 
@@ -74,8 +74,7 @@ impl LocalVariables {
     where
         [(); { R::L }]:,
     {
-        let from_fn = try_from_fn::<_, { R::L }, _>(|i| self.get_raw(local + i as u16))?;
-        R::pop(from_fn)
+        R::pop(try_from_fn(|i| self.get_raw(local + i as u16))?)
     }
 
 
