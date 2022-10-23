@@ -1,4 +1,1 @@
-
-pub  struct Chunk {
-
-}
+pub struct Chunk {}

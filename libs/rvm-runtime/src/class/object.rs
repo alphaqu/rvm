@@ -1,16 +1,16 @@
-use std::alloc::dealloc;
-use std::ops::Deref;
-use anyways::ext::AuditExt;
-use rvm_consts::FieldAccessFlags;
-use rvm_core::Id;
-use anyways::Result;
-use parking_lot::MappedRwLockReadGuard;
 use crate::class::field::ClassFieldManager;
 use crate::class::method::ClassMethodManager;
-use crate::{Class, ClassInfo, ClassLoader, ConstantPool, Field, JResult, Ref, Runtime};
-use crate::class::{ClassKind};
+use crate::class::ClassKind;
 use crate::executor::StackValue;
-use crate::object::{ObjectData};
+use crate::object::ObjectData;
+use crate::{Class, ClassInfo, ClassLoader, ConstantPool, Field, JResult, Ref, Runtime};
+use anyways::ext::AuditExt;
+use anyways::Result;
+use parking_lot::MappedRwLockReadGuard;
+use rvm_consts::FieldAccessFlags;
+use rvm_core::Id;
+use std::alloc::dealloc;
+use std::ops::Deref;
 
 pub struct ObjectClass {
 	pub simple_name: String,
@@ -22,13 +22,9 @@ pub struct ObjectClass {
 }
 
 impl ObjectClass {
-	pub fn parse(
-		info: ClassInfo,
-		class_loader: &ClassLoader,
-	) -> Result<Class> {
+	pub fn parse(info: ClassInfo, class_loader: &ClassLoader) -> Result<Class> {
 		let class = info.constant_pool.get(info.this_class);
 		let name = info.constant_pool.get(class.name);
-
 
 		let fields = ClassFieldManager::parse(info.fields, &info.constant_pool, class_loader);
 		let binary_name = name.to_string().replace('/', ".");
@@ -44,7 +40,7 @@ impl ObjectClass {
 					&info.constant_pool,
 					class_loader,
 				)
-					.wrap_err_with(|| format!("in CLASS \"{}\"", name.as_str()))?,
+				.wrap_err_with(|| format!("in CLASS \"{}\"", name.as_str()))?,
 				static_object: unsafe { ObjectData::new(fields.size(true) as usize) },
 				cp: info.constant_pool,
 				fields,
@@ -63,7 +59,7 @@ impl ObjectClass {
 			StackValue::from_value(field.ty.read(field_ptr))
 		}
 	}
-	
+
 	pub fn set_static(&self, field: Id<Field>, value: StackValue) {
 		let field = self.fields.get(field);
 		unsafe {
@@ -87,20 +83,14 @@ impl Runtime {
 
 		unsafe {
 			let reference = self.gc.write().unwrap().alloc(class_id, class.size(false));
-			Ok(Object {
-				reference,
-				class
-			})
+			Ok(Object { reference, class })
 		}
 	}
 
 	pub fn get_object(&self, class_id: Id<Class>, reference: Ref) -> JResult<Object> {
 		reference.assert_matching_class(class_id, self)?;
 		let class = self.cl.get_obj_class(class_id);
-		Ok(Object {
-			reference,
-			class
-		})
+		Ok(Object { reference, class })
 	}
 }
 
@@ -132,7 +122,6 @@ impl<'a> Object<'a> {
 			StackValue::from_value(field.ty.read(field_ptr))
 		}
 	}
-
 }
 
 impl<'a> Deref for Object<'a> {

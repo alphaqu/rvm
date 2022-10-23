@@ -1,13 +1,13 @@
+use crate::object::Value;
 use crate::{Ref, Runtime};
 use anyways::Result;
-use crate::object::Value;
 
 pub trait ToJava {
-    fn to_java(&self, runtime: &Runtime) -> Result<Value>;
+	fn to_java(&self, runtime: &Runtime) -> Result<Value>;
 }
 
 pub trait FromJava: Sized {
-    fn from_java(value: Value, runtime: &Runtime) -> Result<Self>;
+	fn from_java(value: Value, runtime: &Runtime) -> Result<Self>;
 }
 
 macro_rules! impl_through_deref {
@@ -33,13 +33,13 @@ macro_rules! impl_through_deref {
 }
 
 impl_through_deref!(
-    [bool, Boolean],
-    [i8, Byte],
-    [i16, Short],
-    [i32, Int],
-    [i64, Long],
-    [u16, Char],
-    [f32, Float],
-    [f64, Double],
-    [Ref, Reference]
+	[bool, Boolean],
+	[i8, Byte],
+	[i16, Short],
+	[i32, Int],
+	[i64, Long],
+	[u16, Char],
+	[f32, Float],
+	[f64, Double],
+	[Ref, Reference]
 );

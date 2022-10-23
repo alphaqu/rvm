@@ -1,6 +1,5 @@
-use std::ops::Deref;
 use crate::impl_constant;
-use crate::reader::consts::{Constant, ConstantInfo};
+use std::ops::Deref;
 
 #[derive(Clone)]
 pub struct UTF8Const(pub(crate) String);

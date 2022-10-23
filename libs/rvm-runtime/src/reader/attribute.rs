@@ -1,11 +1,11 @@
+use crate::reader::code::Code;
+use crate::reader::consts::{ConstantInfo, ConstantPool};
+use crate::reader::IResult;
 use nom::bytes::complete::take;
 use nom::combinator::{map, map_opt};
 use nom::number::complete::{be_u16, be_u32};
 use nom::sequence::tuple;
 use tracing::trace;
-use crate::reader::code::Code;
-use crate::reader::consts::{ConstantInfo, ConstantPool};
-use crate::reader::IResult;
 
 pub struct AttributeException {
 	start_pc: u16,
@@ -127,9 +127,10 @@ impl AttributeInfo {
 				"ConstantValue" => map(be_u16, |constant_index| AttributeInfo::ConstantValue {
 					constant_index,
 				})(input),
-				"Code" => map(|input| Code::parse(input, constant_pool), |code| {
-					AttributeInfo::CodeAttribute { code }
-				})(input),
+				"Code" => map(
+					|input| Code::parse(input, constant_pool),
+					|code| AttributeInfo::CodeAttribute { code },
+				)(input),
 				_ => map(take(length), |_| AttributeInfo::AnnotationDefault)(input),
 			},
 			//discard the remaining bytes

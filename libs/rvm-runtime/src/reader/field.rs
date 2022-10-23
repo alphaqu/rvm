@@ -1,10 +1,10 @@
+use crate::reader::attribute::AttributeInfo;
+use crate::reader::consts::ConstantPool;
+use crate::reader::{ConstPtr, IResult, UTF8Const};
 use nom::combinator::map_opt;
 use nom::multi::length_count;
 use nom::number::complete::be_u16;
 use rvm_consts::FieldAccessFlags;
-use crate::reader::attribute::AttributeInfo;
-use crate::reader::consts::ConstantPool;
-use crate::reader::{ConstPtr, IResult, UTF8Const};
 
 //field_info {
 //     u16             access_flags;

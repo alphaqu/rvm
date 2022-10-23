@@ -1,15 +1,14 @@
-use nom::bytes::complete::tag;
-use nom::combinator::{map, map_opt};
-use nom::error::{Error, ErrorKind, make_error};
-use nom::multi::length_count;
-use nom::number::complete::be_u16;
-use tracing::trace;
-use rvm_consts::ClassAccessFlags;
 use crate::reader::attribute::AttributeInfo;
 use crate::reader::consts::{ConstantInfo, ConstantPool};
 use crate::reader::field::FieldInfo;
-use crate::reader::{ClassConst, ConstPtr, InterfaceConst, IResult};
 use crate::reader::method::MethodInfo;
+use crate::reader::{ClassConst, ConstPtr, IResult, InterfaceConst};
+use nom::bytes::complete::tag;
+use nom::combinator::{map, map_opt};
+use nom::multi::length_count;
+use nom::number::complete::be_u16;
+use rvm_consts::ClassAccessFlags;
+use tracing::trace;
 
 pub struct ClassInfo {
 	pub minor_version: u16,

@@ -1,11 +1,10 @@
-use std::sync::Arc;
-use nom::multi::length_count;
-use nom::number::streaming::{ be_u16, be_u32};
-use tracing::trace;
 use crate::executor::Inst;
 use crate::reader::attribute::{AttributeException, AttributeInfo};
-use crate::reader::{IResult};
 use crate::reader::consts::ConstantPool;
+use crate::reader::IResult;
+use nom::multi::length_count;
+use nom::number::streaming::{be_u16, be_u32};
+use tracing::trace;
 pub struct Code {
 	pub max_stack: u16,
 	pub max_locals: u16,
@@ -98,7 +97,8 @@ impl Code {
 		let (input, exception_table) = length_count(be_u16, AttributeException::parse)(input)?;
 
 		trace!("Attributes");
-		let (input, attribute_info) = length_count(be_u16, |input| AttributeInfo::parse(input, constant_pool))(input)?;
+		let (input, attribute_info) =
+			length_count(be_u16, |input| AttributeInfo::parse(input, constant_pool))(input)?;
 		trace!("Parsed code");
 
 		Ok((

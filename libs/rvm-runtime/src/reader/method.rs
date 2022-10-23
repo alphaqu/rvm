@@ -1,11 +1,11 @@
-use nom::combinator::map_opt;
-use nom::multi::length_count;
-use nom::number::complete::be_u16;
-use tracing::trace;
-use rvm_consts::MethodAccessFlags;
 use crate::reader::attribute::AttributeInfo;
 use crate::reader::consts::ConstantPool;
 use crate::reader::{ConstPtr, IResult, UTF8Const};
+use nom::combinator::map_opt;
+use nom::multi::length_count;
+use nom::number::complete::be_u16;
+use rvm_consts::MethodAccessFlags;
+use tracing::trace;
 
 //method_info {
 //     u16             access_flags;

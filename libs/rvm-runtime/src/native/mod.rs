@@ -2,103 +2,109 @@ use std::collections::HashMap;
 use std::ffi::{c_void, CStr};
 use std::ptr::null_mut;
 
-use jni_sys::{jint, JNIInvokeInterface_, JavaVM, JavaVMInitArgs, JNI_EVERSION, JNI_OK, JNI_TRUE, JNI_VERSION_1_8, JNI_ERR, JNIEnv, JNINativeInterface_};
+use jni_sys::{
+	jint, JNIEnv, JNIInvokeInterface_, JNINativeInterface_, JavaVM, JavaVMInitArgs, JNI_ERR,
+	JNI_EVERSION, JNI_OK, JNI_TRUE, JNI_VERSION_1_8,
+};
 
 use crate::Runtime;
 
 #[no_mangle]
 pub unsafe extern "system" fn JNI_GetDefaultJavaVMInitArgs(args: *mut c_void) -> jint {
-    let args = &*(args as *mut JavaVMInitArgs);
+	let args = &*(args as *mut JavaVMInitArgs);
 
-    if args.version > JNI_VERSION_1_8 {
-        JNI_EVERSION
-    } else {
-        JNI_OK
-    }
+	if args.version > JNI_VERSION_1_8 {
+		JNI_EVERSION
+	} else {
+		JNI_OK
+	}
 }
 
 #[no_mangle]
 pub unsafe extern "system" fn JNI_CreateJavaVM(
-    pvm: *mut *mut JavaVM,
-    penv: *mut *mut c_void,
-    args: *mut c_void,
+	pvm: *mut *mut JavaVM,
+	penv: *mut *mut c_void,
+	args: *mut c_void,
 ) -> jint {
-    let args = &*(args as *mut JavaVMInitArgs);
+	let args = &*(args as *mut JavaVMInitArgs);
 
-    if args.version > JNI_VERSION_1_8 {
-        return JNI_EVERSION;
-    }
+	if args.version > JNI_VERSION_1_8 {
+		return JNI_EVERSION;
+	}
 
-    todo!();
+	todo!();
 
-    rvm_core::init();
-    let mut runtime = Runtime::new();
-    let mut properties = HashMap::new();
+	rvm_core::init();
+	let mut runtime = Runtime::new();
+	let mut properties = HashMap::new();
 
-    for arg in 0..usize::try_from(args.nOptions).unwrap() {
-        let arg = &*(args.options.add(arg));
+	for arg in 0..usize::try_from(args.nOptions).unwrap() {
+		let arg = &*(args.options.add(arg));
 
-        match CStr::from_ptr(arg.optionString).to_str() {
-            Ok("-verbose") => {}
-            Ok("-verbose:class") => {}
-            Ok("-verbose:gc") => {}
-            Ok("-verbose:jni") => {}
-            Ok("vfprintf") => {}
-            Ok("exit") => {}
-            Ok("abort") => {}
-            Ok(x) if x.starts_with("-D") => {
-                let (k, v) = x[2..].split_once('=').unwrap_or((x, ""));
-                properties.insert(k.to_string(), v.to_string());
-            }
-            Ok(_) if args.ignoreUnrecognized == JNI_TRUE => {}
-            other => {
-                panic!("{:?}", other);
-            }
-        }
-    }
+		match CStr::from_ptr(arg.optionString).to_str() {
+			Ok("-verbose") => {}
+			Ok("-verbose:class") => {}
+			Ok("-verbose:gc") => {}
+			Ok("-verbose:jni") => {}
+			Ok("vfprintf") => {}
+			Ok("exit") => {}
+			Ok("abort") => {}
+			Ok(x) if x.starts_with("-D") => {
+				let (k, v) = x[2..].split_once('=').unwrap_or((x, ""));
+				properties.insert(k.to_string(), v.to_string());
+			}
+			Ok(_) if args.ignoreUnrecognized == JNI_TRUE => {}
+			other => {
+				panic!("{:?}", other);
+			}
+		}
+	}
 
-    // We probably want to Arc Mutex this instead
-    let leak = Box::leak(Box::new(runtime));
-    let jvm = JNIInvokeInterface_ {
-        reserved0: leak as *mut Runtime as *mut c_void,
-        reserved1: null_mut(),
-        reserved2: null_mut(),
-        DestroyJavaVM: Some(destroy_java_vm),
-        AttachCurrentThread: Some(attach_current_thread),
-        DetachCurrentThread: Some(detach_current_thread),
-        GetEnv: Some(get_env),
-        AttachCurrentThreadAsDaemon: Some(attach_current_thread_as_daemon),
-    };
-    *pvm = &mut (Box::leak(Box::new(jvm)) as *const JNIInvokeInterface_);
+	// We probably want to Arc Mutex this instead
+	let leak = Box::leak(Box::new(runtime));
+	let jvm = JNIInvokeInterface_ {
+		reserved0: leak as *mut Runtime as *mut c_void,
+		reserved1: null_mut(),
+		reserved2: null_mut(),
+		DestroyJavaVM: Some(destroy_java_vm),
+		AttachCurrentThread: Some(attach_current_thread),
+		DetachCurrentThread: Some(detach_current_thread),
+		GetEnv: Some(get_env),
+		AttachCurrentThreadAsDaemon: Some(attach_current_thread_as_daemon),
+	};
+	*pvm = &mut (Box::leak(Box::new(jvm)) as *const JNIInvokeInterface_);
 
-    JNI_OK
+	JNI_OK
 }
 
 pub unsafe extern "system" fn destroy_java_vm(vm: *mut JavaVM) -> jint {
-    JNI_ERR
+	JNI_ERR
 }
 
-pub unsafe extern "system" fn attach_current_thread(vm: *mut JavaVM,
-                                                    penv: *mut *mut c_void,
-                                                    args: *mut c_void)
-                                                    -> jint {
-    JNI_ERR
+pub unsafe extern "system" fn attach_current_thread(
+	vm: *mut JavaVM,
+	penv: *mut *mut c_void,
+	args: *mut c_void,
+) -> jint {
+	JNI_ERR
 }
 
 pub unsafe extern "system" fn detach_current_thread(vm: *mut JavaVM) -> jint {
-    JNI_ERR
+	JNI_ERR
 }
 
-pub unsafe extern "system" fn get_env(vm: *mut JavaVM,
-                                      penv: *mut *mut c_void,
-                                      version: jint)
-                                      -> jint {
-    JNI_ERR
+pub unsafe extern "system" fn get_env(
+	vm: *mut JavaVM,
+	penv: *mut *mut c_void,
+	version: jint,
+) -> jint {
+	JNI_ERR
 }
 
-pub unsafe extern "system" fn attach_current_thread_as_daemon(vm: *mut JavaVM,
-                                                              penv: *mut *mut c_void,
-                                                              args: *mut c_void)
-                                                              -> jint {
-    JNI_ERR
+pub unsafe extern "system" fn attach_current_thread_as_daemon(
+	vm: *mut JavaVM,
+	penv: *mut *mut c_void,
+	args: *mut c_void,
+) -> jint {
+	JNI_ERR
 }

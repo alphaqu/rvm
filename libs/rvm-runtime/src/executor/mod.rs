@@ -4,6 +4,9 @@ mod locals;
 mod stack;
 
 pub use frame::Frame;
+pub use instruction::BranchOffset;
+pub use instruction::Inst;
+pub use instruction::WideBranchOffset;
 pub use locals::LocalCast;
 pub use locals::LocalVar;
 pub use locals::LocalVariables;
@@ -11,9 +14,6 @@ pub use stack::Stack;
 pub use stack::StackCast;
 pub use stack::StackValue;
 pub use stack::StackValueType;
-pub use instruction::Inst;
-pub use instruction::BranchOffset;
-pub use instruction::WideBranchOffset;
 //
 // use anyways::ext::AuditExt;
 // use tracing::trace;
