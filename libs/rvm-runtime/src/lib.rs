@@ -20,7 +20,6 @@ use std::ops::{Deref, DerefMut};
 
 use inkwell::context::Context;
 use inkwell::execution_engine::{JitFunction, UnsafeFunctionPointer};
-use lazy_static::lazy_static;
 use rvm_consts::MethodAccessFlags;
 use std::sync::RwLock;
 use tracing::{debug, info};
@@ -67,27 +66,31 @@ pub fn ack(m: i32, n: i32) -> i32 {
 #[cfg(feature = "native")]
 pub mod native;
 
-lazy_static! {
-	pub static ref CONTEXT: CringeContext = CringeContext(Context::create());
-	pub static ref RUNTIME: Runtime<'static> = { Runtime::new(&CONTEXT) };
-}
-
 pub extern "C" fn compile_method(
+	runtime: *const Runtime,
 	class: *const c_char,
 	method: *const c_char,
 	desc: *const c_char,
 ) -> *const c_void {
-	let class_name = unsafe { CStr::from_ptr(class) }.to_str().unwrap();
-	let method_name = unsafe { CStr::from_ptr(method) }.to_str().unwrap();
+	let runtime = unsafe { &*runtime };
+	let class = unsafe { CStr::from_ptr(class) }.to_str().unwrap();
+	let method = unsafe { CStr::from_ptr(method) }.to_str().unwrap();
 	let desc = unsafe { CStr::from_ptr(desc) }.to_str().unwrap();
+	compile_method_rust(runtime, class, method, desc)
+}
 
-
+pub fn compile_method_rust(
+	runtime: &Runtime,
+	class_name: &str,
+	method_name: &str,
+	desc: &str,
+) -> *const c_void {
 	let string = format!("{class_name}:{method_name}:{desc}");
 	info!("Resolving {class_name}:{method_name}:{desc}");
-	let class_id = RUNTIME
+	let class_id = runtime
 		.cl
 		.get_class_id(&BinaryName::Object(class_name.to_string()));
-	let class = RUNTIME.cl.get_obj_class(class_id);
+	let class = runtime.cl.get_obj_class(class_id);
 
 	let method_id = class
 		.methods
@@ -100,7 +103,8 @@ pub extern "C" fn compile_method(
 	let method = class.methods.get(method_id);
 
 	if let Some(MethodCode::JVM(code)) = &method.code {
-		let function = RUNTIME.compiler.compile_method(
+		let function = runtime.compiler.compile_method(
+			runtime as *const _,
 			&MethodReference {
 				class_name: class_name.to_string(),
 				method_name: method_name.to_string(),
@@ -338,7 +342,7 @@ impl<'ctx> Runtime<'ctx> {
 	}
 }
 
-pub struct CringeContext(Context);
+pub struct CringeContext(pub Context);
 
 unsafe impl Sync for CringeContext {}
 

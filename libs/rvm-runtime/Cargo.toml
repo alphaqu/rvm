@@ -13,7 +13,6 @@ rvm-consts = { path = "../rvm-consts" }
 inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "master", features = ["llvm14-0"] }
 
 either = "1.8.0"
-lazy_static = "1.4.0"
 thiserror = "1"
 anyways = "0.3"
 parking_lot = { version = "0.12", features = ["deadlock_detection"] }

@@ -1,4 +1,4 @@
-use crate::compile_method;
+use crate::{compile_method, Runtime};
 use crate::compiler::block::{Block, ResolvedBlock};
 use crate::compiler::compiler::{BlockCompiler, FunctionCompiler};
 use crate::compiler::ir_gen::IrNameGen;
@@ -157,7 +157,7 @@ impl<'ctx> Executor<'ctx> {
 		}
 	}
 
-	pub fn prepare(&self, reference: &Reference) {
+	pub fn prepare(&self, runtime: *const Runtime, reference: &Reference) {
 		debug!("Preparing {reference:?}");
 
 		match reference {
@@ -165,13 +165,13 @@ impl<'ctx> Executor<'ctx> {
 				let fn_name = method.call_name();
 				debug!("Checking relay existance {fn_name}");
 				if self.exec.get_function_address(&fn_name).is_err() {
-					self.compile_relay(method);
+					self.compile_relay(runtime, method);
 				}
 			}
 		}
 	}
 
-	fn compile_relay(&self, reference: &MethodReference) {
+	fn compile_relay(&self, runtime: *const Runtime, reference: &MethodReference) {
 		let mut gen = IrNameGen::default();
 
 		let descriptor = reference.desc();
@@ -180,7 +180,7 @@ impl<'ctx> Executor<'ctx> {
 		let name = reference.call_name();
 		debug!("Defining relay {name}");
 		let function = self.module.add_function(&name, fn_type, Some(Linkage::External));
-		let mut block = self.ctx.append_basic_block(function, &gen.next());
+		let block = self.ctx.append_basic_block(function, &gen.next());
 
 		// Write relay
 		let builder = self.ctx.create_builder();
@@ -188,10 +188,10 @@ impl<'ctx> Executor<'ctx> {
 
 		// Create string globals
 		let class_name =
-			unsafe { builder.build_global_string_ptr(&reference.class_name, "class_name") };
+			builder.build_global_string_ptr(&reference.class_name, "class_name");
 		let method_name =
-			unsafe { builder.build_global_string_ptr(&reference.method_name, "method_name") };
-		let desc = unsafe { builder.build_global_string_ptr(&reference.desc, "desc") };
+			builder.build_global_string_ptr(&reference.method_name, "method_name");
+		let desc = builder.build_global_string_ptr(&reference.desc, "desc");
 
 		// Call the resolve_method function
 		let resolve = self.module.get_function("resolve_method").unwrap();
@@ -199,6 +199,7 @@ impl<'ctx> Executor<'ctx> {
 			.build_call(
 				resolve,
 				&[
+					builder.build_int_to_ptr(self.ctx.i64_type().const_int(runtime as u64, false), self.ctx.i8_type().ptr_type(AddressSpace::Generic), "runtime").into(),
 					class_name.as_pointer_value().into(),
 					method_name.as_pointer_value().into(),
 					desc.as_pointer_value().into(),
@@ -238,6 +239,7 @@ impl<'ctx> Executor<'ctx> {
 
 	pub fn compile_method(
 		&self,
+		runtime: *const Runtime,
 		name: &MethodReference,
 		is_static: bool,
 		code: &Code,
@@ -245,9 +247,11 @@ impl<'ctx> Executor<'ctx> {
 	) -> usize {
 		if !self.initialized.load(Ordering::Relaxed) {
 			self.initialized.store(true, Ordering::Relaxed);
+			let runtime = self.ctx.i8_type().ptr_type(AddressSpace::Generic);
 			let string = self.ctx.i8_type().ptr_type(AddressSpace::Generic);
 			let function_type = self.ctx.i8_type().ptr_type(AddressSpace::Generic).fn_type(
 				&[
+					BasicMetadataTypeEnum::PointerType(runtime),
 					BasicMetadataTypeEnum::PointerType(string),
 					BasicMetadataTypeEnum::PointerType(string),
 					BasicMetadataTypeEnum::PointerType(string),
@@ -271,7 +275,7 @@ impl<'ctx> Executor<'ctx> {
 		// STAGE 2: Resolution of blocks.
 		// This resolves things like stack values and makes the code more IR convertible
 		// by partly decompiling the code and creating a concept with variables and temporaries
-		self.resolve_blocks(&mut data, cp);
+		self.resolve_blocks(runtime, &mut data, cp);
 
 		debug!("Compiling {name}");
 		//Self::print_blocks(&data.blocks);
@@ -318,7 +322,7 @@ impl<'ctx> Executor<'ctx> {
 		self.exec.add_module(&self.module).unwrap();
 	}
 
-	fn resolve_blocks(&self, data: &mut BlocksData, cp: &ConstantPool) {
+	fn resolve_blocks(&self, runtime: *const Runtime, data: &mut BlocksData, cp: &ConstantPool) {
 		let mut references = AHashSet::new();
 		for i in &data.compile_order {
 			info!(target: "resolve", "Resolving block {i}");
@@ -341,7 +345,7 @@ impl<'ctx> Executor<'ctx> {
 
 		// define the references
 		for reference in references {
-			self.prepare(&reference);
+			self.prepare(runtime, &reference);
 		}
 	}
 
