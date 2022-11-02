@@ -1,5 +1,10 @@
+use inkwell::context::Context;
+use std::ffi::{c_void, CString};
 use std::fs::read;
+use std::mem::transmute;
 use std::thread::Builder;
+use std::time::Instant;
+use tracing::warn;
 
 use rvm_core::init;
 use rvm_runtime::class::ClassKind;
@@ -7,7 +12,7 @@ use rvm_runtime::executor::{Frame, Stack};
 use rvm_runtime::object::{MethodIdentifier, NativeCode};
 use rvm_runtime::reader::BinaryName;
 
-use rvm_runtime::Runtime;
+use rvm_runtime::{compile_method, Runtime, RUNTIME};
 
 fn main() {
 	Builder::new()
@@ -20,115 +25,233 @@ fn main() {
 		.join()
 		.unwrap();
 }
-fn run() {
-	init();
-	let mut runtime = Runtime::new();
-	// bind
-	{
-		// bindhi(&mut runtime);
-		runtime.cl.register_native(
-			"Main".to_string(),
-			MethodIdentifier {
-				name: "hi".to_string(),
-				descriptor: "(I)V".to_string(),
-			},
-			NativeCode {
-				func: |local_table, runtime| {
-					println!("{:?}", local_table.get_raw(0));
-					Ok(None)
-				},
-				max_locals: 1,
-			},
-		);
-		runtime.cl.register_native(
-			"java/lang/Object".to_string(),
-			MethodIdentifier {
-				name: "registerNatives".to_string(),
-				descriptor: "()V".to_string(),
-			},
-			NativeCode {
-				func: |local_table, runtime| {
-					println!("Object registered natives");
-					Ok(None)
-				},
-				max_locals: 1,
-			},
-		);
 
-		fn fake_define(runtime: &mut Runtime, class_name: &str, name: &str, desc: &str) {
-			runtime.cl.register_native(
-				class_name.to_string(),
-				MethodIdentifier {
-					name: name.to_string(),
-					descriptor: desc.to_string(),
-				},
-				NativeCode {
-					func: |local_table, runtime| Ok(None),
-					max_locals: 1,
-				},
-			);
-		}
-		fake_define(&mut runtime, "java/lang/Object", "hashCode", "()I");
-		fake_define(
-			&mut runtime,
-			"java/lang/Object",
-			"getClass",
-			"()Ljava/lang/Class;",
-		);
-		fake_define(
-			&mut runtime,
-			"java/lang/Object",
-			"clone",
-			"()Ljava/lang/Object;",
-		);
-		fake_define(&mut runtime, "java/lang/Object", "notify", "()V");
-		fake_define(&mut runtime, "java/lang/Object", "notifyAll", "()V");
-		fake_define(&mut runtime, "java/lang/Object", "wait", "(J)V");
-	}
-
-	runtime
-		.cl
-		.load_jar(read("./rt.jar").unwrap(), |v| v == "java/lang/Object.class")
-		.unwrap();
-
-	for jar in std::env::args().skip(1) {
-		runtime.cl.load_jar(read(jar).unwrap(), |_| true).unwrap();
-	}
-
-	let class_id = runtime
-		.cl
-		.get_class_id(&BinaryName::Object("Main".to_string()));
-
-	let class_guard = runtime.cl.get(class_id);
-	if let ClassKind::Object(class) = &class_guard.kind {
-		let method_id = class
-			.methods
-			.get_id(&MethodIdentifier {
-				name: "main".to_string(),
-				descriptor: "([Ljava/lang/String;)V".to_string(),
-			})
-			.unwrap();
-		drop(class_guard);
-
-		let mut stack = Stack::new(1);
-		stack.push(0);
-		let mut frame = Frame::raw_frame(class_id, stack);
-		// args
-		let executor = Frame::new(class_id, method_id, &runtime, &mut frame).unwrap();
-		println!("{:?}", executor.execute(&runtime, method_id));
-		// match executor.run(&runtime) {
-		//             Ok(v) => {
-		//
-		//             }
-		//             Err(err) => {}
-		//         }
-		//         executor.run(&runtime).map_err(|e| {
-		//             let mut out = String::new();
-		//             e.fmt(&mut out, &runtime).unwrap();
-		//             out
-		//         }).unwrap();
+#[inline(always)]
+pub extern "C" fn ack(m: i32, n: i32) -> i32 {
+	if m == 0 {
+		return n + 1;
+	} else if m > 0 && n == 0 {
+		return ack(m - 1, 1);
+	} else if m > 0 && n > 0 {
+		return ack(m - 1, ack(m, n - 1));
+	} else {
+		return n + 1;
 	}
 }
+
+fn run() {
+	init();
+	let mut start = Instant::now();
+	let i = ack(3, 12);
+	println!("{} in {}ms", i, start.elapsed().as_millis());
+
+	// 	// bind
+	// 	{
+	// 		// bindhi(&mut runtime);
+	// 		RUNTIME.cl.register_native(
+	// 			"Main".to_string(),
+	// 			MethodIdentifier {
+	// 				name: "hi".to_string(),
+	// 				descriptor: "(I)V".to_string(),
+	// 			},
+	// 			NativeCode {
+	// 				func: |local_table, runtime| {
+	// 					println!("{:?}", local_table.get_raw(0));
+	// 					Ok(None)
+	// 				},
+	// 				max_locals: 1,
+	// 			},
+	// 		);
+	// 		RUNTIME.cl.register_native(
+	// 			"java/lang/Object".to_string(),
+	// 			MethodIdentifier {
+	// 				name: "registerNatives".to_string(),
+	// 				descriptor: "()V".to_string(),
+	// 			},
+	// 			NativeCode {
+	// 				func: |local_table, runtime| {
+	// 					println!("Object registered natives");
+	// 					Ok(None)
+	// 				},
+	// 				max_locals: 1,
+	// 			},
+	// 		);
+	//
+	// 		fn fake_define(runtime: &mut Runtime, class_name: &str, name: &str, desc: &str) {
+	// 			runtime.cl.register_native(
+	// 				class_name.to_string(),
+	// 				MethodIdentifier {
+	// 					name: name.to_string(),
+	// 					descriptor: desc.to_string(),
+	// 				},
+	// 				NativeCode {
+	// 					func: |local_table, runtime| Ok(None),
+	// 					max_locals: 1,
+	// 				},
+	// 			);
+	// 		}
+	// 		fake_define(&mut RUNTIME, "java/lang/Object", "hashCode", "()I");
+	// 		fake_define(
+	// 			&mut RUNTIME,
+	// 			"java/lang/Object",
+	// 			"getClass",
+	// 			"()Ljava/lang/Class;",
+	// 		);
+	// 		fake_define(
+	// 			&mut RUNTIME,
+	// 			"java/lang/Object",
+	// 			"clone",
+	// 			"()Ljava/lang/Object;",
+	// 		);
+	// 		fake_define(&mut runtime, "java/lang/Object", "notify", "()V");
+	// 		fake_define(&mut runtime, "java/lang/Object", "notifyAll", "()V");
+	// 		fake_define(&mut runtime, "java/lang/Object", "wait", "(J)V");
+	// 	}
+
+	for jar in std::env::args().skip(1) {
+		RUNTIME.cl.load_jar(read(jar).unwrap(), |_| true).unwrap();
+	}
+
+	fn invoke(name: &str, desc: &str) -> *const c_void {
+		compile_method(
+			CString::new("Main").unwrap().as_ptr(),
+			CString::new(name).unwrap().as_ptr(),
+			CString::new(desc).unwrap().as_ptr(),
+		)
+	}
+
+	unsafe {
+		//     public static boolean testZeroEq(int v) {
+		//         v == 0
+		//     }
+		//
+		//     public static boolean testZeroNeq(int v) {
+		//         v != 0
+		//     }
+		//
+		//     public static boolean testZeroGt(int v) {
+		//         v > 0
+		//     }
+		//
+		//     public static boolean testZeroGe(int v) {
+		//         v >= 0
+		//     }
+		//
+		//     public static boolean testZeroLt(int v) {
+		//         v < 0
+		//     }
+		//
+		//     public static boolean testZeroLe(int v) {
+		//         v <= 0
+		//     }
+		// tests
+		let eq = transmute::<_, unsafe extern "C" fn(i32) -> bool>(invoke("testZeroEq", "(I)Z"));
+		assert!(eq(0));
+		assert!(!eq(1));
+		assert!(!eq(-1));
+		assert!(!eq(i32::MIN));
+		assert!(!eq(i32::MAX));
+
+		let neq = transmute::<_, unsafe extern "C" fn(i32) -> bool>(invoke("testZeroNeq", "(I)Z"));
+		assert!(!neq(0));
+		assert!(neq(1));
+		assert!(neq(-1));
+		assert!(neq(i32::MIN));
+		assert!(neq(i32::MAX));
+
+		let gt =transmute::<_, unsafe extern "C" fn(i32) -> bool>(invoke("testZeroGt", "(I)Z"));
+		assert!(!gt(0));
+		assert!(!gt(-1));
+		assert!(!gt(i32::MIN));
+		assert!(gt(1));
+		assert!(gt(i32::MAX));
+
+		let ge = transmute::<_, unsafe extern "C" fn(i32) -> bool>(invoke("testZeroGe", "(I)Z"));
+		assert!(!ge(-1));
+		assert!(!ge(i32::MIN));
+		assert!(ge(0));
+		assert!(ge(1));
+		assert!(ge(i32::MAX));
+
+		let lt = transmute::<_, unsafe extern "C" fn(i32) -> bool>(invoke("testZeroLt", "(I)Z"));
+		assert!(!lt(0));
+		assert!(!lt(1));
+		assert!(!lt(i32::MAX));
+		assert!(lt(-1));
+		assert!(lt(i32::MIN));
+
+		let le =transmute::<_, unsafe extern "C" fn(i32) -> bool>(invoke("testZeroLe", "(I)Z"));
+		assert!(!le(1));
+		assert!(!le(i32::MAX));
+		assert!(le(0));
+		assert!(le(-1));
+		assert!(le(i32::MIN));
+
+		warn!("Invoking");
+		let mut start = Instant::now();
+		let func = transmute::<_, unsafe extern "C" fn() -> i32>(invoke("test", "()I"));
+		let i = func();
+		println!("{} in {}ms", i, start.elapsed().as_millis());
+
+		let func = transmute::<_, unsafe extern "C" fn() -> i32>(invoke("test", "()I"));
+		let mut start = Instant::now();
+		let i = func();
+		println!("{} in {}ms", i, start.elapsed().as_millis());
+	}
+
+	// runtime
+	// 		.cl
+	// 		.load_jar(read("./rt.jar").unwrap(), |v| v == "java/lang/Object.class")
+	// 		.unwrap();
+	//
+	// 	for jar in std::env::args().skip(1) {
+	// 		runtime.cl.load_jar(read(jar).unwrap(), |_| true).unwrap();
+	// 	}
+	//
+	// 	let class_id = runtime
+	// 		.cl
+	// 		.get_class_id(&BinaryName::Object("Main".to_string()));
+	//
+	// 	let class_guard = runtime.cl.get(class_id);
+	// 	if let ClassKind::Object(class) = &class_guard.kind {
+	// 		let method_id = class
+	// 			.methods
+	// 			.get_id(&MethodIdentifier {
+	// 				name: "test".to_string(),
+	// 				descriptor: "()I".to_string(),
+	// 			})
+	// 			.unwrap();
+	// 		drop(class_guard);
+	//
+	// 		let mut stack = Stack::new(1);
+	// 		let mut frame = Frame::raw_frame(class_id, stack);
+	// 		// args
+	// 		let executor = Frame::new(class_id, method_id, &runtime, &mut frame).unwrap();
+	// 		println!("{:?}", executor.execute(&runtime, method_id));
+	//
+	// 		let method = compile_method(
+	// 			CString::new("Main").unwrap(),
+	// 			CString::new("Main").unwrap(),
+	// 			CString::new("Main").unwrap(),
+	// 		);
+	// 		let function = runtime.compile_method::<unsafe extern "C" fn() -> i32>(class_id, method_id);
+	// 		println!("{:?}", unsafe {
+	// 			function.call()
+	// 		});
+	// 		// match executor.run(&runtime) {
+	// 		//             Ok(v) => {
+	// 		//
+	// 		//             }
+	// 		//             Err(err) => {}
+	// 		//         }
+	// 		//         executor.run(&runtime).map_err(|e| {
+	// 		//             let mut out = String::new();
+	// 		//             e.fmt(&mut out, &runtime).unwrap();
+	// 		//             out
+	// 		//         }).unwrap();
+	// 	}
+}
+
 // pub fn value_bind(runtime: &mut Runtime) {
 //     runtime.load_native(
 //         "ClassName".to_string(),

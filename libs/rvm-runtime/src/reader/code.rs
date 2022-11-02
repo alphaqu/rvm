@@ -5,6 +5,8 @@ use crate::reader::IResult;
 use nom::multi::length_count;
 use nom::number::streaming::{be_u16, be_u32};
 use tracing::trace;
+use crate::compiler::Executor;
+
 pub struct Code {
 	pub max_stack: u16,
 	pub max_locals: u16,
@@ -76,23 +78,58 @@ impl Code {
 				}
 				_ => {}
 			};
-			// match op {
-			// 				Instruction::DualComparisonJump { jump } => {
-			// 					jump.union.apply(op_byte, &op_byte_to_op);
-			// 				}
-			// 				Instruction::ComparisonJump { jump } => {
-			// 					jump.union.apply(op_byte, &op_byte_to_op);
-			// 				}
-			// 				Instruction::Jump { jump } => {
-			// 					jump.union.apply(op_byte, &op_byte_to_op);
-			// 				}
-			// 				_ => {}
-			// 			};
 
 			code.insert(op_pos as usize, op);
 			op_pos += 1;
 		}
 
+		//(Compiler {}).compile_blocks(&code, constant_pool);
+		// let mut out = format!("digraph code {{\n");
+		// 
+		// 		writeln!(&mut out, "i0 [shape=Mdiamond]");
+		// 		for (i, inst) in code.iter().enumerate() {
+		// 			writeln!(&mut out, "i{i} [label=\"{inst:?}\"]");
+		// 			match inst {
+		// 				Inst::GOTO_W(offset) => {
+		// 					writeln!(&mut out, "i{i} -> i{};", i as isize + offset.0 as isize);
+		// 				}
+		// 				Inst::IF_ACMPEQ(offset)
+		// 				| Inst::IF_ACMPNE(offset)
+		// 				| Inst::IF_ICMPEQ(offset)
+		// 				| Inst::IF_ICMPNE(offset)
+		// 				| Inst::IF_ICMPLT(offset)
+		// 				| Inst::IF_ICMPGE(offset)
+		// 				| Inst::IF_ICMPGT(offset)
+		// 				| Inst::IF_ICMPLE(offset)
+		// 				| Inst::IFEQ(offset)
+		// 				| Inst::IFNE(offset)
+		// 				| Inst::IFLT(offset)
+		// 				| Inst::IFGE(offset)
+		// 				| Inst::IFGT(offset)
+		// 				| Inst::IFLE(offset)
+		// 				| Inst::IFNONNULL(offset)
+		// 				| Inst::IFNULL(offset)
+		// 				| Inst::GOTO(offset) => {
+		// 					writeln!(&mut out, "i{i} -> i{};", i as isize + offset.0 as isize);
+		// 				}
+		// 				Inst::RETURN |
+		// 				Inst::ARETURN |
+		// 				Inst::DRETURN |
+		// 				Inst::FRETURN |
+		// 				Inst::IRETURN |
+		// 				Inst::LRETURN => {
+		// 					writeln!(&mut out, "i{i} [shape=Msquare]");
+		// 					continue;
+		// 				}
+		// 				_ => {
+		// 				}
+		// 			}
+		// 			writeln!(&mut out, "i{i} -> i{};", i + 1);
+		// 
+		// 		}
+		// 
+		// 		writeln!(&mut out, "}}");
+		// println!("{out}");
 		trace!("Exceptions");
 		let (input, exception_table) = length_count(be_u16, AttributeException::parse)(input)?;
 

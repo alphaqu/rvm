@@ -1,5 +1,7 @@
 use crate::object::ValueType;
 use crate::reader::descriptor::ReturnDescriptor::Field;
+use inkwell::context::Context;
+use inkwell::types::{AnyType, AnyTypeEnum, BasicMetadataTypeEnum, BasicType, FunctionType};
 use std::fmt::{Display, Formatter, Write};
 
 pub trait StrParse: Sized {
@@ -41,6 +43,17 @@ impl StrParse for ReturnDescriptor {
 }
 
 impl ReturnDescriptor {
+	pub fn func<'ctx>(
+		&self,
+		ctx: &'ctx Context,
+		param_types: &[BasicMetadataTypeEnum<'ctx>],
+	) -> FunctionType<'ctx> {
+		match self {
+			Field(value) => value.ty().ir(ctx).fn_type(param_types, false),
+			ReturnDescriptor::Void => ctx.void_type().fn_type(param_types, false),
+		}
+	}
+
 	pub fn is_void(&self) -> bool {
 		match self {
 			ReturnDescriptor::Void => true,
@@ -53,6 +66,21 @@ impl ReturnDescriptor {
 pub struct MethodDescriptor {
 	pub parameters: Vec<ParameterDescriptor>,
 	pub ret: ReturnDescriptor,
+}
+
+impl MethodDescriptor {
+	pub fn func<'ctx>(&self, ctx: &'ctx Context) -> FunctionType<'ctx> {
+		let param_types: Vec<BasicMetadataTypeEnum> = self
+			.parameters
+			.iter()
+			.map(|v| BasicMetadataTypeEnum::from(v.0.ty().ir(ctx)))
+			.collect();
+		
+		match &self.ret {
+			ReturnDescriptor::Field(ty) => ty.ty().ir(ctx).fn_type(&param_types, false),
+			ReturnDescriptor::Void => ctx.void_type().fn_type(&param_types, false),
+		}
+	}
 }
 
 impl StrParse for MethodDescriptor {

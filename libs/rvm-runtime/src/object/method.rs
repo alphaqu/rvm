@@ -1,3 +1,4 @@
+use std::ffi::c_void;
 use crate::executor::{LocalVariables, StackValue};
 use crate::reader::{
 	AttributeInfo, Code, ConstantPool, MethodDescriptor, MethodInfo, NameAndTypeConst,
@@ -101,20 +102,21 @@ impl StorageValue for Method {
 #[derive(Clone)]
 pub enum MethodCode {
 	JVM(Arc<Code>),
+	LLVM(Arc<Code>, *const c_void),
 	Native(NativeCode),
 }
 
 impl MethodCode {
 	pub fn max_locals(&self) -> u16 {
 		match self {
-			MethodCode::JVM(code) => code.max_locals,
+			MethodCode::LLVM(code, _) | MethodCode::JVM(code) => code.max_locals,
 			MethodCode::Native(code) => code.max_locals,
 		}
 	}
 
 	pub fn max_stack(&self) -> u16 {
 		match self {
-			MethodCode::JVM(code) => code.max_stack,
+			MethodCode::LLVM(code, _) | MethodCode::JVM(code) => code.max_stack,
 			MethodCode::Native(code) => 0,
 		}
 	}

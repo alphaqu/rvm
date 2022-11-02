@@ -77,7 +77,7 @@ impl ObjectClass {
 	}
 }
 
-impl Runtime {
+impl<'a> Runtime<'a> {
 	pub fn new_object(&self, class_id: Id<Class>) -> JResult<Object> {
 		let class = self.cl.get_obj_class(class_id);
 

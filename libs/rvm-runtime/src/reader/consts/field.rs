@@ -5,7 +5,7 @@ use crate::{impl_constant, Field};
 use rvm_core::Id;
 use std::cell::Cell;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FieldConst {
 	pub class: ConstPtr<ClassConst>,
 	pub name_and_type: ConstPtr<NameAndTypeConst>,

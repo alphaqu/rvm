@@ -27,6 +27,8 @@ impl MethodInfo {
 		let (input, access_flags) = map_opt(be_u16, MethodAccessFlags::from_bits)(input)?;
 		trace!("name_index");
 		let (input, name_index) = be_u16(input)?;
+		let value = constant_pool.get(ConstPtr::<UTF8Const>::new(name_index));
+		trace!("Parsing method {}", value.as_str());
 		trace!("descriptor");
 		let (input, descriptor_index) = be_u16(input)?;
 		trace!("attribute");

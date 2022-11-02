@@ -47,7 +47,7 @@ impl ArrayClass {
 	}
 }
 
-impl Runtime {
+impl<'a> Runtime<'a> {
 	//pub fn new_array<T: Type>(&self, class_id: Id<Class>, length: i32) -> JResult<Array<T>> {
 	//	// ensure its an array class
 	//	let _ = self.get_array_class(class_id)?;

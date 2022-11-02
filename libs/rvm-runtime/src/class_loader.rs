@@ -119,7 +119,7 @@ impl ClassLoader {
 
 	/// Forcefully loads all classes in a jar. This is used only in bootstrapping the java standard library.
 	pub fn load_jar(
-		&mut self,
+		&self,
 		data: Vec<u8>,
 		filter: impl Fn(&str) -> bool,
 	) -> anyways::Result<()> {
@@ -142,7 +142,7 @@ impl ClassLoader {
 
 	/// Loads a java class to the JVM and injects it to the class table by locking it.
 	#[instrument(skip_all)]
-	pub fn load_class(&mut self, data: Vec<u8>) -> anyways::Result<Id<Class>> {
+	pub fn load_class(&self, data: Vec<u8>) -> anyways::Result<Id<Class>> {
 		let (_, info) =
 			ClassInfo::parse(&data).map_err(|_| Audit::new("Failed to parse classfile"))?;
 		let class = ObjectClass::parse(info, self)?;

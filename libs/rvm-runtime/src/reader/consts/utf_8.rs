@@ -1,7 +1,7 @@
 use crate::impl_constant;
 use std::ops::Deref;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct UTF8Const(pub(crate) String);
 
 impl Deref for UTF8Const {

@@ -4,7 +4,7 @@ use crate::{impl_constant, Class};
 use rvm_core::Id;
 use std::cell::Cell;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ClassConst {
 	pub name: ConstPtr<UTF8Const>,
 	pub link: Cell<Option<Id<Class>>>,

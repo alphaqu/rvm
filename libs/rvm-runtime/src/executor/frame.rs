@@ -66,7 +66,7 @@ impl<'a> Frame<'a> {
 		let code = method.code.clone();
 		drop(class);
 		match code {
-			Some(MethodCode::JVM(code)) => self.execute_jvm(code, runtime),
+			Some(MethodCode::LLVM(code, _)) | Some(MethodCode::JVM(code)) => self.execute_jvm(code, runtime),
 			Some(MethodCode::Native(func)) => (func.func)(&mut self.locals, runtime),
 			None => {
 				panic!("cringe")

@@ -1,7 +1,11 @@
+use std::fmt::{Display, Formatter, Write};
 use crate::executor::StackValue;
 use crate::Ref;
 use std::mem::size_of;
 use std::ptr::{read, write};
+use inkwell::context::Context;
+use inkwell::types::{BasicType, BasicTypeEnum};
+use inkwell::values::BasicValueEnum;
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Debug)]
 pub enum Value {
@@ -46,6 +50,28 @@ pub enum ValueType {
 }
 
 impl ValueType {
+	pub fn is_category_2(&self) -> bool {
+		match self {
+			ValueType::Long => true,
+			ValueType::Double => true,
+			_ => false,
+		}
+	}
+	
+	pub fn ir<'a>(&self, ctx: &'a Context) -> BasicTypeEnum<'a> {
+		match self {
+			ValueType::Boolean => ctx.bool_type().as_basic_type_enum(),
+			ValueType::Byte => ctx.i8_type().as_basic_type_enum(),
+			ValueType::Short => ctx.i16_type().as_basic_type_enum(),
+			ValueType::Int => ctx.i32_type().as_basic_type_enum(),
+			ValueType::Long => ctx.i64_type().as_basic_type_enum(),
+			ValueType::Char => ctx.i16_type().as_basic_type_enum(),
+			ValueType::Float => ctx.f32_type().as_basic_type_enum(),
+			ValueType::Double => ctx.f64_type().as_basic_type_enum(),
+			ValueType::Reference => ctx.i32_type().as_basic_type_enum(),
+		}
+	}
+	
 	pub fn new_val(&self, stack: StackValue) -> Value {
 		match (self, stack) {
 			(ValueType::Boolean, StackValue::Int(v)) => Value::Boolean(v != 0),
@@ -113,6 +139,21 @@ impl ValueType {
 	}
 }
 
+impl Display for ValueType {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		match self {
+			ValueType::Boolean => f.write_str("boolean"),
+			ValueType::Byte => f.write_str("byte"),
+			ValueType::Short => f.write_str("short"),
+			ValueType::Int => f.write_str("int"),
+			ValueType::Long => f.write_str("long"),
+			ValueType::Char => f.write_str("char"),
+			ValueType::Float => f.write_str("float"),
+			ValueType::Double => f.write_str("double"),
+			ValueType::Reference => f.write_str("ref"),
+		}
+	}
+}
 pub trait Type: Sized {
 	fn ty() -> ValueType;
 	unsafe fn write(ptr: *mut u8, value: Self);

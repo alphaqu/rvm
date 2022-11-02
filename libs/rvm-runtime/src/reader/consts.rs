@@ -100,6 +100,7 @@ impl ConstantPool {
 	}
 }
 
+#[derive(Debug)]
 pub enum ConstantInfo {
 	Class(ClassConst),
 	Field(FieldConst),
