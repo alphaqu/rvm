@@ -31,6 +31,7 @@ use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::mem::{forget, transmute};
 use std::path::Path;
+use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, Ordering};
 use inkwell::targets::{CodeModel, InitializationConfig, RelocMode, Target, TargetMachine, TargetTriple};
 use tracing::{debug, error, info};
@@ -157,7 +158,7 @@ impl<'ctx> Executor<'ctx> {
 		}
 	}
 
-	pub fn prepare(&self, runtime: *const Runtime, reference: &Reference) {
+	pub fn prepare(&self, runtime: &Pin<Box<Runtime>>, reference: &Reference) {
 		debug!("Preparing {reference:?}");
 
 		match reference {
@@ -171,7 +172,7 @@ impl<'ctx> Executor<'ctx> {
 		}
 	}
 
-	fn compile_relay(&self, runtime: *const Runtime, reference: &MethodReference) {
+	fn compile_relay(&self, runtime: &Pin<Box<Runtime>>, reference: &MethodReference) {
 		let mut gen = IrNameGen::default();
 
 		let descriptor = reference.desc();
@@ -199,7 +200,7 @@ impl<'ctx> Executor<'ctx> {
 			.build_call(
 				resolve,
 				&[
-					builder.build_int_to_ptr(self.ctx.i64_type().const_int(runtime as u64, false), self.ctx.i8_type().ptr_type(AddressSpace::Generic), "runtime").into(),
+					builder.build_int_to_ptr(self.ctx.i64_type().const_int(runtime as *const _ as u64, false), self.ctx.i8_type().ptr_type(AddressSpace::Generic), "runtime").into(),
 					class_name.as_pointer_value().into(),
 					method_name.as_pointer_value().into(),
 					desc.as_pointer_value().into(),
@@ -239,7 +240,7 @@ impl<'ctx> Executor<'ctx> {
 
 	pub fn compile_method(
 		&self,
-		runtime: *const Runtime,
+		runtime: &Pin<Box<Runtime>>,
 		name: &MethodReference,
 		is_static: bool,
 		code: &Code,
@@ -322,7 +323,7 @@ impl<'ctx> Executor<'ctx> {
 		self.exec.add_module(&self.module).unwrap();
 	}
 
-	fn resolve_blocks(&self, runtime: *const Runtime, data: &mut BlocksData, cp: &ConstantPool) {
+	fn resolve_blocks(&self, runtime: &Pin<Box<Runtime>>, data: &mut BlocksData, cp: &ConstantPool) {
 		let mut references = AHashSet::new();
 		for i in &data.compile_order {
 			info!(target: "resolve", "Resolving block {i}");

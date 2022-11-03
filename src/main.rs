@@ -1,6 +1,7 @@
 use std::ffi::{c_void, CString};
 use std::fs::read;
 use std::mem::transmute;
+use std::pin::Pin;
 use std::thread::Builder;
 use std::time::Instant;
 use inkwell::context::Context;
@@ -8,7 +9,7 @@ use inkwell::context::Context;
 use tracing::warn;
 
 use rvm_core::init;
-use rvm_runtime::{compile_method, compile_method_rust, CringeContext, Runtime};
+use rvm_runtime::{compile_method_rust, CringeContext, Runtime};
 
 fn main() {
 	Builder::new()
@@ -37,8 +38,8 @@ pub extern "C" fn ack(m: i32, n: i32) -> i32 {
 
 fn run() {
 	init();
-	let context = Box::leak(Box::new(CringeContext(Context::create())));
-	let runtime = Box::leak(Box::new(Runtime::new(context)));
+	let context = Box::pin(CringeContext(Context::create()));
+	let runtime = Box::pin(Runtime::new(&context));
 	let mut start = Instant::now();
 	let i = ack(3, 12);
 	println!("{} in {}ms", i, start.elapsed().as_millis());
@@ -110,7 +111,7 @@ fn run() {
 		runtime.cl.load_jar(read(jar).unwrap(), |_| true).unwrap();
 	}
 
-	fn invoke(runtime: &'static Runtime, name: &str, desc: &str) -> *const c_void {
+	fn invoke(runtime: &Pin<Box<Runtime>>, name: &str, desc: &str) -> *const c_void {
 		compile_method_rust(
 			runtime,
 			"Main",
@@ -144,42 +145,42 @@ fn run() {
 		//         v <= 0
 		//     }
 		// tests
-		let eq = transmute::<_, unsafe extern "C" fn(i32) -> bool>(invoke(runtime, "testZeroEq", "(I)Z"));
+		let eq = transmute::<_, unsafe extern "C" fn(i32) -> bool>(invoke(&runtime, "testZeroEq", "(I)Z"));
 		assert!(eq(0));
 		assert!(!eq(1));
 		assert!(!eq(-1));
 		assert!(!eq(i32::MIN));
 		assert!(!eq(i32::MAX));
 
-		let neq = transmute::<_, unsafe extern "C" fn(i32) -> bool>(invoke(runtime, "testZeroNeq", "(I)Z"));
+		let neq = transmute::<_, unsafe extern "C" fn(i32) -> bool>(invoke(&runtime, "testZeroNeq", "(I)Z"));
 		assert!(!neq(0));
 		assert!(neq(1));
 		assert!(neq(-1));
 		assert!(neq(i32::MIN));
 		assert!(neq(i32::MAX));
 
-		let gt = transmute::<_, unsafe extern "C" fn(i32) -> bool>(invoke(runtime, "testZeroGt", "(I)Z"));
+		let gt = transmute::<_, unsafe extern "C" fn(i32) -> bool>(invoke(&runtime, "testZeroGt", "(I)Z"));
 		assert!(!gt(0));
 		assert!(!gt(-1));
 		assert!(!gt(i32::MIN));
 		assert!(gt(1));
 		assert!(gt(i32::MAX));
 
-		let ge = transmute::<_, unsafe extern "C" fn(i32) -> bool>(invoke(runtime, "testZeroGe", "(I)Z"));
+		let ge = transmute::<_, unsafe extern "C" fn(i32) -> bool>(invoke(&runtime, "testZeroGe", "(I)Z"));
 		assert!(!ge(-1));
 		assert!(!ge(i32::MIN));
 		assert!(ge(0));
 		assert!(ge(1));
 		assert!(ge(i32::MAX));
 
-		let lt = transmute::<_, unsafe extern "C" fn(i32) -> bool>(invoke(runtime, "testZeroLt", "(I)Z"));
+		let lt = transmute::<_, unsafe extern "C" fn(i32) -> bool>(invoke(&runtime, "testZeroLt", "(I)Z"));
 		assert!(!lt(0));
 		assert!(!lt(1));
 		assert!(!lt(i32::MAX));
 		assert!(lt(-1));
 		assert!(lt(i32::MIN));
 
-		let le = transmute::<_, unsafe extern "C" fn(i32) -> bool>(invoke(runtime, "testZeroLe", "(I)Z"));
+		let le = transmute::<_, unsafe extern "C" fn(i32) -> bool>(invoke(&runtime, "testZeroLe", "(I)Z"));
 		assert!(!le(1));
 		assert!(!le(i32::MAX));
 		assert!(le(0));
@@ -188,11 +189,11 @@ fn run() {
 
 		warn!("Invoking");
 		let mut start = Instant::now();
-		let func = transmute::<_, unsafe extern "C" fn() -> i32>(invoke(runtime, "test", "()I"));
+		let func = transmute::<_, unsafe extern "C" fn() -> i32>(invoke(&runtime, "test", "()I"));
 		let i = func();
 		println!("{} in {}ms", i, start.elapsed().as_millis());
 
-		let func = transmute::<_, unsafe extern "C" fn() -> i32>(invoke(runtime, "test", "()I"));
+		let func = transmute::<_, unsafe extern "C" fn() -> i32>(invoke(&runtime, "test", "()I"));
 		let mut start = Instant::now();
 		let i = func();
 		println!("{} in {}ms", i, start.elapsed().as_millis());

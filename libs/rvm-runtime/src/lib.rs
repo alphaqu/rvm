@@ -17,6 +17,7 @@ use ahash::HashMap;
 use std::ffi::{c_char, c_void, CStr, CString};
 use std::mem::{transmute, transmute_copy};
 use std::ops::{Deref, DerefMut};
+use std::pin::Pin;
 
 use inkwell::context::Context;
 use inkwell::execution_engine::{JitFunction, UnsafeFunctionPointer};
@@ -67,7 +68,7 @@ pub fn ack(m: i32, n: i32) -> i32 {
 pub mod native;
 
 pub extern "C" fn compile_method(
-	runtime: *const Runtime,
+	runtime: *const Pin<Box<Runtime>>,
 	class: *const c_char,
 	method: *const c_char,
 	desc: *const c_char,
@@ -80,7 +81,7 @@ pub extern "C" fn compile_method(
 }
 
 pub fn compile_method_rust(
-	runtime: &Runtime,
+	runtime: &Pin<Box<Runtime>>,
 	class_name: &str,
 	method_name: &str,
 	desc: &str,
@@ -104,7 +105,7 @@ pub fn compile_method_rust(
 
 	if let Some(MethodCode::JVM(code)) = &method.code {
 		let function = runtime.compiler.compile_method(
-			runtime as *const _,
+			runtime,
 			&MethodReference {
 				class_name: class_name.to_string(),
 				method_name: method_name.to_string(),
