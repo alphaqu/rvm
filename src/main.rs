@@ -51,12 +51,12 @@ macro_rules! java {
 		concat!("(", $(java!($param)),+, ")", java!($return))
 	};
 
-	(compile $runtime:expr, $class:expr, fn $name:ident() -> $return:tt) => {
-		transmute::<_, unsafe extern "C" fn() -> $return>($runtime.compile_method($class, stringify!($name), java!(descriptor $return)))
+	(compile $runtime:expr, fn $class:ident.$name:ident() -> $return:tt) => {
+		transmute::<_, unsafe extern "C" fn() -> $return>($runtime.compile_method(stringify!($class), stringify!($name), java!(descriptor $return)))
 	};
 
-	(compile $runtime:expr, $class:expr, fn $name:ident($($param:tt),+) -> $return:tt) => {
-		transmute::<_, unsafe extern "C" fn($($param),+) -> $return>($runtime.compile_method($class, stringify!($name), java!(descriptor $return, $($param),+)))
+	(compile $runtime:expr, fn $class:ident.$name:ident($($param:tt),+) -> $return:tt) => {
+		transmute::<_, unsafe extern "C" fn($($param),+) -> $return>($runtime.compile_method(stringify!($class), stringify!($name), java!(descriptor $return, $($param),+)))
 	};
 }
 
@@ -140,7 +140,7 @@ fn run() {
 
 	unsafe {
 		// v == 0
-		let eq = java!(compile runtime, "Main", fn testZeroEq(i32) -> bool);
+		let eq = java!(compile runtime, fn Main.testZeroEq(i32) -> bool);
 		assert!(eq(0));
 		assert!(!eq(1));
 		assert!(!eq(-1));
@@ -148,7 +148,7 @@ fn run() {
 		assert!(!eq(i32::MAX));
 
 		// v != 0
-		let neq = java!(compile runtime, "Main", fn testZeroNeq(i32) -> bool);
+		let neq = java!(compile runtime, fn Main.testZeroNeq(i32) -> bool);
 		assert!(!neq(0));
 		assert!(neq(1));
 		assert!(neq(-1));
@@ -156,7 +156,7 @@ fn run() {
 		assert!(neq(i32::MAX));
 
 		// v > 0
-		let gt = java!(compile runtime, "Main", fn testZeroGt(i32) -> bool);
+		let gt = java!(compile runtime, fn Main.testZeroGt(i32) -> bool);
 		assert!(!gt(0));
 		assert!(!gt(-1));
 		assert!(!gt(i32::MIN));
@@ -164,7 +164,7 @@ fn run() {
 		assert!(gt(i32::MAX));
 
 		// v >= 0
-		let ge = java!(compile runtime, "Main", fn testZeroGe(i32) -> bool);
+		let ge = java!(compile runtime, fn Main.testZeroGe(i32) -> bool);
 		assert!(!ge(-1));
 		assert!(!ge(i32::MIN));
 		assert!(ge(0));
@@ -172,7 +172,7 @@ fn run() {
 		assert!(ge(i32::MAX));
 
 		// v < 0
-		let lt = java!(compile runtime, "Main", fn testZeroLt(i32) -> bool);
+		let lt = java!(compile runtime, fn Main.testZeroLt(i32) -> bool);
 		assert!(!lt(0));
 		assert!(!lt(1));
 		assert!(!lt(i32::MAX));
@@ -180,7 +180,7 @@ fn run() {
 		assert!(lt(i32::MIN));
 
 		// v <= 0
-		let le = java!(compile runtime, "Main", fn testZeroLe(i32) -> bool);
+		let le = java!(compile runtime, fn Main.testZeroLe(i32) -> bool);
 		assert!(!le(1));
 		assert!(!le(i32::MAX));
 		assert!(le(0));
@@ -189,11 +189,11 @@ fn run() {
 
 		info!("Invoking");
 		let start = Instant::now();
-		let func = java!(compile runtime, "Main", fn test() -> i32);
+		let func = java!(compile runtime, fn Main.test() -> i32);
 		let i = func();
 		println!("{} in {}ms", i, start.elapsed().as_millis());
 
-		let func = java!(compile runtime, "Main", fn test() -> i32);
+		let func = java!(compile runtime, fn Main.test() -> i32);
 		let start = Instant::now();
 		let i = func();
 		println!("{} in {}ms", i, start.elapsed().as_millis());
