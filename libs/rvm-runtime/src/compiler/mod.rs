@@ -1,4 +1,4 @@
-use crate::{compile_method, Runtime};
+use crate::Runtime;
 use crate::compiler::block::{Block, ResolvedBlock};
 use crate::compiler::compiler::{BlockCompiler, FunctionCompiler};
 use crate::compiler::ir_gen::IrNameGen;
@@ -26,7 +26,7 @@ use inkwell::values::{
 	InstructionValue, PointerValue,
 };
 use inkwell::{AddressSpace, OptimizationLevel};
-use std::ffi::c_void;
+use std::ffi::{c_char, c_void, CStr};
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::mem::{forget, transmute};
@@ -34,7 +34,7 @@ use std::path::Path;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, Ordering};
 use inkwell::targets::{CodeModel, InitializationConfig, RelocMode, Target, TargetMachine, TargetTriple};
-use tracing::{debug, error, info};
+use tracing::{debug, event, info, instrument, Level, trace};
 use crate::compiler::op::jump::JumpTask;
 
 mod block;
@@ -262,8 +262,22 @@ impl<'ctx> Executor<'ctx> {
 			let value = self
 				.module
 				.add_function("resolve_method", function_type, Some(Linkage::External));
+
+			extern "C" fn compile_method_c(
+				runtime: *const Pin<Box<Runtime>>,
+				class: *const c_char,
+				method: *const c_char,
+				desc: *const c_char,
+			) -> *const c_void {
+				let runtime = unsafe { &*runtime };
+				let class = unsafe { CStr::from_ptr(class) }.to_str().unwrap();
+				let method = unsafe { CStr::from_ptr(method) }.to_str().unwrap();
+				let desc = unsafe { CStr::from_ptr(desc) }.to_str().unwrap();
+				runtime.compile_method(class, method, desc)
+			}
+
 			self.exec
-				.add_global_mapping(&value, compile_method as usize);
+				.add_global_mapping(&value, compile_method_c as usize);
 		}
 
 		debug!("Computing {name}");
@@ -295,6 +309,7 @@ impl<'ctx> Executor<'ctx> {
 		function
 	}
 
+	#[instrument(name = "Computing blocks", skip_all, fields(target=format!("{}/{}:{}", name.class_name, name.method_name, name.desc)))]
 	fn compile_blocks(&self, name: &MethodReference, is_static: bool, data: BlocksData<'_, 'ctx>) {
 		let mut block_compiler = FunctionCompiler::new(
 			self.ctx,
@@ -315,8 +330,11 @@ impl<'ctx> Executor<'ctx> {
 
 	//	self.module.print_to_stderr();
 		if self.mpm.run_on(&self.module) {
-			error!("optimized module");
-			self.module.print_to_stderr();
+			debug!("optimized module");
+
+			for line in self.module.print_to_string().to_string().lines() {
+				trace!("{line}");
+			}
 		}
 
 		self.exec.remove_module(&self.module).unwrap();

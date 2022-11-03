@@ -17,7 +17,7 @@ pub fn init() {
 		initialized
 	} {
 		let filter = filter::Targets::new()
-			.with_default(Level::ERROR)
+			.with_default(Level::TRACE)
 			.with_target("gc", Level::INFO)
 			.with_target("exec", Level::INFO);
 

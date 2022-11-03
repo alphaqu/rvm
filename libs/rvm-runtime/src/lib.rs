@@ -67,61 +67,6 @@ pub fn ack(m: i32, n: i32) -> i32 {
 #[cfg(feature = "native")]
 pub mod native;
 
-pub extern "C" fn compile_method(
-	runtime: *const Pin<Box<Runtime>>,
-	class: *const c_char,
-	method: *const c_char,
-	desc: *const c_char,
-) -> *const c_void {
-	let runtime = unsafe { &*runtime };
-	let class = unsafe { CStr::from_ptr(class) }.to_str().unwrap();
-	let method = unsafe { CStr::from_ptr(method) }.to_str().unwrap();
-	let desc = unsafe { CStr::from_ptr(desc) }.to_str().unwrap();
-	compile_method_rust(runtime, class, method, desc)
-}
-
-pub fn compile_method_rust(
-	runtime: &Pin<Box<Runtime>>,
-	class_name: &str,
-	method_name: &str,
-	desc: &str,
-) -> *const c_void {
-	let string = format!("{class_name}:{method_name}:{desc}");
-	info!("Resolving {class_name}:{method_name}:{desc}");
-	let class_id = runtime
-		.cl
-		.get_class_id(&BinaryName::Object(class_name.to_string()));
-	let class = runtime.cl.get_obj_class(class_id);
-
-	let method_id = class
-		.methods
-		.get_id(&MethodIdentifier {
-			name: method_name.to_string(),
-			descriptor: desc.to_string(),
-		})
-		.expect("haha");
-
-	let method = class.methods.get(method_id);
-
-	if let Some(MethodCode::JVM(code)) = &method.code {
-		let function = runtime.compiler.compile_method(
-			runtime,
-			&MethodReference {
-				class_name: class_name.to_string(),
-				method_name: method_name.to_string(),
-				desc: desc.to_string()
-			},
-			method.flags.contains(MethodAccessFlags::STATIC),
-			&**code,
-			&class.cp,
-		) as *const c_void;
-		info!("Resolved {string}");
-		return function;
-	}
-
-	panic!("native method cringe");
-}
-
 pub struct Runtime<'ctx> {
 	pub cl: ClassLoader,
 	pub gc: RwLock<GarbageCollector>,
@@ -340,6 +285,48 @@ impl<'ctx> Runtime<'ctx> {
 		//         }
 
 		panic!("Failed to resolve method. SUPER not yet supported")
+	}
+
+	pub fn compile_method(
+		self: &Pin<Box<Self>>,
+		class_name: &str,
+		method_name: &str,
+		desc: &str,
+	) -> *const c_void {
+		let string = format!("{class_name}:{method_name}:{desc}");
+		info!("Resolving {class_name}:{method_name}:{desc}");
+		let class_id = self
+			.cl
+			.get_class_id(&BinaryName::Object(class_name.to_string()));
+		let class = self.cl.get_obj_class(class_id);
+
+		let method_id = class
+			.methods
+			.get_id(&MethodIdentifier {
+				name: method_name.to_string(),
+				descriptor: desc.to_string(),
+			})
+			.expect("Method not found");
+
+		let method = class.methods.get(method_id);
+
+		if let Some(MethodCode::JVM(code)) = &method.code {
+			let function = self.compiler.compile_method(
+				self,
+				&MethodReference {
+					class_name: class_name.to_string(),
+					method_name: method_name.to_string(),
+					desc: desc.to_string()
+				},
+				method.flags.contains(MethodAccessFlags::STATIC),
+				&**code,
+				&class.cp,
+			) as *const c_void;
+			info!("Resolved {string}");
+			return function;
+		}
+
+		panic!("native method cringe");
 	}
 }
 

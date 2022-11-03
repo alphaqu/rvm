@@ -127,7 +127,7 @@ impl ValueDesc {
 			}
 			_ => {
 				if let Some(base) = BaseDesc::parse(desc).map(|v| (ValueDesc::Base(v), 1)) {
-					return Some(base);
+					base
 				} else {
 					let end = desc.find(';')?;
 					(ValueDesc::Object(desc[1..end].to_string()), end + 1)

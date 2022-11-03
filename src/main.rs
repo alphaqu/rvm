@@ -1,15 +1,13 @@
-use std::ffi::{c_void, CString};
 use std::fs::read;
 use std::mem::transmute;
-use std::pin::Pin;
 use std::thread::Builder;
 use std::time::Instant;
-use inkwell::context::Context;
 
-use tracing::warn;
+use inkwell::context::Context;
+use tracing::info;
 
 use rvm_core::init;
-use rvm_runtime::{compile_method_rust, CringeContext, Runtime};
+use rvm_runtime::{CringeContext, Runtime};
 
 fn main() {
 	Builder::new()
@@ -25,24 +23,53 @@ fn main() {
 
 #[inline(always)]
 pub extern "C" fn ack(m: i32, n: i32) -> i32 {
-	if m == 0 {
-		return n + 1;
+	return if m == 0 {
+		n + 1
 	} else if m > 0 && n == 0 {
-		return ack(m - 1, 1);
+		ack(m - 1, 1)
 	} else if m > 0 && n > 0 {
-		return ack(m - 1, ack(m, n - 1));
+		ack(m - 1, ack(m, n - 1))
 	} else {
-		return n + 1;
-	}
+		n + 1
+	};
+}
+
+macro_rules! java {
+	(()) => {"V"};
+    (bool) => {"Z"};
+    (i8) => {"B"};
+    (i16) => {"S"};
+    (i32) => {"I"};
+    (f32) => {"F"};
+    (i64) => {"J"};
+    (f64) => {"D"};
+
+	(descriptor $return:tt) => {
+		concat!("()", java!($return))
+	};
+	(descriptor $return:tt, $($param:tt),+) => {
+		concat!("(", $(java!($param)),+, ")", java!($return))
+	};
+
+	(compile $runtime:expr, $class:expr, fn $name:ident() -> $return:tt) => {
+		transmute::<_, unsafe extern "C" fn() -> $return>($runtime.compile_method($class, stringify!($name), java!(descriptor $return)))
+	};
+
+	(compile $runtime:expr, $class:expr, fn $name:ident($($param:tt),+) -> $return:tt) => {
+		transmute::<_, unsafe extern "C" fn($($param),+) -> $return>($runtime.compile_method($class, stringify!($name), java!(descriptor $return, $($param),+)))
+	};
 }
 
 fn run() {
 	init();
 	let context = Box::pin(CringeContext(Context::create()));
 	let runtime = Box::pin(Runtime::new(&context));
-	let mut start = Instant::now();
-	let i = ack(3, 12);
-	println!("{} in {}ms", i, start.elapsed().as_millis());
+
+	{
+		let start = Instant::now();
+		let i = ack(3, 12);
+		println!("{} in {}ms", i, start.elapsed().as_millis());
+	}
 
 	// 	// bind
 	// 	{
@@ -111,90 +138,63 @@ fn run() {
 		runtime.cl.load_jar(read(jar).unwrap(), |_| true).unwrap();
 	}
 
-	fn invoke(runtime: &Pin<Box<Runtime>>, name: &str, desc: &str) -> *const c_void {
-		compile_method_rust(
-			runtime,
-			"Main",
-			name,
-			desc,
-		)
-	}
-
 	unsafe {
-		//     public static boolean testZeroEq(int v) {
-		//         v == 0
-		//     }
-		//
-		//     public static boolean testZeroNeq(int v) {
-		//         v != 0
-		//     }
-		//
-		//     public static boolean testZeroGt(int v) {
-		//         v > 0
-		//     }
-		//
-		//     public static boolean testZeroGe(int v) {
-		//         v >= 0
-		//     }
-		//
-		//     public static boolean testZeroLt(int v) {
-		//         v < 0
-		//     }
-		//
-		//     public static boolean testZeroLe(int v) {
-		//         v <= 0
-		//     }
-		// tests
-		let eq = transmute::<_, unsafe extern "C" fn(i32) -> bool>(invoke(&runtime, "testZeroEq", "(I)Z"));
+		// v == 0
+		let eq = java!(compile runtime, "Main", fn testZeroEq(i32) -> bool);
 		assert!(eq(0));
 		assert!(!eq(1));
 		assert!(!eq(-1));
 		assert!(!eq(i32::MIN));
 		assert!(!eq(i32::MAX));
 
-		let neq = transmute::<_, unsafe extern "C" fn(i32) -> bool>(invoke(&runtime, "testZeroNeq", "(I)Z"));
+		// v != 0
+		let neq = java!(compile runtime, "Main", fn testZeroNeq(i32) -> bool);
 		assert!(!neq(0));
 		assert!(neq(1));
 		assert!(neq(-1));
 		assert!(neq(i32::MIN));
 		assert!(neq(i32::MAX));
 
-		let gt = transmute::<_, unsafe extern "C" fn(i32) -> bool>(invoke(&runtime, "testZeroGt", "(I)Z"));
+		// v > 0
+		let gt = java!(compile runtime, "Main", fn testZeroGt(i32) -> bool);
 		assert!(!gt(0));
 		assert!(!gt(-1));
 		assert!(!gt(i32::MIN));
 		assert!(gt(1));
 		assert!(gt(i32::MAX));
 
-		let ge = transmute::<_, unsafe extern "C" fn(i32) -> bool>(invoke(&runtime, "testZeroGe", "(I)Z"));
+		// v >= 0
+		let ge = java!(compile runtime, "Main", fn testZeroGe(i32) -> bool);
 		assert!(!ge(-1));
 		assert!(!ge(i32::MIN));
 		assert!(ge(0));
 		assert!(ge(1));
 		assert!(ge(i32::MAX));
 
-		let lt = transmute::<_, unsafe extern "C" fn(i32) -> bool>(invoke(&runtime, "testZeroLt", "(I)Z"));
+		// v < 0
+		let lt = java!(compile runtime, "Main", fn testZeroLt(i32) -> bool);
 		assert!(!lt(0));
 		assert!(!lt(1));
 		assert!(!lt(i32::MAX));
 		assert!(lt(-1));
 		assert!(lt(i32::MIN));
 
-		let le = transmute::<_, unsafe extern "C" fn(i32) -> bool>(invoke(&runtime, "testZeroLe", "(I)Z"));
+		// v <= 0
+		let le = java!(compile runtime, "Main", fn testZeroLe(i32) -> bool);
 		assert!(!le(1));
 		assert!(!le(i32::MAX));
 		assert!(le(0));
 		assert!(le(-1));
 		assert!(le(i32::MIN));
 
-		warn!("Invoking");
-		let mut start = Instant::now();
-		let func = transmute::<_, unsafe extern "C" fn() -> i32>(invoke(&runtime, "test", "()I"));
+		info!("Invoking");
+		let start = Instant::now();
+		let func = java!(compile runtime, "Main", fn test() -> i32);
 		let i = func();
 		println!("{} in {}ms", i, start.elapsed().as_millis());
 
-		let func = transmute::<_, unsafe extern "C" fn() -> i32>(invoke(&runtime, "test", "()I"));
-		let mut start = Instant::now();
+		let func = java!(compile runtime, "Main", fn test() -> i32);
+		let start = Instant::now();
 		let i = func();
 		println!("{} in {}ms", i, start.elapsed().as_millis());
 	}
