@@ -1,13 +1,10 @@
 use std::fs::read;
-use std::mem::transmute;
 use std::thread::Builder;
-use std::time::Instant;
 
 use inkwell::context::Context;
-use tracing::info;
 
 use rvm_core::init;
-use rvm_runtime::{CringeContext, java, Runtime};
+use rvm_runtime::{CringeContext, Runtime};
 
 fn main() {
 	Builder::new()
@@ -93,16 +90,14 @@ fn run() {
 		runtime.cl.load_jar(read(jar).unwrap(), |_| true).unwrap();
 	}
 
+	runtime
+		.cl
+		.load_jar(read("./rt.jar").unwrap(), |v| v == "java/lang/Object.class")
+		.unwrap();
 
-
-	// runtime
-	// 		.cl
-	// 		.load_jar(read("./rt.jar").unwrap(), |v| v == "java/lang/Object.class")
-	// 		.unwrap();
-	//
-	// 	for jar in std::env::args().skip(1) {
-	// 		runtime.cl.load_jar(read(jar).unwrap(), |_| true).unwrap();
-	// 	}
+	for jar in std::env::args().skip(1) {
+		runtime.cl.load_jar(read(jar).unwrap(), |_| true).unwrap();
+	}
 	//
 	// 	let class_id = runtime
 	// 		.cl

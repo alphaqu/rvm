@@ -42,7 +42,7 @@ pub fn compile(runtime: &Runtime, sources: &[(&str, &str)]) -> Result<()> {
 		std::fs::create_dir_all(&root)?;
 
 		let mut process = std::process::Command::new("javac");
-		process.current_dir(&root).arg("-verbose");
+		process.current_dir(&root).arg("-Xlint");
 
 		for &(name, source) in sources {
 			let mut file = root.clone();
