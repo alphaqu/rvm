@@ -1,10 +1,10 @@
 use std::fmt::{Display, Formatter};
 use std::mem::transmute;
-use inkwell::values::{BasicValue, BasicValueEnum};
+
+use inkwell::values::BasicValue;
+
 use crate::compiler::compiler::{BlockCompiler, LocalId};
-use crate::compiler::op::{Task};
-use crate::compiler::op::combine::{CombineTask, CombineKind};
-use crate::compiler::op::constant::ConstTask;
+use crate::compiler::op::Task;
 use crate::compiler::resolver::BlockResolver;
 use crate::executor::Inst;
 use crate::object::ValueType;
@@ -12,9 +12,9 @@ use crate::object::ValueType;
 #[derive(Clone, Debug)]
 pub struct LoadVariableTask(pub Var);
 
-impl Into<Task> for LoadVariableTask {
-	fn into(self) -> Task {
-		Task::LoadVariable(self)
+impl From<LoadVariableTask> for Task {
+	fn from(val: LoadVariableTask) -> Self {
+		Task::LoadVariable(val)
 	}
 }
 
@@ -67,11 +67,9 @@ impl LoadVariableTask {
 		self.0.ty
 	}
 
-	pub fn compile<'b, 'a>(&self, bc: &mut BlockCompiler<'b, 'a>)  {
+	pub fn compile<'b, 'a>(&self, bc: &mut BlockCompiler<'b, 'a>) {
 		let ptr = match self.0.data {
-			VarData::Local(id) => {
-				bc.get_local(id).value
-			}
+			VarData::Local(id) => bc.get_local(id).value,
 		};
 
 		let name = bc.gen.next();
@@ -94,9 +92,7 @@ impl StoreVariableTask {
 	pub fn resolve(inst: &Inst, resolver: &mut BlockResolver) -> StoreVariableTask {
 		let mut store = |pos: u16, ty: ValueType| {
 			let var = resolver.get_local(pos, ty);
-			StoreVariableTask {
-				var,
-			}
+			StoreVariableTask { var }
 		};
 
 		match inst {
@@ -147,7 +143,6 @@ impl StoreVariableTask {
 	}
 }
 
-
 impl Display for StoreVariableTask {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		write!(f, "store {}", self.var)
@@ -163,12 +158,8 @@ pub struct IncrementTask {
 impl IncrementTask {
 	pub fn resolve(inst: &Inst, resolver: &mut BlockResolver) -> IncrementTask {
 		let (index, amount) = match inst {
-			Inst::IINC(index, amount) => {
-				(*index as u16, *amount as i16)
-			}
-			Inst::IINC_W(index, amount) => {
-				(*index, *amount)
-			}
+			Inst::IINC(index, amount) => (*index as u16, *amount as i16),
+			Inst::IINC_W(index, amount) => (*index, *amount),
 			_ => {
 				panic!("what")
 			}
@@ -176,10 +167,7 @@ impl IncrementTask {
 
 		let var = resolver.get_local(index, ValueType::Int);
 
-		IncrementTask {
-			var,
-			amount
-		}
+		IncrementTask { var, amount }
 	}
 
 	pub fn compile(&self, bc: &mut BlockCompiler) {
@@ -192,9 +180,10 @@ impl IncrementTask {
 
 		let name = bc.gen.next();
 		let value = bc.build_load(ptr, &name).into_int_value();
-		let amount = bc.int().const_int(unsafe {
-			transmute::<i32, u32>(self.amount as i32)
-		} as u64, false);
+		let amount = bc.int().const_int(
+			unsafe { transmute::<i32, u32>(self.amount as i32) } as u64,
+			false,
+		);
 
 		let name = bc.gen.next();
 		let output = bc.build_int_add(value, amount, &name);

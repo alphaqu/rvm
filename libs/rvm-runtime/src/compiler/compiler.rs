@@ -1,22 +1,21 @@
 use crate::compiler::block::{Block, BlockVariable, CompiledBlock, CompilingBlock};
-use crate::executor::{StackValue, StackValueType};
+
+use crate::compiler::ir_gen::IrNameGen;
+use crate::compiler::MethodReference;
 use crate::object::ValueType;
 use ahash::{AHashMap, AHashSet};
 use inkwell::basic_block::BasicBlock;
 use inkwell::builder::Builder;
 use inkwell::context::Context;
-use inkwell::types::{BasicMetadataTypeEnum, BasicType, FloatType, IntType};
-use inkwell::values::{BasicValue, BasicValueEnum, FunctionValue};
-use std::collections::hash_map::Entry;
-use std::ops::{Deref, DerefMut};
 use inkwell::module::{Linkage, Module};
 use inkwell::passes::PassManager;
+use inkwell::types::{BasicMetadataTypeEnum, BasicType, FloatType, IntType};
+use inkwell::values::{BasicValueEnum, FunctionValue};
+use std::collections::hash_map::Entry;
+use std::ops::Deref;
 use tracing::{info, warn};
-use crate::compiler::ir_gen::IrNameGen;
-use crate::compiler::MethodReference;
-use crate::compiler::op::Task;
-use crate::reader::{MethodDescriptor, ParameterDescriptor, ReturnDescriptor};
 
+use crate::reader::ReturnDescriptor;
 
 pub struct FunctionCompiler<'a, 'ctx> {
 	ctx: &'ctx Context,
@@ -38,7 +37,6 @@ impl<'a, 'ctx> FunctionCompiler<'a, 'ctx> {
 		name: &MethodReference,
 		is_static: bool,
 		mut blocks: Vec<Block<'a, 'ctx>>,
-
 	) -> FunctionCompiler<'a, 'ctx> {
 		let mut gen = IrNameGen::default();
 		let desc = name.desc();
@@ -56,14 +54,13 @@ impl<'a, 'ctx> FunctionCompiler<'a, 'ctx> {
 			parameter_types.push(ty);
 		}
 
-		let param_types: Vec<BasicMetadataTypeEnum> = parameter_types.iter().map(|v| BasicMetadataTypeEnum::from(*v)).collect();
+		let param_types: Vec<BasicMetadataTypeEnum> = parameter_types
+			.iter()
+			.map(|v| BasicMetadataTypeEnum::from(*v))
+			.collect();
 		let ty = match &desc.ret {
-			ReturnDescriptor::Field(ty) => {
-				ty.ty().ir(ctx).fn_type(&param_types, false)
-			}
-			ReturnDescriptor::Void => {
-				ctx.void_type().fn_type(&param_types, false)
-			}
+			ReturnDescriptor::Field(ty) => ty.ty().ir(ctx).fn_type(&param_types, false),
+			ReturnDescriptor::Void => ctx.void_type().fn_type(&param_types, false),
 		};
 
 		let id = name.def_name();
@@ -80,11 +77,13 @@ impl<'a, 'ctx> FunctionCompiler<'a, 'ctx> {
 		for (i, (ty, desc)) in parameter_types.iter().zip(param.iter()).enumerate() {
 			let pointer_value = builder.build_alloca(*ty, &gen.next());
 			builder.build_store(pointer_value, func.get_nth_param(i as u32).unwrap());
-			parameters.insert(LocalId::Local(i as u16), BlockVariable {
-
-				value: pointer_value,
-				ty: desc.0.ty(),
-			});
+			parameters.insert(
+				LocalId::Local(i as u16),
+				BlockVariable {
+					value: pointer_value,
+					ty: desc.0.ty(),
+				},
+			);
 		}
 
 		// Resolve blocks
@@ -100,7 +99,10 @@ impl<'a, 'ctx> FunctionCompiler<'a, 'ctx> {
 			// Resolve targets
 			for target in &block.targets {
 				if !visited.contains(target) {
-					to_resolve.push((*target, ctx.insert_basic_block_after(basic_block, &format!("block{target}"))));
+					to_resolve.push((
+						*target,
+						ctx.insert_basic_block_after(basic_block, &format!("block{target}")),
+					));
 				}
 			}
 
@@ -157,7 +159,7 @@ impl<'a, 'ctx> FunctionCompiler<'a, 'ctx> {
 		}
 	}
 
-	pub fn compile(& mut self, order: &[usize]) {
+	pub fn compile(&mut self, order: &[usize]) {
 		for block in order {
 			self.compile_block(*block);
 		}
@@ -212,7 +214,6 @@ impl<'a, 'ctx> FunctionCompiler<'a, 'ctx> {
 				let target_sources = &self.blocks[*target].sources;
 				for target_source in target_sources {
 					if let Some(input) = self.blocks[*target_source].compiled.as_ref() {
-
 						outputs = input.outputs.clone();
 						break 'check;
 					}
@@ -250,9 +251,7 @@ impl<'a, 'ctx> FunctionCompiler<'a, 'ctx> {
 
 		let variables = compiler.variables;
 		let block = &mut self.blocks[id];
-		block.compiled = Some(CompiledBlock {
-			outputs
-		});
+		block.compiled = Some(CompiledBlock { outputs });
 
 		let compiling = block.compiling.as_mut().expect("unresolved");
 		// this is technically not needed because it will never get compiled again so this info is useless
@@ -304,13 +303,19 @@ impl<'b, 'a> BlockCompiler<'b, 'a> {
 	}
 
 	pub fn get_local(&self, id: LocalId) -> BlockVariable<'a> {
-		*self.variables.get(&id).ok_or_else(|| {
-			format!("Could not find local {id:?}")
-		}).unwrap()
+		*self
+			.variables
+			.get(&id)
+			.ok_or_else(|| format!("Could not find local {id:?}"))
+			.unwrap()
 	}
 
 	pub fn get_block(&self, id: usize) -> BasicBlock<'a> {
-		self.blocks[id].compiling.as_ref().expect("dead").basic_block
+		self.blocks[id]
+			.compiling
+			.as_ref()
+			.expect("dead")
+			.basic_block
 	}
 
 	pub fn next_block(&self) -> BasicBlock<'a> {
@@ -346,7 +351,6 @@ impl<'b, 'a> BlockCompiler<'b, 'a> {
 		self.ctx.f64_type()
 	}
 
-
 	pub fn module(&self) -> &'b Module<'a> {
 		self.module
 	}
@@ -358,7 +362,6 @@ impl<'b, 'a> BlockCompiler<'b, 'a> {
 	pub fn pop(&mut self) -> BasicValueEnum<'a> {
 		self.stack.pop().unwrap()
 	}
-
 
 	pub fn returns(&self) -> &ReturnDescriptor {
 		&self.returns
@@ -375,8 +378,6 @@ impl<'b, 'a> Deref for BlockCompiler<'b, 'a> {
 	type Target = Builder<'a>;
 
 	fn deref(&self) -> &Self::Target {
-		&self.builder
+		self.builder
 	}
 }
-
-

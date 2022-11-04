@@ -10,14 +10,13 @@ pub mod ret;
 pub mod stack;
 pub mod variable;
 
-use std::fmt::{Display, Formatter};
 use crate::compiler::compiler::BlockCompiler;
 use crate::compiler::op::apply::ApplyTask;
 use crate::compiler::op::check::CheckTask;
 use crate::compiler::op::compare::CompareTask;
 use crate::compiler::op::constant::ConstTask;
 use crate::compiler::op::conversion::ConversionTask;
-use crate::compiler::op::invoke::{InvokeTask};
+use crate::compiler::op::invoke::InvokeTask;
 use crate::compiler::op::jump::JumpTask;
 use crate::compiler::op::ret::ReturnTask;
 use crate::compiler::op::stack::StackTask;
@@ -25,7 +24,7 @@ use crate::compiler::op::variable::{IncrementTask, LoadVariableTask, StoreVariab
 use crate::compiler::resolver::BlockResolver;
 use crate::executor::Inst;
 use combine::CombineTask;
-
+use std::fmt::{Display, Formatter};
 
 #[derive(Clone, Debug)]
 pub enum Task {
@@ -50,7 +49,9 @@ impl Task {
 		match inst {
 			Inst::NOP => Task::Nop,
 			// Apply
-			Inst::FNEG | Inst::DNEG | Inst::INEG | Inst::LNEG => Task::Apply(ApplyTask::resolve(inst, resolver)),
+			Inst::FNEG | Inst::DNEG | Inst::INEG | Inst::LNEG => {
+				Task::Apply(ApplyTask::resolve(inst, resolver))
+			}
 			// Combine
 			Inst::DADD
 			| Inst::DDIV
@@ -238,7 +239,9 @@ impl Task {
 			| Inst::LSTORE1
 			| Inst::LSTORE2
 			| Inst::LSTORE3 => Task::StoreVariable(StoreVariableTask::resolve(inst, resolver)),
-			Inst::IINC(_, _) | Inst::IINC_W(_, _) => Task::Increase(IncrementTask::resolve(inst, resolver)),
+			Inst::IINC(_, _) | Inst::IINC_W(_, _) => {
+				Task::Increase(IncrementTask::resolve(inst, resolver))
+			}
 			// Return
 			Inst::RETURN
 			| Inst::ARETURN

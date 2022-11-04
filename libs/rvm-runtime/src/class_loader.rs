@@ -47,10 +47,7 @@ impl ClassLoader {
 	pub fn scope_class<R>(&self, id: Id<Class>, func: impl FnOnce(&ObjectClass) -> R) -> R {
 		let guard = self.get(id);
 		match &guard.kind {
-			ClassKind::Object(class) => {
-				let r = func(class);
-				r
-			}
+			ClassKind::Object(class) => func(class),
 			_ => {
 				panic!("why")
 			}
@@ -118,23 +115,17 @@ impl ClassLoader {
 	}
 
 	/// Forcefully loads all classes in a jar. This is used only in bootstrapping the java standard library.
-	pub fn load_jar(
-		&self,
-		data: Vec<u8>,
-		filter: impl Fn(&str) -> bool,
-	) -> anyways::Result<()> {
+	pub fn load_jar(&self, data: Vec<u8>, filter: impl Fn(&str) -> bool) -> anyways::Result<()> {
 		let reader = Cursor::new(data.as_slice());
 		let mut archive = zip::read::ZipArchive::new(reader)?;
 		let map: Vec<String> = archive.file_names().map(|v| v.to_string()).collect();
 		for name in map {
 			let mut file = archive.by_name(&name)?;
-			if file.is_file() && file.name().ends_with(".class") {
-				if filter(file.name()) {
-					let mut data = Vec::new();
-					file.read_to_end(&mut data)?;
-					self.load_class(data)
-						.wrap_err_with(|| format!("Failed to load {}", file.name()))?;
-				}
+			if file.is_file() && file.name().ends_with(".class") && filter(file.name()) {
+				let mut data = Vec::new();
+				file.read_to_end(&mut data)?;
+				self.load_class(data)
+					.wrap_err_with(|| format!("Failed to load {}", file.name()))?;
 			}
 		}
 		Ok(())

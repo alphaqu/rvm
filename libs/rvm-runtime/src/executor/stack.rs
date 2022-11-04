@@ -70,11 +70,7 @@ pub enum StackValue {
 
 impl StackValue {
 	pub fn is_category_2(&self) -> bool {
-		match self {
-			StackValue::Long(_) => true,
-			StackValue::Double(_) => true,
-			_ => false,
-		}
+		matches!(self, StackValue::Long(_) | StackValue::Double(_))
 	}
 
 	pub fn from_value(value: Value) -> Self {

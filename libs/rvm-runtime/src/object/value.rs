@@ -1,11 +1,10 @@
-use std::fmt::{Display, Formatter, Write};
 use crate::executor::StackValue;
 use crate::Ref;
-use std::mem::size_of;
-use std::ptr::{read, write};
 use inkwell::context::Context;
 use inkwell::types::{BasicType, BasicTypeEnum};
-use inkwell::values::BasicValueEnum;
+use std::fmt::{Display, Formatter};
+use std::mem::size_of;
+use std::ptr::{read, write};
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Debug)]
 pub enum Value {
@@ -51,13 +50,9 @@ pub enum ValueType {
 
 impl ValueType {
 	pub fn is_category_2(&self) -> bool {
-		match self {
-			ValueType::Long => true,
-			ValueType::Double => true,
-			_ => false,
-		}
+		matches!(self, ValueType::Long | ValueType::Double)
 	}
-	
+
 	pub fn ir<'a>(&self, ctx: &'a Context) -> BasicTypeEnum<'a> {
 		match self {
 			ValueType::Boolean => ctx.bool_type().as_basic_type_enum(),
@@ -71,7 +66,7 @@ impl ValueType {
 			ValueType::Reference => ctx.i32_type().as_basic_type_enum(),
 		}
 	}
-	
+
 	pub fn new_val(&self, stack: StackValue) -> Value {
 		match (self, stack) {
 			(ValueType::Boolean, StackValue::Int(v)) => Value::Boolean(v != 0),

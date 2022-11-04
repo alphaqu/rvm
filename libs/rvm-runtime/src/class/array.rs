@@ -100,7 +100,7 @@ impl<'a> Runtime<'a> {
 					panic!("wtf")
 				}
 			})),
-			_ => return Err(JError::new("Expected array class")),
+			_ => Err(JError::new("Expected array class")),
 		}
 	}
 }

@@ -9,8 +9,8 @@ pub enum BinaryName {
 
 impl BinaryName {
 	pub fn parse(s: &str) -> BinaryName {
-		if s.starts_with('[') {
-			let component = ValueDesc::parse(&s[1..]).unwrap();
+		if let Some(desc) = s.strip_prefix('[') {
+			let component = ValueDesc::parse(desc).unwrap();
 			BinaryName::Array(component)
 		} else {
 			if s.is_empty() {

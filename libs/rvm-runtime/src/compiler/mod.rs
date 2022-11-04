@@ -1,41 +1,33 @@
-use crate::Runtime;
-use crate::compiler::block::{Block, ResolvedBlock};
-use crate::compiler::compiler::{BlockCompiler, FunctionCompiler};
+use crate::compiler::block::Block;
+use crate::compiler::compiler::FunctionCompiler;
 use crate::compiler::ir_gen::IrNameGen;
-use crate::compiler::op::compare::CompareTask;
-use crate::compiler::op::constant::ConstTask;
-use crate::compiler::op::variable::LoadVariableTask;
-use crate::compiler::op::Task;
+use crate::Runtime;
+
 use crate::compiler::resolver::BlockResolver;
 use crate::executor::Inst;
-use crate::object::{Method, MethodCode, ValueType};
-use crate::reader::{
-	Code, ConstantInfo, ConstantPool, MethodDescriptor, MethodInfo, ReturnDescriptor, StrParse,
-	ValueDesc,
-};
-use ahash::{AHashMap, AHashSet, HashSet};
+
+use crate::reader::{Code, ConstantPool, MethodDescriptor, StrParse};
+use ahash::{AHashMap, AHashSet};
 use either::Either;
 use inkwell::context::Context;
-use inkwell::execution_engine::{ExecutionEngine, JitFunction, UnsafeFunctionPointer};
+use inkwell::execution_engine::ExecutionEngine;
 use inkwell::module::{Linkage, Module};
-use inkwell::passes::{PassBuilderOptions, PassManager, PassManagerBuilder, PassManagerSubType, PassRegistry};
-use inkwell::targets::CodeModel::Kernel;
-use inkwell::types::{AnyType, BasicMetadataTypeEnum, BasicType, FunctionType, PointerType};
-use inkwell::values::{
-	BasicMetadataValueEnum, BasicValueEnum, CallableValue, FunctionValue, GlobalValue,
-	InstructionValue, PointerValue,
-};
+use inkwell::passes::{PassManager, PassManagerBuilder, PassRegistry};
+
+use inkwell::types::BasicMetadataTypeEnum;
+use inkwell::values::{BasicMetadataValueEnum, CallableValue, FunctionValue};
 use inkwell::{AddressSpace, OptimizationLevel};
 use std::ffi::{c_char, c_void, CStr};
 use std::fmt;
 use std::fmt::{Display, Formatter};
-use std::mem::{forget, transmute};
+
+use inkwell::targets::{
+	CodeModel, InitializationConfig, RelocMode, Target, TargetMachine, TargetTriple,
+};
 use std::path::Path;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, Ordering};
-use inkwell::targets::{CodeModel, InitializationConfig, RelocMode, Target, TargetMachine, TargetTriple};
-use tracing::{debug, event, info, instrument, Level, trace};
-use crate::compiler::op::jump::JumpTask;
+use tracing::{debug, info, instrument, trace};
 
 mod block;
 mod compiler;
@@ -59,14 +51,16 @@ impl<'ctx> Executor<'ctx> {
 		Target::initialize_x86(&InitializationConfig::default());
 		let triple = TargetTriple::create("x86_64-pc-linux-gnu");
 		let target = Target::from_triple(&triple).unwrap();
-		let machine = target.create_target_machine(
-			&triple,
-			TargetMachine::get_host_cpu_name().to_str().unwrap(),
-			TargetMachine::get_host_cpu_features().to_str().unwrap(),
-			OptimizationLevel::Aggressive,
-			RelocMode::Default,
-			CodeModel::JITDefault
-		).unwrap();
+		let machine = target
+			.create_target_machine(
+				&triple,
+				TargetMachine::get_host_cpu_name().to_str().unwrap(),
+				TargetMachine::get_host_cpu_features().to_str().unwrap(),
+				OptimizationLevel::Aggressive,
+				RelocMode::Default,
+				CodeModel::JITDefault,
+			)
+			.unwrap();
 
 		let target_triple = machine.get_triple();
 		let target_data = machine.get_target_data();
@@ -180,7 +174,9 @@ impl<'ctx> Executor<'ctx> {
 
 		let name = reference.call_name();
 		debug!("Defining relay {name}");
-		let function = self.module.add_function(&name, fn_type, Some(Linkage::External));
+		let function = self
+			.module
+			.add_function(&name, fn_type, Some(Linkage::External));
 		let block = self.ctx.append_basic_block(function, &gen.next());
 
 		// Write relay
@@ -188,10 +184,8 @@ impl<'ctx> Executor<'ctx> {
 		builder.position_at_end(block);
 
 		// Create string globals
-		let class_name =
-			builder.build_global_string_ptr(&reference.class_name, "class_name");
-		let method_name =
-			builder.build_global_string_ptr(&reference.method_name, "method_name");
+		let class_name = builder.build_global_string_ptr(&reference.class_name, "class_name");
+		let method_name = builder.build_global_string_ptr(&reference.method_name, "method_name");
 		let desc = builder.build_global_string_ptr(&reference.desc, "desc");
 
 		// Call the resolve_method function
@@ -200,7 +194,15 @@ impl<'ctx> Executor<'ctx> {
 			.build_call(
 				resolve,
 				&[
-					builder.build_int_to_ptr(self.ctx.i64_type().const_int(runtime as *const _ as u64, false), self.ctx.i8_type().ptr_type(AddressSpace::Generic), "runtime").into(),
+					builder
+						.build_int_to_ptr(
+							self.ctx
+								.i64_type()
+								.const_int(runtime as *const _ as u64, false),
+							self.ctx.i8_type().ptr_type(AddressSpace::Generic),
+							"runtime",
+						)
+						.into(),
 					class_name.as_pointer_value().into(),
 					method_name.as_pointer_value().into(),
 					desc.as_pointer_value().into(),
@@ -220,7 +222,7 @@ impl<'ctx> Executor<'ctx> {
 		let args: Vec<BasicMetadataValueEnum> = function
 			.get_params()
 			.into_iter()
-			.map(|v| BasicMetadataValueEnum::from(v))
+			.map(BasicMetadataValueEnum::from)
 			.collect();
 		let function: CallableValue = function_pointer.try_into().unwrap();
 		let ret = builder.build_call(function, &args, &gen.next());
@@ -259,9 +261,9 @@ impl<'ctx> Executor<'ctx> {
 				],
 				false,
 			);
-			let value = self
-				.module
-				.add_function("resolve_method", function_type, Some(Linkage::External));
+			let value =
+				self.module
+					.add_function("resolve_method", function_type, Some(Linkage::External));
 
 			extern "C" fn compile_method_c(
 				runtime: *const Pin<Box<Runtime>>,
@@ -300,7 +302,8 @@ impl<'ctx> Executor<'ctx> {
 
 		let fn_name = name.def_name();
 
-		self.module.write_bitcode_to_path(&Path::new(&format!("./{name}.bc")));
+		self.module
+			.write_bitcode_to_path(Path::new(&format!("./{name}.bc")));
 		let function = self
 			.exec
 			.get_function_address(&fn_name)
@@ -328,7 +331,7 @@ impl<'ctx> Executor<'ctx> {
 			caller.replace_all_uses_with(block_compiler.func);
 		}
 
-	//	self.module.print_to_stderr();
+		//	self.module.print_to_stderr();
 		if self.mpm.run_on(&self.module) {
 			debug!("optimized module");
 
@@ -341,7 +344,12 @@ impl<'ctx> Executor<'ctx> {
 		self.exec.add_module(&self.module).unwrap();
 	}
 
-	fn resolve_blocks(&self, runtime: &Pin<Box<Runtime>>, data: &mut BlocksData, cp: &ConstantPool) {
+	fn resolve_blocks(
+		&self,
+		runtime: &Pin<Box<Runtime>>,
+		data: &mut BlocksData,
+		cp: &ConstantPool,
+	) {
 		let mut references = AHashSet::new();
 		for i in &data.compile_order {
 			info!(target: "resolve", "Resolving block {i}");
@@ -553,7 +561,7 @@ impl<'ctx> Executor<'ctx> {
 				writeln!(
 					&mut output,
 					"b{i}i{j} [label=\"{}\"]",
-					format!("{task}").replace("\"", "\\\"")
+					format!("{task}").replace('"', "\\\"")
 				)?;
 			}
 

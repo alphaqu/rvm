@@ -1,13 +1,12 @@
 use crate::compiler::compiler::BlockCompiler;
-use crate::compiler::op::{Task};
+
 use crate::compiler::resolver::BlockResolver;
 use crate::executor::Inst;
-use crate::object::ValueType;
-use crate::reader::{MethodDescriptor, ReturnDescriptor, StrParse};
-use inkwell::values::{BasicMetadataValueEnum, BasicValueEnum, CallableValue, InstructionValue};
-use std::fmt::{Display, Formatter};
-use either::Either;
+
 use crate::compiler::{MethodReference, Reference};
+use either::Either;
+use inkwell::values::{BasicMetadataValueEnum, CallableValue};
+use std::fmt::{Display, Formatter};
 
 #[derive(Clone, Debug)]
 pub struct InvokeTask {
@@ -33,20 +32,19 @@ impl InvokeTask {
 		let class_name = method.class.get(cp).name.get(cp).as_str().to_string();
 		let method_name = name_and_type.name.get(cp).to_string();
 		let desc_raw = name_and_type.descriptor.get(cp).as_str();
-		resolver.add_ref(Reference::Method(MethodReference   {
+		resolver.add_ref(Reference::Method(MethodReference {
 			class_name: method.class.get(cp).name.get(cp).0.clone(),
 			method_name: method_name.clone(),
 			desc: desc_raw.to_string(),
 		}));
-
 
 		InvokeTask {
 			kind,
 			method: MethodReference {
 				class_name,
 				method_name,
-				desc: desc_raw.to_string()
-			}
+				desc: desc_raw.to_string(),
+			},
 		}
 	}
 
@@ -69,8 +67,8 @@ impl InvokeTask {
 		args.reverse();
 
 		// Resolve method
-		
-		let function =  if let Some(value) = bc.module().get_function(&self.method.def_name()) {
+
+		let function = if let Some(value) = bc.module().get_function(&self.method.def_name()) {
 			value
 		} else {
 			let string = self.method.call_name();
@@ -79,8 +77,7 @@ impl InvokeTask {
 
 		let value: CallableValue = function.into();
 		let name = bc.gen.next();
-		match bc.build_call(value, &args, &name)
-			.try_as_basic_value() {
+		match bc.build_call(value, &args, &name).try_as_basic_value() {
 			Either::Left(value) => {
 				bc.push(value);
 			}

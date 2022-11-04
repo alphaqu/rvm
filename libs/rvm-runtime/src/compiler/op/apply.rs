@@ -1,8 +1,8 @@
-use std::fmt::{Display, Formatter};
-use inkwell::values::{BasicValue};
+use crate::compiler::compiler::BlockCompiler;
 use crate::compiler::resolver::BlockResolver;
 use crate::executor::Inst;
-use crate::compiler::compiler::BlockCompiler;
+use inkwell::values::BasicValue;
+use std::fmt::{Display, Formatter};
 
 /// Applies an operation on one value and spits out another
 #[derive(Clone, Debug)]
@@ -20,19 +20,19 @@ impl ApplyTask {
 			}
 		};
 
-		ApplyTask {
-			kind,
-		}
+		ApplyTask { kind }
 	}
 
-	pub fn compile<'b, 'a>(&self, bc: &mut BlockCompiler<'b, 'a>)  {
+	pub fn compile<'b, 'a>(&self, bc: &mut BlockCompiler<'b, 'a>) {
 		let output = match self.kind {
 			ApplyKind::NEG(float) => {
 				let x = bc.pop();
 				if float {
-					bc.build_float_neg(x.into_float_value(), "fneg").as_basic_value_enum()
+					bc.build_float_neg(x.into_float_value(), "fneg")
+						.as_basic_value_enum()
 				} else {
-					bc.build_int_neg(x.into_int_value(), "ineg").as_basic_value_enum()
+					bc.build_int_neg(x.into_int_value(), "ineg")
+						.as_basic_value_enum()
 				}
 			}
 		};

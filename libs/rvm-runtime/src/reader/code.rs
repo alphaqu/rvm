@@ -5,7 +5,6 @@ use crate::reader::IResult;
 use nom::multi::length_count;
 use nom::number::streaming::{be_u16, be_u32};
 use tracing::trace;
-use crate::compiler::Executor;
 
 pub struct Code {
 	pub max_stack: u16,
@@ -85,7 +84,7 @@ impl Code {
 
 		//(Compiler {}).compile_blocks(&code, constant_pool);
 		// let mut out = format!("digraph code {{\n");
-		// 
+		//
 		// 		writeln!(&mut out, "i0 [shape=Mdiamond]");
 		// 		for (i, inst) in code.iter().enumerate() {
 		// 			writeln!(&mut out, "i{i} [label=\"{inst:?}\"]");
@@ -125,9 +124,9 @@ impl Code {
 		// 				}
 		// 			}
 		// 			writeln!(&mut out, "i{i} -> i{};", i + 1);
-		// 
+		//
 		// 		}
-		// 
+		//
 		// 		writeln!(&mut out, "}}");
 		// println!("{out}");
 		trace!("Exceptions");

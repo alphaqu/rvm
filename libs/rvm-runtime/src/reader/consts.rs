@@ -28,7 +28,7 @@ use tracing::{error, trace};
 #[macro_export]
 macro_rules! impl_constant {
 	($VARIANT:ident $TY:ty) => {
-		impl crate::reader::Constant for $TY {
+		impl $crate::reader::Constant for $TY {
 			fn get(value: &crate::reader::ConstantInfo) -> &Self {
 				if let crate::reader::ConstantInfo::$VARIANT(v) = value {
 					return v;
@@ -211,7 +211,7 @@ impl ConstantInfo {
 			//)(input),
 			opcode => {
 				error!("unknown {opcode}");
-				return Ok((input, ConstantInfo::Unknown));
+				Ok((input, ConstantInfo::Unknown))
 			}
 		}
 	}

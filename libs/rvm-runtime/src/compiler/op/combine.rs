@@ -1,10 +1,9 @@
 use crate::compiler::compiler::BlockCompiler;
-use crate::compiler::op::Task;
+
 use crate::compiler::resolver::BlockResolver;
 use crate::executor::Inst;
-use crate::object::ValueType;
-use inkwell::builder::Builder;
-use inkwell::values::{BasicValue, BasicValueEnum};
+
+use inkwell::values::BasicValue;
 use inkwell::{FloatPredicate, IntPredicate};
 use std::fmt::{Display, Formatter};
 
@@ -55,9 +54,7 @@ impl CombineTask {
 			_ => panic!("what"),
 		};
 
-		CombineTask {
-			kind,
-		}
+		CombineTask { kind }
 	}
 
 	pub fn compile<'b, 'a>(&self, bc: &mut BlockCompiler<'b, 'a>) {
@@ -187,8 +184,7 @@ impl CombineTask {
 				let greater = bc.build_int_compare(IntPredicate::SGT, left, right, &name);
 				let less = bc.build_int_compare(IntPredicate::SLT, left, right, &v1);
 				let less = bc.build_int_neg(less, &v2);
-				bc.build_int_add(greater, less, &v3)
-					.as_basic_value_enum()
+				bc.build_int_add(greater, less, &v3).as_basic_value_enum()
 			}
 		};
 
@@ -215,10 +211,9 @@ impl Display for CombineTask {
 			CombineKind::ICMP => "icmp",
 		};
 
-		write!(f, "combine {}",op)
+		write!(f, "combine {}", op)
 	}
 }
-
 
 #[derive(Debug, Clone)]
 pub enum CombineKind {

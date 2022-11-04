@@ -1,3 +1,13 @@
+use std::cmp::Ordering;
+use std::mem::transmute;
+use std::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Neg, Rem, Sub};
+use std::sync::Arc;
+
+use tracing::trace;
+
+use rvm_consts::MethodAccessFlags;
+use rvm_core::Id;
+
 use crate::class::{Array, ObjectClass};
 use crate::executor::instruction::Inst;
 use crate::executor::locals::{LocalCast, LocalVariables};
@@ -5,12 +15,6 @@ use crate::executor::stack::{Stack, StackCast, StackValue};
 use crate::object::{MethodCode, Type};
 use crate::reader::{BinaryName, Code, ConstantInfo};
 use crate::{Class, ClassKind, JResult, Method, Ref, Runtime, ValueDesc};
-use rvm_consts::MethodAccessFlags;
-use rvm_core::Id;
-use std::mem::transmute;
-use std::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Neg, Rem, Sub};
-use std::sync::Arc;
-use tracing::trace;
 
 pub struct Frame<'a> {
 	pub invoker: Option<&'a Frame<'a>>,
@@ -66,7 +70,9 @@ impl<'a> Frame<'a> {
 		let code = method.code.clone();
 		drop(class);
 		match code {
-			Some(MethodCode::LLVM(code, _)) | Some(MethodCode::JVM(code)) => self.execute_jvm(code, runtime),
+			Some(MethodCode::LLVM(code, _)) | Some(MethodCode::JVM(code)) => {
+				self.execute_jvm(code, runtime)
+			}
 			Some(MethodCode::Native(func)) => (func.func)(&mut self.locals, runtime),
 			None => {
 				panic!("cringe")
@@ -841,13 +847,11 @@ impl<'a> Frame<'a> {
 			Inst::LCMP => {
 				let value2: i64 = self.stack.pop()?;
 				let value1: i64 = self.stack.pop()?;
-				if value1 > value2 {
-					self.stack.push(1);
-				} else if value1 == value2 {
-					self.stack.push(0);
-				} else if value1 < value2 {
-					self.stack.push(-1);
-				}
+				self.stack.push(match value1.cmp(&value2) {
+					Ordering::Less => -1,
+					Ordering::Equal => 0,
+					Ordering::Greater => 1,
+				});
 			}
 			_ => {
 				panic!("invalid")

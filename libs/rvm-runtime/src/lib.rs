@@ -294,7 +294,7 @@ impl<'ctx> Runtime<'ctx> {
 					desc: desc.to_string(),
 				},
 				method.flags.contains(MethodAccessFlags::STATIC),
-				&**code,
+				code,
 				&class.cp,
 			) as *const c_void;
 			info!("Resolved {string}");

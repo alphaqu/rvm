@@ -1,9 +1,9 @@
 use crate::compiler::compiler::BlockCompiler;
-use crate::compiler::op::Task;
+
 use crate::compiler::resolver::BlockResolver;
 use crate::executor::Inst;
 use crate::object::ValueType;
-use inkwell::values::{BasicValue, BasicValueEnum};
+use inkwell::values::BasicValue;
 use std::fmt::{Display, Formatter};
 
 #[derive(Clone, Debug)]
@@ -32,12 +32,10 @@ impl ConversionTask {
 			_ => panic!("what"),
 		};
 
-		ConversionTask {
-			kind,
-		}
+		ConversionTask { kind }
 	}
 
-	pub fn compile<'b, 'a>(&self, bc: &mut BlockCompiler<'b, 'a>)  {
+	pub fn compile<'b, 'a>(&self, bc: &mut BlockCompiler<'b, 'a>) {
 		let name = bc.gen.next();
 		let name2 = bc.gen.next();
 

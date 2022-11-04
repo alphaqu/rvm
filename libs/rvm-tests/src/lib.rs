@@ -20,7 +20,12 @@ where
 	R: Send + 'static,
 {
 	std::thread::Builder::new()
-		.name(std::thread::current().name().unwrap_or("Runner").to_string())
+		.name(
+			std::thread::current()
+				.name()
+				.unwrap_or("Runner")
+				.to_string(),
+		)
 		.stack_size(1024 * 1024 * 64)
 		.spawn(|| {
 			rvm_core::init();

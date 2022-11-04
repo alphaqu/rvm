@@ -1,8 +1,8 @@
+use crate::compiler::compiler::BlockCompiler;
+use inkwell::values::BasicValue;
 use std::fmt::{Display, Formatter};
 use std::mem::transmute;
-use inkwell::values::{BasicValue, BasicValueEnum};
-use crate::compiler::compiler::BlockCompiler;
-use crate::compiler::op::Task;
+
 use crate::compiler::resolver::BlockResolver;
 use crate::executor::Inst;
 use crate::object::ValueType;
@@ -27,12 +27,8 @@ impl ConstTask {
 		let ldc = |value: u16| -> ConstTask {
 			let constant = resolver.cp().get_raw(value).unwrap();
 			match constant {
-				ConstantInfo::Integer(int) => {
-					ConstTask::I32(int.bytes)
-				}
-				ConstantInfo::Float(float) => {
-					ConstTask::F32(float.bytes)
-				}
+				ConstantInfo::Integer(int) => ConstTask::I32(int.bytes),
+				ConstantInfo::Float(float) => ConstTask::F32(float.bytes),
 				ConstantInfo::String(string) => {
 					//let string = string.string.get(&class.cp);
 					//let id = runtime
@@ -56,12 +52,8 @@ impl ConstTask {
 		};
 
 		match inst {
-			Inst::BIPUSH(v) =>  {
-				ConstTask::I32(*v as i32)
-			}
-			Inst::SIPUSH(v) =>  {
-				ConstTask::I32(*v as i32)
-			}
+			Inst::BIPUSH(v) => ConstTask::I32(*v as i32),
+			Inst::SIPUSH(v) => ConstTask::I32(*v as i32),
 			Inst::ACONST_NULL => ConstTask::Null,
 			Inst::DCONST_0 => ConstTask::F64(0.0),
 			Inst::DCONST_1 => ConstTask::F64(1.0),
@@ -82,12 +74,8 @@ impl ConstTask {
 			Inst::LDC2_W(value) => {
 				let constant = resolver.cp().get_raw(*value).unwrap();
 				match constant {
-					ConstantInfo::Float(float) => {
-						ConstTask::F32(float.bytes)
-					}
-					ConstantInfo::Double(double) => {
-						ConstTask::F64(double.bytes)
-					}
+					ConstantInfo::Float(float) => ConstTask::F32(float.bytes),
+					ConstantInfo::Double(double) => ConstTask::F64(double.bytes),
 					_ => {
 						todo!("maybe unsupported")
 					}
@@ -101,22 +89,16 @@ impl ConstTask {
 
 	pub fn compile<'b, 'a>(&self, bc: &mut BlockCompiler<'b, 'a>) {
 		let output = match self {
-			ConstTask::I32(v) => {
-				bc.int().const_int(unsafe {
-					transmute::<_, u32>(*v)
-				} as u64, false).as_basic_value_enum()
-			}
-			ConstTask::I64(v) => {
-				bc.long().const_int(unsafe {
-					transmute::<_, u64>(*v)
-				}, false).as_basic_value_enum()
-			}
-			ConstTask::F32(v) => {
-				bc.float().const_float(*v as f64).as_basic_value_enum()
-			}
-			ConstTask::F64(v) => {
-				bc.double().const_float(*v).as_basic_value_enum()
-			}
+			ConstTask::I32(v) => bc
+				.int()
+				.const_int(unsafe { transmute::<_, u32>(*v) } as u64, false)
+				.as_basic_value_enum(),
+			ConstTask::I64(v) => bc
+				.long()
+				.const_int(unsafe { transmute::<_, u64>(*v) }, false)
+				.as_basic_value_enum(),
+			ConstTask::F32(v) => bc.float().const_float(*v as f64).as_basic_value_enum(),
+			ConstTask::F64(v) => bc.double().const_float(*v).as_basic_value_enum(),
 			ConstTask::Null => {
 				todo!("ref")
 			}

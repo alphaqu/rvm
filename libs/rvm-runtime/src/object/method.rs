@@ -1,4 +1,3 @@
-use std::ffi::c_void;
 use crate::executor::{LocalVariables, StackValue};
 use crate::reader::{
 	AttributeInfo, Code, ConstantPool, MethodDescriptor, MethodInfo, NameAndTypeConst,
@@ -8,6 +7,7 @@ use anyways::audit::Audit;
 use anyways::Result;
 use rvm_consts::MethodAccessFlags;
 use rvm_core::StorageValue;
+use std::ffi::c_void;
 use std::sync::Arc;
 
 pub struct Method {
@@ -72,11 +72,8 @@ impl Method {
 			}
 		} else {
 			for attribute in info.attribute_info {
-				match attribute {
-					AttributeInfo::CodeAttribute { code: c } => {
-						code = Some(MethodCode::JVM(Arc::new(c)));
-					}
-					_ => {}
+				if let AttributeInfo::CodeAttribute { code: c } = attribute {
+					code = Some(MethodCode::JVM(Arc::new(c)));
 				}
 			}
 		}
@@ -89,7 +86,7 @@ impl Method {
 				flags: info.access_flags,
 				max_locals: code.as_ref().map(|v| v.max_locals()).unwrap_or(0),
 				max_stack: code.as_ref().map(|v| v.max_stack()).unwrap_or(0),
-				code: code,
+				code,
 			},
 		))
 	}

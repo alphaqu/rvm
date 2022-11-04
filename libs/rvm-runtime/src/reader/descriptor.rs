@@ -1,7 +1,7 @@
 use crate::object::ValueType;
 use crate::reader::descriptor::ReturnDescriptor::Field;
 use inkwell::context::Context;
-use inkwell::types::{AnyType, AnyTypeEnum, BasicMetadataTypeEnum, BasicType, FunctionType};
+use inkwell::types::{BasicMetadataTypeEnum, BasicType, FunctionType};
 use std::fmt::{Display, Formatter, Write};
 
 pub trait StrParse: Sized {
@@ -55,10 +55,7 @@ impl ReturnDescriptor {
 	}
 
 	pub fn is_void(&self) -> bool {
-		match self {
-			ReturnDescriptor::Void => true,
-			_ => false,
-		}
+		matches!(self, ReturnDescriptor::Void)
 	}
 }
 
@@ -75,7 +72,7 @@ impl MethodDescriptor {
 			.iter()
 			.map(|v| BasicMetadataTypeEnum::from(v.0.ty().ir(ctx)))
 			.collect();
-		
+
 		match &self.ret {
 			ReturnDescriptor::Field(ty) => ty.ty().ir(ctx).fn_type(&param_types, false),
 			ReturnDescriptor::Void => ctx.void_type().fn_type(&param_types, false),
