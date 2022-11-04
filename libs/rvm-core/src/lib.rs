@@ -1,21 +1,20 @@
 #![feature(map_try_insert)]
 
-mod storage;
+use std::sync::atomic::{AtomicBool, Ordering};
 
-pub use storage::*;
 use tracing::Level;
 use tracing_subscriber::filter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
-static mut INITIALIZED: bool = false;
+pub use storage::*;
+
+mod storage;
+
+static INITIALIZED: AtomicBool = AtomicBool::new(false);
 
 pub fn init() {
-	if !unsafe {
-		let initialized = INITIALIZED;
-		INITIALIZED = true;
-		initialized
-	} {
+	if INITIALIZED.fetch_or(true, Ordering::SeqCst) {
 		let filter = filter::Targets::new()
 			.with_default(Level::TRACE)
 			.with_target("gc", Level::INFO)

@@ -4,31 +4,29 @@
 #![feature(array_try_from_fn)]
 #![feature(box_syntax)]
 
+use std::ffi::c_void;
+use std::ops::{Deref, DerefMut};
+use std::pin::Pin;
+use std::sync::RwLock;
+
+use inkwell::context::Context;
+use tracing::{debug, info};
+
+use rvm_consts::MethodAccessFlags;
+use rvm_core::Id;
+
 use crate::class::{Class, ClassKind};
+use crate::class_loader::ClassLoader;
+use crate::compiler::{Executor, MethodReference};
+use crate::error::{JError, JResult};
 use crate::gc::GarbageCollector;
 use crate::object::Ref;
 use crate::object::{Field, MethodCode};
 use crate::object::{Method, MethodIdentifier, NativeCode};
 use crate::reader::{
-	BinaryName, ClassConst, ClassInfo, ConstPtr, ConstantPool, FieldConst, MethodConst,
-	MethodDescriptor, StrParse, ValueDesc,
+	BinaryName, ClassConst, ClassInfo, ConstPtr, ConstantPool, FieldConst, MethodConst, StrParse,
+	ValueDesc,
 };
-use ahash::HashMap;
-use std::ffi::{c_char, c_void, CStr, CString};
-use std::mem::{transmute, transmute_copy};
-use std::ops::{Deref, DerefMut};
-use std::pin::Pin;
-
-use inkwell::context::Context;
-use inkwell::execution_engine::{JitFunction, UnsafeFunctionPointer};
-use rvm_consts::MethodAccessFlags;
-use std::sync::RwLock;
-use tracing::{debug, info};
-
-use crate::class_loader::ClassLoader;
-use crate::compiler::{Executor, MethodReference};
-use crate::error::{JError, JResult};
-use rvm_core::Id;
 
 pub mod class;
 mod class_loader;
@@ -38,31 +36,8 @@ pub mod error;
 pub mod executor;
 pub mod gc;
 pub mod object;
+pub mod prelude;
 pub mod reader;
-
-//     static int ack(int m, int n) {
-//         if (m == 0) {
-//             return n + 1;
-//         } else if (m > 0 && n == 0) {
-//             return ack(m - 1, 1);
-//         } else if (m > 0 && n > 0) {
-//             return ack(m - 1, ack(m, n - 1));
-//         } else {
-//             return n + 1;
-//         }
-//     }
-
-pub fn ack(m: i32, n: i32) -> i32 {
-	if m == 0 {
-		return n + 1;
-	} else if m > 0 && n == 0 {
-		return ack(m - 1, 1);
-	} else if m > 0 && n > 0 {
-		return ack(m - 1, ack(m, n - 1));
-	} else {
-		return n + 1;
-	}
-}
 
 #[cfg(feature = "native")]
 pub mod native;
@@ -316,7 +291,7 @@ impl<'ctx> Runtime<'ctx> {
 				&MethodReference {
 					class_name: class_name.to_string(),
 					method_name: method_name.to_string(),
-					desc: desc.to_string()
+					desc: desc.to_string(),
 				},
 				method.flags.contains(MethodAccessFlags::STATIC),
 				&**code,

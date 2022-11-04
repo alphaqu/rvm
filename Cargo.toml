@@ -21,4 +21,5 @@ members = [
     "./libs/rvm-core",
     "./libs/rvm-consts",
     "./libs/rvm-runtime",
+    "./libs/rvm-tests",
 ]

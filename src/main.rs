@@ -7,7 +7,7 @@ use inkwell::context::Context;
 use tracing::info;
 
 use rvm_core::init;
-use rvm_runtime::{CringeContext, Runtime};
+use rvm_runtime::{CringeContext, java, Runtime};
 
 fn main() {
 	Builder::new()
@@ -21,55 +21,10 @@ fn main() {
 		.unwrap();
 }
 
-#[inline(always)]
-pub extern "C" fn ack(m: i32, n: i32) -> i32 {
-	return if m == 0 {
-		n + 1
-	} else if m > 0 && n == 0 {
-		ack(m - 1, 1)
-	} else if m > 0 && n > 0 {
-		ack(m - 1, ack(m, n - 1))
-	} else {
-		n + 1
-	};
-}
-
-macro_rules! java {
-	(()) => {"V"};
-    (bool) => {"Z"};
-    (i8) => {"B"};
-    (i16) => {"S"};
-    (i32) => {"I"};
-    (f32) => {"F"};
-    (i64) => {"J"};
-    (f64) => {"D"};
-
-	(descriptor $return:tt) => {
-		concat!("()", java!($return))
-	};
-	(descriptor $return:tt, $($param:tt),+) => {
-		concat!("(", $(java!($param)),+, ")", java!($return))
-	};
-
-	(compile $runtime:expr, fn $class:ident.$name:ident() -> $return:tt) => {
-		transmute::<_, unsafe extern "C" fn() -> $return>($runtime.compile_method(stringify!($class), stringify!($name), java!(descriptor $return)))
-	};
-
-	(compile $runtime:expr, fn $class:ident.$name:ident($($param:tt),+) -> $return:tt) => {
-		transmute::<_, unsafe extern "C" fn($($param),+) -> $return>($runtime.compile_method(stringify!($class), stringify!($name), java!(descriptor $return, $($param),+)))
-	};
-}
-
 fn run() {
 	init();
 	let context = Box::pin(CringeContext(Context::create()));
 	let runtime = Box::pin(Runtime::new(&context));
-
-	{
-		let start = Instant::now();
-		let i = ack(3, 12);
-		println!("{} in {}ms", i, start.elapsed().as_millis());
-	}
 
 	// 	// bind
 	// 	{
@@ -138,66 +93,7 @@ fn run() {
 		runtime.cl.load_jar(read(jar).unwrap(), |_| true).unwrap();
 	}
 
-	unsafe {
-		// v == 0
-		let eq = java!(compile runtime, fn Main.testZeroEq(i32) -> bool);
-		assert!(eq(0));
-		assert!(!eq(1));
-		assert!(!eq(-1));
-		assert!(!eq(i32::MIN));
-		assert!(!eq(i32::MAX));
 
-		// v != 0
-		let neq = java!(compile runtime, fn Main.testZeroNeq(i32) -> bool);
-		assert!(!neq(0));
-		assert!(neq(1));
-		assert!(neq(-1));
-		assert!(neq(i32::MIN));
-		assert!(neq(i32::MAX));
-
-		// v > 0
-		let gt = java!(compile runtime, fn Main.testZeroGt(i32) -> bool);
-		assert!(!gt(0));
-		assert!(!gt(-1));
-		assert!(!gt(i32::MIN));
-		assert!(gt(1));
-		assert!(gt(i32::MAX));
-
-		// v >= 0
-		let ge = java!(compile runtime, fn Main.testZeroGe(i32) -> bool);
-		assert!(!ge(-1));
-		assert!(!ge(i32::MIN));
-		assert!(ge(0));
-		assert!(ge(1));
-		assert!(ge(i32::MAX));
-
-		// v < 0
-		let lt = java!(compile runtime, fn Main.testZeroLt(i32) -> bool);
-		assert!(!lt(0));
-		assert!(!lt(1));
-		assert!(!lt(i32::MAX));
-		assert!(lt(-1));
-		assert!(lt(i32::MIN));
-
-		// v <= 0
-		let le = java!(compile runtime, fn Main.testZeroLe(i32) -> bool);
-		assert!(!le(1));
-		assert!(!le(i32::MAX));
-		assert!(le(0));
-		assert!(le(-1));
-		assert!(le(i32::MIN));
-
-		info!("Invoking");
-		let start = Instant::now();
-		let func = java!(compile runtime, fn Main.test() -> i32);
-		let i = func();
-		println!("{} in {}ms", i, start.elapsed().as_millis());
-
-		let func = java!(compile runtime, fn Main.test() -> i32);
-		let start = Instant::now();
-		let i = func();
-		println!("{} in {}ms", i, start.elapsed().as_millis());
-	}
 
 	// runtime
 	// 		.cl

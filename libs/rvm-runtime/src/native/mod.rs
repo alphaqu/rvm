@@ -34,7 +34,6 @@ pub unsafe extern "system" fn JNI_CreateJavaVM(
 
 	todo!();
 
-	rvm_core::init();
 	let mut runtime = Runtime::new();
 	let mut properties = HashMap::new();
 
