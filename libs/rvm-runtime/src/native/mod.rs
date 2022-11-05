@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::ffi::{c_void, CStr};
 use std::ptr::null_mut;
+use inkwell::context::Context;
 
 use jni_sys::{
 	jint, JNIEnv, JNIInvokeInterface_, JNINativeInterface_, JavaVM, JavaVMInitArgs, JNI_ERR,
@@ -34,7 +35,8 @@ pub unsafe extern "system" fn JNI_CreateJavaVM(
 
 	todo!();
 
-	let mut runtime = Runtime::new();
+	let mut context = Box::leak(Box::new(Context::create()));
+	let mut runtime = Box::pin(Runtime::new(&context));
 	let mut properties = HashMap::new();
 
 	for arg in 0..usize::try_from(args.nOptions).unwrap() {
@@ -54,7 +56,7 @@ pub unsafe extern "system" fn JNI_CreateJavaVM(
 			}
 			Ok(_) if args.ignoreUnrecognized == JNI_TRUE => {}
 			other => {
-				panic!("{:?}", other);
+				panic!("Unrecognised option {:?}", other);
 			}
 		}
 	}
@@ -62,7 +64,7 @@ pub unsafe extern "system" fn JNI_CreateJavaVM(
 	// We probably want to Arc Mutex this instead
 	let leak = Box::leak(Box::new(runtime));
 	let jvm = JNIInvokeInterface_ {
-		reserved0: leak as *mut Runtime as *mut c_void,
+		reserved0: leak as *mut _ as *mut c_void,
 		reserved1: null_mut(),
 		reserved2: null_mut(),
 		DestroyJavaVM: Some(destroy_java_vm),

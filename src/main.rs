@@ -86,17 +86,13 @@ fn run() {
 	// 		fake_define(&mut runtime, "java/lang/Object", "wait", "(J)V");
 	// 	}
 
-	for jar in std::env::args().skip(1) {
-		runtime.cl.load_jar(read(jar).unwrap(), |_| true).unwrap();
-	}
-
 	runtime
 		.cl
-		.load_jar(read("./rt.jar").unwrap(), |v| v == "java/lang/Object.class")
+		.load_jar(include_bytes!("rt.jar"), |v| v == "java/lang/Object.class")
 		.unwrap();
 
 	for jar in std::env::args().skip(1) {
-		runtime.cl.load_jar(read(jar).unwrap(), |_| true).unwrap();
+		runtime.cl.load_jar(&read(jar).unwrap(), |_| true).unwrap();
 	}
 	//
 	// 	let class_id = runtime

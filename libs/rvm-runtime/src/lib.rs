@@ -303,7 +303,3 @@ impl<'ctx> Runtime<'ctx> {
 		panic!("native method cringe");
 	}
 }
-
-unsafe impl<'a> Sync for Runtime<'a> {}
-
-unsafe impl<'a> Send for Runtime<'a> {}

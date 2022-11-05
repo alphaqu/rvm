@@ -115,8 +115,8 @@ impl ClassLoader {
 	}
 
 	/// Forcefully loads all classes in a jar. This is used only in bootstrapping the java standard library.
-	pub fn load_jar(&self, data: Vec<u8>, filter: impl Fn(&str) -> bool) -> anyways::Result<()> {
-		let reader = Cursor::new(data.as_slice());
+	pub fn load_jar(&self, data: &[u8], filter: impl Fn(&str) -> bool) -> anyways::Result<()> {
+		let reader = Cursor::new(data);
 		let mut archive = zip::read::ZipArchive::new(reader)?;
 		let map: Vec<String> = archive.file_names().map(|v| v.to_string()).collect();
 		for name in map {
