@@ -41,8 +41,12 @@ fn test() {
 		let jack = unsafe { java!(compile runtime, fn Main.ack(i32, i32) -> i32) };
 
 		const SAMPLES: usize = 4;
-		sample("Rust ackermann", SAMPLES, |i| ack(i as i32, 12));
-		sample("Java ackermann", SAMPLES, |i| unsafe { jack(i as i32, 12) });
+		let rust = sample("Rust ackermann", SAMPLES, |i| ack(i as i32, 12));
+		let java = sample("Java ackermann", SAMPLES, |i| unsafe { jack(i as i32, 12) });
+
+		for ((i, rust), java) in rust.into_iter().enumerate().zip(java.into_iter()) {
+			assert_eq!(rust, java, "Ackermann({i}, 12) Rust ({rust}) vs Java ({java}) failed ");
+		}
 
 		Ok(())
 	});

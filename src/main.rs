@@ -4,7 +4,7 @@ use std::thread::Builder;
 use inkwell::context::Context;
 
 use rvm_core::init;
-use rvm_runtime::{CringeContext, Runtime};
+use rvm_runtime::Runtime;
 
 fn main() {
 	Builder::new()
@@ -20,7 +20,7 @@ fn main() {
 
 fn run() {
 	init();
-	let context = Box::pin(CringeContext(Context::create()));
+	let context = Context::create();
 	let runtime = Box::pin(Runtime::new(&context));
 
 	// 	// bind

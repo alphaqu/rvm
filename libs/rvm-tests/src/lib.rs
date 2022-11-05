@@ -1,22 +1,23 @@
 #![feature(exit_status_error)]
 #![feature(io_error_other)]
 #![feature(try_blocks)]
+#![feature(pin_macro)]
 
 use std::io::Result;
-use std::pin::Pin;
+use std::pin::{pin, Pin};
 use std::time::Instant;
 
 use inkwell::context::Context;
 use walkdir::WalkDir;
 
-use rvm_runtime::{CringeContext, Runtime};
+use rvm_runtime::Runtime;
 
 #[cfg(test)]
 mod tests;
 
 pub fn launch<F, R>(f: F) -> R
 where
-	F: FnOnce(&Pin<Box<Runtime>>) -> R + Send + 'static,
+	F: FnOnce(&Pin<&Runtime>) -> R + Send + 'static,
 	R: Send + 'static,
 {
 	std::thread::Builder::new()
@@ -29,10 +30,10 @@ where
 		.stack_size(1024 * 1024 * 64)
 		.spawn(|| {
 			rvm_core::init();
-			let context = Box::pin(CringeContext(Context::create()));
-			let runtime = Box::pin(Runtime::new(&context));
-			let ret = f(&runtime);
-			ret
+			let context = Context::create();
+			let runtime = Runtime::new(&context);
+			let x = f(&pin!(runtime).into_ref());
+			x
 		})
 		.unwrap()
 		.join()
@@ -79,17 +80,24 @@ pub fn compile(runtime: &Runtime, sources: &[(&str, &str)]) -> Result<()> {
 	result
 }
 
-pub fn sample<F, R>(message: &str, times: usize, f: F)
+pub fn sample<F, R>(message: &str, times: usize, f: F) -> Vec<R>
 where
 	F: Fn(usize) -> R,
 {
 	let mut nanos = 0;
+	let mut results = Vec::with_capacity(times);
 
 	for i in 0..times {
 		let start = Instant::now();
-		std::hint::black_box(f(i));
+		results.push(std::hint::black_box(f(i)));
 		nanos += start.elapsed().as_nanos();
 	}
 
-	println!("{} took {}ms ({} nanos)", message, nanos / 1000_000, nanos);
+	println!(
+		"{} took {}ms ({} nanos) on average",
+		message,
+		nanos / 1000_000,
+		nanos
+	);
+	results
 }

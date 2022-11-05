@@ -5,7 +5,6 @@
 #![feature(box_syntax)]
 
 use std::ffi::c_void;
-use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
 use std::sync::RwLock;
 
@@ -263,7 +262,7 @@ impl<'ctx> Runtime<'ctx> {
 	}
 
 	pub fn compile_method(
-		self: &Pin<Box<Self>>,
+		self: &Pin<&Self>,
 		class_name: &str,
 		method_name: &str,
 		desc: &str,
@@ -305,24 +304,6 @@ impl<'ctx> Runtime<'ctx> {
 	}
 }
 
-pub struct CringeContext(pub Context);
-
-unsafe impl Sync for CringeContext {}
-
 unsafe impl<'a> Sync for Runtime<'a> {}
 
 unsafe impl<'a> Send for Runtime<'a> {}
-
-impl Deref for CringeContext {
-	type Target = Context;
-
-	fn deref(&self) -> &Self::Target {
-		&self.0
-	}
-}
-
-impl DerefMut for CringeContext {
-	fn deref_mut(&mut self) -> &mut Self::Target {
-		&mut self.0
-	}
-}

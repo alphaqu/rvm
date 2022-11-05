@@ -152,7 +152,7 @@ impl<'ctx> Executor<'ctx> {
 		}
 	}
 
-	pub fn prepare(&self, runtime: &Pin<Box<Runtime>>, reference: &Reference) {
+	pub fn prepare(&self, runtime: &Pin<&Runtime>, reference: &Reference) {
 		debug!("Preparing {reference:?}");
 
 		match reference {
@@ -166,7 +166,7 @@ impl<'ctx> Executor<'ctx> {
 		}
 	}
 
-	fn compile_relay(&self, runtime: &Pin<Box<Runtime>>, reference: &MethodReference) {
+	fn compile_relay(&self, runtime: &Pin<&Runtime>, reference: &MethodReference) {
 		let mut gen = IrNameGen::default();
 
 		let descriptor = reference.desc();
@@ -242,7 +242,7 @@ impl<'ctx> Executor<'ctx> {
 
 	pub fn compile_method(
 		&self,
-		runtime: &Pin<Box<Runtime>>,
+		runtime: &Pin<&Runtime>,
 		name: &MethodReference,
 		is_static: bool,
 		code: &Code,
@@ -266,7 +266,7 @@ impl<'ctx> Executor<'ctx> {
 					.add_function("resolve_method", function_type, Some(Linkage::External));
 
 			extern "C" fn compile_method_c(
-				runtime: *const Pin<Box<Runtime>>,
+				runtime: *const Pin<&Runtime>,
 				class: *const c_char,
 				method: *const c_char,
 				desc: *const c_char,
@@ -346,7 +346,7 @@ impl<'ctx> Executor<'ctx> {
 
 	fn resolve_blocks(
 		&self,
-		runtime: &Pin<Box<Runtime>>,
+		runtime: &Pin<&Runtime>,
 		data: &mut BlocksData,
 		cp: &ConstantPool,
 	) {
