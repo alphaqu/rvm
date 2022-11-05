@@ -25,19 +25,19 @@ fn test() {
 			)],
 		)?;
 
-        let rust = {
-            let mut  i = 3.14159265358979323846f64;
-            i += 0.0 * i;
-            i += 1.0 * i;
-            i += 2.0 * i;
-            i += 3.0 * i;
-            i += 2.0 * i;
-            i += 1.0 * i;
-            i += 0.0 * i;
-            i
-        };
+		let rust = {
+            let mut i = 3.14159265358979323846f64;
+			i += 0.0 * i;
+			i += 1.0 * i;
+			i += 2.0 * i;
+			i += 3.0 * i;
+			i += 2.0 * i;
+			i += 1.0 * i;
+			i += 0.0 * i;
+			i
+		};
 		let java = unsafe { java!(compile runtime, fn Main.get() -> f64)() };
-        assert_eq!(rust, java);
+		assert_eq!(rust, java);
 
 		Ok(())
 	});

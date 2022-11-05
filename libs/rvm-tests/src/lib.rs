@@ -68,7 +68,10 @@ pub fn compile(runtime: &Runtime, sources: &[(&str, &str)]) -> Result<()> {
 			let entry = entry?;
 
 			if entry.path().extension().and_then(|x| x.to_str()) == Some("class") {
-				runtime.cl.load_class(&std::fs::read(entry.path())?).unwrap();
+				runtime
+					.cl
+					.load_class(&std::fs::read(entry.path())?)
+					.unwrap();
 			}
 		}
 	};
