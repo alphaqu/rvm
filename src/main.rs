@@ -1,10 +1,11 @@
 use std::fs::read;
+use std::path::Path;
 use std::thread::Builder;
 
 use inkwell::context::Context;
 
 use rvm_core::init;
-use rvm_runtime::Runtime;
+use rvm_runtime::{java, Runtime};
 
 fn main() {
 	Builder::new()
@@ -92,70 +93,21 @@ fn run() {
 		.unwrap();
 
 	for jar in std::env::args().skip(1) {
-		runtime.cl.load_jar(&read(jar).unwrap(), |_| true).unwrap();
+		let path = Path::new(&jar);
+
+		match path.extension().and_then(|x| x.to_str()) {
+			Some("jar") | Some("zip") => {
+				runtime.cl.load_jar(&read(path).unwrap(), |_| true).unwrap();
+			}
+			Some("class") => {
+				runtime.cl.load_class(&read(path).unwrap()).unwrap();
+			}
+			other => {
+				panic!("Unrecognised extension {other:?}");
+			}
+		}
 	}
-	//
-	// 	let class_id = runtime
-	// 		.cl
-	// 		.get_class_id(&BinaryName::Object("Main".to_string()));
-	//
-	// 	let class_guard = runtime.cl.get(class_id);
-	// 	if let ClassKind::Object(class) = &class_guard.kind {
-	// 		let method_id = class
-	// 			.methods
-	// 			.get_id(&MethodIdentifier {
-	// 				name: "test".to_string(),
-	// 				descriptor: "()I".to_string(),
-	// 			})
-	// 			.unwrap();
-	// 		drop(class_guard);
-	//
-	// 		let mut stack = Stack::new(1);
-	// 		let mut frame = Frame::raw_frame(class_id, stack);
-	// 		// args
-	// 		let executor = Frame::new(class_id, method_id, &runtime, &mut frame).unwrap();
-	// 		println!("{:?}", executor.execute(&runtime, method_id));
-	//
-	// 		let method = compile_method(
-	// 			CString::new("Main").unwrap(),
-	// 			CString::new("Main").unwrap(),
-	// 			CString::new("Main").unwrap(),
-	// 		);
-	// 		let function = runtime.compile_method::<unsafe extern "C" fn() -> i32>(class_id, method_id);
-	// 		println!("{:?}", unsafe {
-	// 			function.call()
-	// 		});
-	// 		// match executor.run(&runtime) {
-	// 		//             Ok(v) => {
-	// 		//
-	// 		//             }
-	// 		//             Err(err) => {}
-	// 		//         }
-	// 		//         executor.run(&runtime).map_err(|e| {
-	// 		//             let mut out = String::new();
-	// 		//             e.fmt(&mut out, &runtime).unwrap();
-	// 		//             out
-	// 		//         }).unwrap();
-	// 	}
+
+	// TODO: ARRAYS PLEASE
+	unsafe { java!(compile runtime.as_ref(), fn Main.main() -> ())() };
 }
-
-// pub fn value_bind(runtime: &mut Runtime) {
-//     runtime.load_native(
-//         "ClassName".to_string(),
-//         "value".to_string(),
-//         "(I)L".to_string(),
-//         NativeCode {
-//             func: |local_table, runtime| {
-//                 Ok(Some(StackValue::from(
-//                     value(local_table.get(0)?)?.to_java(runtime)?,
-//                 )))
-//             },
-//             max_locals: 1,
-//         },
-//     );
-// }
-
-// #[rvm_bind::method(ClassName, (I)V)]
-// pub fn hi(hi: i8) -> Result<()> {
-//     Ok(hi as i64)
-// }

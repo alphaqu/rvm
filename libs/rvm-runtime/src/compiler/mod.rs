@@ -344,12 +344,7 @@ impl<'ctx> Executor<'ctx> {
 		self.exec.add_module(&self.module).unwrap();
 	}
 
-	fn resolve_blocks(
-		&self,
-		runtime: &Pin<&Runtime>,
-		data: &mut BlocksData,
-		cp: &ConstantPool,
-	) {
+	fn resolve_blocks(&self, runtime: &Pin<&Runtime>, data: &mut BlocksData, cp: &ConstantPool) {
 		let mut references = AHashSet::new();
 		for i in &data.compile_order {
 			info!(target: "resolve", "Resolving block {i}");

@@ -1,20 +1,21 @@
+use std::alloc::dealloc;
+use std::ops::Deref;
+
+use anyways::ext::AuditExt;
+use anyways::Result;
+use parking_lot::MappedRwLockReadGuard;
+
+use rvm_consts::FieldAccessFlags;
+use rvm_core::Id;
+
 use crate::class::field::ClassFieldManager;
 use crate::class::method::ClassMethodManager;
 use crate::class::ClassKind;
 use crate::executor::StackValue;
 use crate::object::ObjectData;
 use crate::{Class, ClassInfo, ClassLoader, ConstantPool, Field, JResult, Ref, Runtime};
-use anyways::ext::AuditExt;
-use anyways::Result;
-use parking_lot::MappedRwLockReadGuard;
-use rvm_consts::FieldAccessFlags;
-use rvm_core::Id;
-use std::alloc::dealloc;
-use std::ops::Deref;
 
 pub struct ObjectClass {
-	pub simple_name: String,
-
 	pub cp: ConstantPool,
 	pub fields: ClassFieldManager,
 	pub methods: ClassMethodManager,
@@ -28,17 +29,13 @@ impl ObjectClass {
 
 		let fields = ClassFieldManager::parse(info.fields, &info.constant_pool, class_loader);
 		let binary_name = name.to_string().replace('/', ".");
+
 		Ok(Class {
 			kind: ClassKind::Object(ObjectClass {
-				simple_name: {
-					let value = binary_name.rsplit('.').next().unwrap();
-					value.to_string()
-				},
 				methods: ClassMethodManager::parse(
 					info.methods,
 					name.as_str(),
 					&info.constant_pool,
-					class_loader,
 				)
 				.wrap_err_with(|| format!("in CLASS \"{}\"", name.as_str()))?,
 				static_object: unsafe { ObjectData::new(fields.size(true) as usize) },

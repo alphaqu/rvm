@@ -1,7 +1,7 @@
+use inkwell::context::Context;
 use std::collections::HashMap;
 use std::ffi::{c_void, CStr};
 use std::ptr::null_mut;
-use inkwell::context::Context;
 
 use jni_sys::{
 	jint, JNIEnv, JNIInvokeInterface_, JNINativeInterface_, JavaVM, JavaVMInitArgs, JNI_ERR,

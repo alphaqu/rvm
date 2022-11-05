@@ -1,3 +1,4 @@
+use either::Either;
 use std::cmp::Ordering;
 use std::mem::transmute;
 use std::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Neg, Rem, Sub};
@@ -73,7 +74,18 @@ impl<'a> Frame<'a> {
 			Some(MethodCode::LLVM(code, _)) | Some(MethodCode::JVM(code)) => {
 				self.execute_jvm(code, runtime)
 			}
-			Some(MethodCode::Native(func)) => (func.func)(&mut self.locals, runtime),
+			Some(MethodCode::Native(either)) => {
+				let code = match &either {
+					Either::Left(source) => {
+						let code = runtime.cl.native_methods().get(source).unwrap();
+						// todo: save in method.code as Some(MethodCode::Native(Either::Right(*code)))
+						code
+					}
+					Either::Right(code) => code,
+				};
+
+				(code.func)(&mut self.locals, runtime)
+			}
 			None => {
 				panic!("cringe")
 			}

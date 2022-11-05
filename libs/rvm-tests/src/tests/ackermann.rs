@@ -45,7 +45,10 @@ fn test() {
 		let java = sample("Java ackermann", SAMPLES, |i| unsafe { jack(i as i32, 12) });
 
 		for ((i, rust), java) in rust.into_iter().enumerate().zip(java.into_iter()) {
-			assert_eq!(rust, java, "Ackermann({i}, 12) Rust ({rust}) vs Java ({java}) failed ");
+			assert_eq!(
+				rust, java,
+				"Ackermann({i}, 12) Rust ({rust}) vs Java ({java}) failed "
+			);
 		}
 
 		Ok(())

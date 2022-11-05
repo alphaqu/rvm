@@ -8,6 +8,7 @@ use std::ffi::c_void;
 use std::pin::Pin;
 use std::sync::RwLock;
 
+use either::Either;
 use inkwell::context::Context;
 use tracing::{debug, info};
 
@@ -284,22 +285,39 @@ impl<'ctx> Runtime<'ctx> {
 
 		let method = class.methods.get(method_id);
 
-		if let Some(MethodCode::JVM(code)) = &method.code {
-			let function = self.compiler.compile_method(
-				self,
-				&MethodReference {
-					class_name: class_name.to_string(),
-					method_name: method_name.to_string(),
-					desc: desc.to_string(),
-				},
-				method.flags.contains(MethodAccessFlags::STATIC),
-				code,
-				&class.cp,
-			) as *const c_void;
-			info!("Resolved {string}");
-			return function;
-		}
+		return match method.code.clone() {
+			Some(MethodCode::JVM(code)) => {
+				let function = self.compiler.compile_method(
+					self,
+					&MethodReference {
+						class_name: class_name.to_string(),
+						method_name: method_name.to_string(),
+						desc: desc.to_string(),
+					},
+					method.flags.contains(MethodAccessFlags::STATIC),
+					&code,
+					&class.cp,
+				) as *const c_void;
+				info!("Resolved {string}");
+				// todo: save in method.code as MethodCode::LLVM(code, function)
+				function
+			}
+			Some(MethodCode::LLVM(_, pointer)) => pointer,
+			Some(MethodCode::Native(either)) => {
+				let code = match &either {
+					Either::Left(source) => {
+						let code = self.cl.native_methods().get(source).unwrap();
+						// todo: save in method.code as Some(MethodCode::Native(Either::Right(*code)))
+						code
+					}
+					Either::Right(code) => code,
+				};
 
-		panic!("native method cringe");
+				panic!("Native code is not supported yet");
+			}
+			None => {
+				panic!("Code is missing");
+			}
+		};
 	}
 }

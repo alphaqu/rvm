@@ -2,9 +2,9 @@ use crate::executor::{LocalVariables, StackValue};
 use crate::reader::{
 	AttributeInfo, Code, ConstantPool, MethodDescriptor, MethodInfo, NameAndTypeConst,
 };
-use crate::{ClassLoader, JResult, Runtime, StrParse};
-use anyways::audit::Audit;
+use crate::{JResult, Runtime, StrParse};
 use anyways::Result;
+use either::Either;
 use rvm_consts::MethodAccessFlags;
 use rvm_core::StorageValue;
 use std::ffi::c_void;
@@ -35,7 +35,7 @@ impl Method {
 				name,
 				desc: MethodDescriptor::parse(&desc).unwrap(),
 				flags,
-				max_locals: code.max_locals(),
+				max_locals: code.max_locals().unwrap_or(0),
 				max_stack: code.max_stack(),
 				code: Some(code),
 			},
@@ -46,7 +46,6 @@ impl Method {
 		info: MethodInfo,
 		class_name: &str,
 		consts: &ConstantPool,
-		class_loader: &ClassLoader,
 	) -> Result<(MethodIdentifier, Method)> {
 		let desc_str = consts.get(info.descriptor_index);
 		let desc = MethodDescriptor::parse(desc_str).unwrap();
@@ -56,20 +55,12 @@ impl Method {
 			name: consts.get(info.name_index).to_string(),
 			descriptor: desc_str.to_string(),
 		};
+
 		if info.access_flags.contains(MethodAccessFlags::NATIVE) {
-			match class_loader
-				.native_methods()
-				.get(&(class_name.to_string(), ident.clone()))
-			{
-				None => {
-					return Err(Audit::new(format!(
-						"Could not find native method {class_name} {ident:?}"
-					)));
-				}
-				Some(method) => {
-					code = Some(MethodCode::Native(*method));
-				}
-			}
+			code = Some(MethodCode::Native(Either::Left((
+				class_name.to_string(),
+				ident.clone(),
+			))));
 		} else {
 			for attribute in info.attribute_info {
 				if let AttributeInfo::CodeAttribute { code: c } = attribute {
@@ -84,7 +75,7 @@ impl Method {
 				name: ident.name,
 				desc,
 				flags: info.access_flags,
-				max_locals: code.as_ref().map(|v| v.max_locals()).unwrap_or(0),
+				max_locals: code.as_ref().and_then(|v| v.max_locals()).unwrap_or(0),
 				max_stack: code.as_ref().map(|v| v.max_stack()).unwrap_or(0),
 				code,
 			},
@@ -100,21 +91,21 @@ impl StorageValue for Method {
 pub enum MethodCode {
 	JVM(Arc<Code>),
 	LLVM(Arc<Code>, *const c_void),
-	Native(NativeCode),
+	Native(Either<(String, MethodIdentifier), NativeCode>),
 }
 
 impl MethodCode {
-	pub fn max_locals(&self) -> u16 {
+	pub fn max_locals(&self) -> Option<u16> {
 		match self {
-			MethodCode::LLVM(code, _) | MethodCode::JVM(code) => code.max_locals,
-			MethodCode::Native(code) => code.max_locals,
+			MethodCode::LLVM(code, _) | MethodCode::JVM(code) => Some(code.max_locals),
+			MethodCode::Native(code) => code.as_ref().right().map(|code| code.max_locals),
 		}
 	}
 
 	pub fn max_stack(&self) -> u16 {
 		match self {
 			MethodCode::LLVM(code, _) | MethodCode::JVM(code) => code.max_stack,
-			MethodCode::Native(code) => 0,
+			MethodCode::Native(_) => 0,
 		}
 	}
 }
