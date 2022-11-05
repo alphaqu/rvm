@@ -122,9 +122,9 @@ impl ClassLoader {
 		for name in map {
 			let mut file = archive.by_name(&name)?;
 			if file.is_file() && file.name().ends_with(".class") && filter(file.name()) {
-				let mut data = Vec::new();
+				let mut data = Vec::with_capacity(file.size() as usize);
 				file.read_to_end(&mut data)?;
-				self.load_class(data)
+				self.load_class(&data)
 					.wrap_err_with(|| format!("Failed to load {}", file.name()))?;
 			}
 		}
@@ -133,9 +133,9 @@ impl ClassLoader {
 
 	/// Loads a java class to the JVM and injects it to the class table by locking it.
 	#[instrument(skip_all)]
-	pub fn load_class(&self, data: Vec<u8>) -> anyways::Result<Id<Class>> {
+	pub fn load_class(&self, data: &[u8]) -> anyways::Result<Id<Class>> {
 		let (_, info) =
-			ClassInfo::parse(&data).map_err(|_| Audit::new("Failed to parse classfile"))?;
+			ClassInfo::parse(data).map_err(|_| Audit::new("Failed to parse classfile"))?;
 		let class = ObjectClass::parse(info, self)?;
 
 		debug!("Parsed class {}", class.binary_name);
