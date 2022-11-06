@@ -22,22 +22,26 @@
 /// use std::pin::Pin;
 /// use rvm_runtime::{java, Runtime};
 ///
-/// |runtime: &Pin<&Runtime>, a: i32, b: i32| {
-/// 	unsafe { java!(compile runtime, fn Math.sum(i32, i32) -> i32)(a, b) }
-/// };
+/// fn create_adder(runtime: &Pin<&Runtime>) -> impl Fn(i32, i32) -> i32 {
+/// 	let compiled = unsafe { java!(compile runtime, fn Math.sum(i32, i32) -> i32) };
+///
+/// 	move |a, b| {
+/// 		unsafe { compiled(a, b) }
+/// 	}
+/// }
 /// ```
 ///
 /// [`Runtime`]: crate::Runtime
 #[macro_export]
 macro_rules! java {
 	(()) => {"V"};
-    (bool) => {"Z"};
-    (i8) => {"B"};
-    (i16) => {"S"};
-    (i32) => {"I"};
-    (f32) => {"F"};
-    (i64) => {"J"};
-    (f64) => {"D"};
+	(bool) => {"Z"};
+	(i8) => {"B"};
+	(i16) => {"S"};
+	(i32) => {"I"};
+	(f32) => {"F"};
+	(i64) => {"J"};
+	(f64) => {"D"};
 
 	(descriptor $return:tt) => {
 		::std::concat!("()", $crate::java!($return))
