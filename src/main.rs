@@ -109,5 +109,5 @@ fn run() {
 	}
 
 	// TODO: ARRAYS PLEASE
-	unsafe { java!(compile runtime.as_ref(), fn Main.main() -> ())() };
+	unsafe { java!(compile &runtime.as_ref(), fn Main.main() -> ())() };
 }

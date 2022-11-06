@@ -11,9 +11,9 @@ pub use storage::*;
 
 mod storage;
 
-static INITIALIZED: AtomicBool = AtomicBool::new(false);
-
 pub fn init() {
+	static INITIALIZED: AtomicBool = AtomicBool::new(false);
+
 	if INITIALIZED
 		.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
 		.is_ok()
