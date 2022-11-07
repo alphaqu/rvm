@@ -248,8 +248,7 @@ impl<'ctx> Executor<'ctx> {
 		code: &Code,
 		cp: &ConstantPool,
 	) -> usize {
-		if !self.initialized.load(Ordering::Relaxed) {
-			self.initialized.store(true, Ordering::Relaxed);
+		if self.initialized.compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed).is_ok() {
 			let runtime = self.ctx.i8_type().ptr_type(AddressSpace::Generic);
 			let string = self.ctx.i8_type().ptr_type(AddressSpace::Generic);
 			let function_type = self.ctx.i8_type().ptr_type(AddressSpace::Generic).fn_type(

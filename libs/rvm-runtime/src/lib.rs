@@ -42,6 +42,12 @@ pub mod reader;
 #[cfg(feature = "native")]
 pub mod native;
 
+/// A runtime which (almost never) conforms to [The Java Virtual Machine Specification, Java SE 19 Edition][jvms]
+///
+/// The runtime includes a bootstrap class source, a classloader and JITting compiler using [LLVM][llvm]
+///
+/// [jvms]: https://docs.oracle.com/javase/specs/jvms/se19/html/index.html
+/// [llvm]: https://llvm.org/
 pub struct Runtime<'ctx> {
 	pub cl: ClassLoader,
 	pub gc: RwLock<GarbageCollector>,
@@ -56,64 +62,6 @@ impl<'ctx> Runtime<'ctx> {
 			compiler: Executor::new(ctx),
 		}
 	}
-
-	//pub fn compile_method<V: UnsafeFunctionPointer>(
-	//	&self,
-	//	class_id: Id<Class>,
-	//	method_id: Id<Method>,
-	//) -> JitFunction<V> {
-	//	let class = self.cl.get_obj_class(class_id);
-	//	let method = class.methods.get(method_id);
-	//
-	//	if let Some(MethodCode::JVM(code)) = &method.code {
-	//		let name = format!("{class}:{name}:{desc}");
-	//
-	//		let string = format!("CLASS{}_METHOD{}", class_id.idx(), method.name);
-	//		return unsafe {
-	//			transmute_copy(&self.compiler.compile_method(
-	//				&string,
-	//				method.flags.contains(MethodAccessFlags::STATIC),
-	//				&method.desc.clone(),
-	//				code.as_ref(),
-	//				&class.cp,
-	//			))
-	//		};
-	//	}
-	//
-	//	panic!("native method bruh")
-	//}
-
-	//pub fn compile_method_raw(&self, class: CString, method: CString, desc: CString) -> usize {
-	//	let class = class.to_str().unwrap();
-	//	let method = method.to_str().unwrap();
-	//	let desc = desc.to_str().unwrap();
-	//
-	//	let class_id = self.cl.get_class_id(&BinaryName::Object(class.to_string()));
-	//
-	//	let class = self.cl.get_obj_class(class_id);
-	//	let method_id = class
-	//		.methods
-	//		.get_id(&MethodIdentifier {
-	//			name: method.to_string(),
-	//			descriptor: desc.to_string(),
-	//		})
-	//		.unwrap();
-	//
-	//	let method = class.methods.get(method_id);
-	//
-	//	if let Some(MethodCode::JVM(code)) = &method.code {
-	//		let string = format!("CLASS{}_METHOD{}", class_id.idx(), method.name);
-	//		return self.compiler.compile_method(
-	//			&string,
-	//			method.flags.contains(MethodAccessFlags::STATIC),
-	//			&method.desc.clone(),
-	//			code.as_ref(),
-	//			&class.cp,
-	//		);
-	//	}
-	//
-	//	panic!("native stuff")
-	//}
 
 	pub fn resolve_class(
 		&self,
@@ -262,6 +210,19 @@ impl<'ctx> Runtime<'ctx> {
 		panic!("Failed to resolve method. SUPER not yet supported")
 	}
 
+	/// Compiles a method with a given identifier. Uses the mapping in [`java!`]
+	///
+	/// ```
+	/// use std::mem::transmute;
+	/// use std::pin::Pin;
+	/// use rvm_runtime::Runtime;
+	///
+	/// |runtime: &Pin<&Runtime>| {
+	/// 	let pointer = runtime.compile_method("Main", "update", "(I)I");
+	/// 	let function = unsafe { transmute::<_, extern "C" fn(i32) -> i32>(pointer) };
+	/// 	let out = unsafe { function(3) };
+	/// };
+	/// ```
 	pub fn compile_method(
 		self: &Pin<&Self>,
 		class_name: &str,

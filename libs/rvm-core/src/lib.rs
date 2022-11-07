@@ -15,7 +15,7 @@ pub fn init() {
 	static INITIALIZED: AtomicBool = AtomicBool::new(false);
 
 	if INITIALIZED
-		.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+		.compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
 		.is_ok()
 	{
 		let filter = filter::Targets::new()

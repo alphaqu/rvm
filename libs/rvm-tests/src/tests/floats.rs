@@ -26,7 +26,7 @@ fn test() -> Result<(), std::io::Error> {
 		)?;
 
 		let rust = {
-            let mut i = 3.14159265358979323846f64;
+			let mut i = 3.14159265358979323846f64;
 			i += 0.0 * i;
 			i += 1.0 * i;
 			i += 2.0 * i;
