@@ -44,17 +44,17 @@ macro_rules! java {
 	(f64) => {"D"};
 
 	(descriptor $return:tt) => {
-		::std::concat!("()", $crate::java!($return))
+		::core::concat!("()", $crate::java!($return))
 	};
 	(descriptor $return:tt, $($param:tt),+) => {
-		::std::concat!("(", $($crate::java!($param)),+, ")", $crate::java!($return))
+		::core::concat!("(", $($crate::java!($param)),+, ")", $crate::java!($return))
 	};
 
 	(compile $runtime:expr, fn $class:ident.$name:ident() -> $return:tt) => {
-		::std::mem::transmute::<_, unsafe extern "C" fn() -> $return>($crate::Runtime::compile_method($runtime, ::std::stringify!($class), ::std::stringify!($name), $crate::java!(descriptor $return)))
+		::core::mem::transmute::<_, unsafe extern "C" fn() -> $return>($crate::Runtime::compile_method($runtime, ::core::stringify!($class), ::core::stringify!($name), $crate::java!(descriptor $return)))
 	};
 
 	(compile $runtime:expr, fn $class:ident.$name:ident($($param:tt),+) -> $return:tt) => {
-		::std::mem::transmute::<_, unsafe extern "C" fn($($param),+) -> $return>($crate::Runtime::compile_method($runtime, ::std::stringify!($class), ::std::stringify!($name), $crate::java!(descriptor $return, $($param),+)))
+		::core::mem::transmute::<_, unsafe extern "C" fn($($param),+) -> $return>($crate::Runtime::compile_method($runtime, ::core::stringify!($class), ::core::stringify!($name), $crate::java!(descriptor $return, $($param),+)))
 	};
 }

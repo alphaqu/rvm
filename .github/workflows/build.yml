@@ -37,19 +37,19 @@ jobs:
           args: --workspace
       - name: Test
         uses: actions-rs/cargo@v1
-        continue-on-error: true
+        if: success() || failure()
         with:
           command: test
           args: --workspace
       - name: Format
         uses: actions-rs/cargo@v1
-        continue-on-error: true
+        if: success() || failure()
         with:
           command: fmt
           args: --all -- --check
       - name: Clippy
         uses: actions-rs/cargo@v1
-        continue-on-error: true
+        if: success() || failure()
         with:
           command: clippy
           args: --workspace -- -D warnings

@@ -3,8 +3,8 @@ use rvm_runtime::java;
 use crate::{compile, launch};
 
 #[test]
-fn test() {
-	let result: Result<(), std::io::Error> = launch(|runtime| {
+fn test() -> Result<(), std::io::Error> {
+	launch(|runtime| {
 		compile(
 			&*runtime,
 			&[(
@@ -88,7 +88,5 @@ fn test() {
 		}
 
 		Ok(())
-	});
-
-	result.unwrap();
+	})
 }

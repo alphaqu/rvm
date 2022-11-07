@@ -16,8 +16,8 @@ fn ack(m: i32, n: i32) -> i32 {
 }
 
 #[test]
-fn test() {
-	let result: Result<(), std::io::Error> = launch(|runtime| {
+fn test() -> Result<(), std::io::Error> {
+	launch(|runtime| {
 		compile(
 			&*runtime,
 			&[(
@@ -52,7 +52,5 @@ fn test() {
 		}
 
 		Ok(())
-	});
-
-	result.unwrap();
+	})
 }
