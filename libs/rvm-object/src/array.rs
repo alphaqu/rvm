@@ -45,7 +45,7 @@ impl<T> Array<T> {
 	pub fn get_length(&self) -> i32 {
 		unsafe {
 			let ptr = self.reference.ptr();
-			i32::from_le_bytes(read_arr(ptr))
+			i32::read(ptr)
 		}
 	}
 }
