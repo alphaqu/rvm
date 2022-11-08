@@ -1,12 +1,12 @@
-use crate::compiler::compiler::BlockCompiler;
+use crate::compiler::BlockCompiler;
 use inkwell::values::BasicValue;
 use std::fmt::{Display, Formatter};
 use std::mem::transmute;
+use rvm_core::Kind;
+use rvm_reader::ConstantInfo;
 
-use crate::compiler::resolver::BlockResolver;
+use crate::resolver::BlockResolver;
 use crate::executor::Inst;
-use crate::object::ValueType;
-use crate::reader::ConstantInfo;
 
 /// Loads a constant to the stack.
 /// # Stack
@@ -109,13 +109,13 @@ impl ConstTask {
 		bc.push(output);
 	}
 
-	pub fn get_type(&self) -> ValueType {
+	pub fn get_type(&self) -> Kind {
 		match self {
-			ConstTask::I32(_) => ValueType::Int,
-			ConstTask::I64(_) => ValueType::Long,
-			ConstTask::F32(_) => ValueType::Float,
-			ConstTask::F64(_) => ValueType::Double,
-			ConstTask::Null | ConstTask::String => ValueType::Reference,
+			ConstTask::I32(_) => Kind::Int,
+			ConstTask::I64(_) => Kind::Long,
+			ConstTask::F32(_) => Kind::Float,
+			ConstTask::F64(_) => Kind::Double,
+			ConstTask::Null | ConstTask::String => Kind::Reference,
 		}
 	}
 }

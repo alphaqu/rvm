@@ -2,12 +2,11 @@ use std::fmt::{Display, Formatter};
 use std::mem::transmute;
 
 use inkwell::values::BasicValue;
+use rvm_core::Kind;
 
-use crate::compiler::compiler::{BlockCompiler, LocalId};
-use crate::compiler::op::Task;
-use crate::compiler::resolver::BlockResolver;
 use crate::executor::Inst;
-use crate::object::ValueType;
+use crate::op::Task;
+use crate::resolver::BlockResolver;
 
 #[derive(Clone, Debug)]
 pub struct LoadVariableTask(pub Var);
@@ -20,43 +19,43 @@ impl From<LoadVariableTask> for Task {
 
 impl LoadVariableTask {
 	pub fn resolve(inst: &Inst, resolver: &mut BlockResolver) -> LoadVariableTask {
-		let mut load = |pos: u16, ty: ValueType| {
+		let mut load = |pos: u16, ty: Kind| {
 			let variable = resolver.get_local(pos, ty);
 
 			LoadVariableTask(variable)
 		};
 
 		match inst {
-			Inst::ALOAD(v) => load(*v as u16, ValueType::Reference),
-			Inst::ALOAD_W(v) => load(*v, ValueType::Reference),
-			Inst::ALOAD0 => load(0, ValueType::Reference),
-			Inst::ALOAD1 => load(1, ValueType::Reference),
-			Inst::ALOAD2 => load(2, ValueType::Reference),
-			Inst::ALOAD3 => load(3, ValueType::Reference),
-			Inst::FLOAD(v) => load(*v as u16, ValueType::Float),
-			Inst::FLOAD_W(v) => load(*v, ValueType::Float),
-			Inst::FLOAD0 => load(0, ValueType::Float),
-			Inst::FLOAD1 => load(1, ValueType::Float),
-			Inst::FLOAD2 => load(2, ValueType::Float),
-			Inst::FLOAD3 => load(3, ValueType::Float),
-			Inst::ILOAD(v) => load(*v as u16, ValueType::Int),
-			Inst::ILOAD_W(v) => load(*v, ValueType::Int),
-			Inst::ILOAD0 => load(0, ValueType::Int),
-			Inst::ILOAD1 => load(1, ValueType::Int),
-			Inst::ILOAD2 => load(2, ValueType::Int),
-			Inst::ILOAD3 => load(3, ValueType::Int),
-			Inst::DLOAD(v) => load(*v as u16, ValueType::Double),
-			Inst::DLOAD_W(v) => load(*v, ValueType::Double),
-			Inst::DLOAD0 => load(0, ValueType::Double),
-			Inst::DLOAD1 => load(1, ValueType::Double),
-			Inst::DLOAD2 => load(2, ValueType::Double),
-			Inst::DLOAD3 => load(3, ValueType::Double),
-			Inst::LLOAD(v) => load(*v as u16, ValueType::Long),
-			Inst::LLOAD_W(v) => load(*v, ValueType::Long),
-			Inst::LLOAD0 => load(0, ValueType::Long),
-			Inst::LLOAD1 => load(1, ValueType::Long),
-			Inst::LLOAD2 => load(2, ValueType::Long),
-			Inst::LLOAD3 => load(3, ValueType::Long),
+			Inst::ALOAD(v) => load(*v as u16, Kind::Reference),
+			Inst::ALOAD_W(v) => load(*v, Kind::Reference),
+			Inst::ALOAD0 => load(0, Kind::Reference),
+			Inst::ALOAD1 => load(1, Kind::Reference),
+			Inst::ALOAD2 => load(2, Kind::Reference),
+			Inst::ALOAD3 => load(3, Kind::Reference),
+			Inst::FLOAD(v) => load(*v as u16, Kind::Float),
+			Inst::FLOAD_W(v) => load(*v, Kind::Float),
+			Inst::FLOAD0 => load(0, Kind::Float),
+			Inst::FLOAD1 => load(1, Kind::Float),
+			Inst::FLOAD2 => load(2, Kind::Float),
+			Inst::FLOAD3 => load(3, Kind::Float),
+			Inst::ILOAD(v) => load(*v as u16, Kind::Int),
+			Inst::ILOAD_W(v) => load(*v, Kind::Int),
+			Inst::ILOAD0 => load(0, Kind::Int),
+			Inst::ILOAD1 => load(1, Kind::Int),
+			Inst::ILOAD2 => load(2, Kind::Int),
+			Inst::ILOAD3 => load(3, Kind::Int),
+			Inst::DLOAD(v) => load(*v as u16, Kind::Double),
+			Inst::DLOAD_W(v) => load(*v, Kind::Double),
+			Inst::DLOAD0 => load(0, Kind::Double),
+			Inst::DLOAD1 => load(1, Kind::Double),
+			Inst::DLOAD2 => load(2, Kind::Double),
+			Inst::DLOAD3 => load(3, Kind::Double),
+			Inst::LLOAD(v) => load(*v as u16, Kind::Long),
+			Inst::LLOAD_W(v) => load(*v, Kind::Long),
+			Inst::LLOAD0 => load(0, Kind::Long),
+			Inst::LLOAD1 => load(1, Kind::Long),
+			Inst::LLOAD2 => load(2, Kind::Long),
+			Inst::LLOAD3 => load(3, Kind::Long),
 			_ => {
 				panic!("what")
 			}
@@ -198,7 +197,7 @@ impl Display for IncrementTask {
 }
 #[derive(Copy, Clone, Debug)]
 pub struct Var {
-	pub ty: ValueType,
+	pub ty: Kind,
 	pub data: VarData,
 }
 

@@ -26,6 +26,7 @@ use std::path::Path;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tracing::{debug, info, instrument, trace};
+use rvm_core::MethodDesc;
 use rvm_execute::{Bindings, Method};
 
 pub struct Executor<'ctx> {
@@ -570,10 +571,10 @@ impl<'ctx> Executor<'ctx> {
 }
 
 pub struct BlocksData<'a, 'ctx> {
-    inst_to_block: AHashMap<usize, usize>,
+    pub inst_to_block: AHashMap<usize, usize>,
     // compilation order
-    compile_order: Vec<usize>,
-    blocks: Vec<Block<'a, 'ctx>>,
+    pub compile_order: Vec<usize>,
+    pub blocks: Vec<Block<'a, 'ctx>>,
 }
 
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
@@ -607,9 +608,9 @@ impl MethodReference {
         format!("DEF{}", self)
     }
 
-    pub fn desc(&self) -> MethodDescriptor {
+    pub fn desc(&self) -> MethodDesc {
         // valid because checked on creation
-        MethodDescriptor::parse(&self.desc).unwrap()
+        MethodDesc::parse(&self.desc).unwrap()
     }
 }
 

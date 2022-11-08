@@ -1,8 +1,8 @@
-use crate::compiler::compiler::BlockCompiler;
+use crate::compiler::BlockCompiler;
 use inkwell::IntPredicate;
 use std::fmt::{Display, Formatter};
 
-use crate::compiler::resolver::BlockResolver;
+use crate::resolver::BlockResolver;
 use crate::executor::Inst;
 
 /// Compares two values against eachother

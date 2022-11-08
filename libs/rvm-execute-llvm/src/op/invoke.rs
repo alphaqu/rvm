@@ -1,9 +1,9 @@
-use crate::compiler::compiler::BlockCompiler;
+use crate::compiler::BlockCompiler;
 
-use crate::compiler::resolver::BlockResolver;
-use crate::executor::Inst;
+use crate::resolver::BlockResolver;
+use crate::executor::{Inst, Reference};
 
-use crate::compiler::{MethodReference, Reference};
+use crate::compiler::{MethodReference};
 use either::Either;
 use inkwell::values::{BasicMetadataValueEnum, CallableValue};
 use std::fmt::{Display, Formatter};

@@ -1,8 +1,8 @@
-use crate::compiler::compiler::BlockCompiler;
 use std::fmt::{Display, Formatter};
+use crate::compiler::BlockCompiler;
 
-use crate::compiler::resolver::BlockResolver;
 use crate::executor::Inst;
+use crate::resolver::BlockResolver;
 
 #[derive(Clone, Debug)]
 pub struct JumpTask {

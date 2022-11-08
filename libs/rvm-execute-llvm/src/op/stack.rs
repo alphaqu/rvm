@@ -1,10 +1,9 @@
 use inkwell::types::BasicTypeEnum;
 use std::fmt::{Display, Formatter};
+use crate::compiler::BlockCompiler;
 
-use crate::compiler::compiler::BlockCompiler;
-
-use crate::compiler::resolver::BlockResolver;
 use crate::executor::Inst;
+use crate::resolver::BlockResolver;
 
 #[derive(Clone, Debug)]
 pub enum StackTask {

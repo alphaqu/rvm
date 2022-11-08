@@ -1,15 +1,14 @@
 use crate::block::{Block, ResolvedBlock};
 use ahash::AHashSet;
+use rvm_core::Kind;
+use rvm_reader::ConstantPool;
 
-use crate::{BlocksData, Reference};
 
 use crate::compiler::LocalId::Local;
 use crate::op::jump::JumpTask;
 use crate::op::variable::{Var, VarData};
 use crate::op::Task;
-use crate::executor::Inst;
-use crate::object::ValueType;
-use crate::reader::ConstantPool;
+use crate::executor::{BlocksData, Inst, Reference};
 
 /// Psudo executes the java instructions to parse
 /// them into an instruction tree which later gets
@@ -47,7 +46,7 @@ impl<'b, 'ctx> BlockResolver<'b, 'ctx> {
 		&self.data.blocks[self.block]
 	}
 
-	pub fn get_local(&mut self, value: u16, ty: ValueType) -> Var {
+	pub fn get_local(&mut self, value: u16, ty: Kind) -> Var {
 		Var {
 			ty,
 			data: VarData::Local(Local(value)),

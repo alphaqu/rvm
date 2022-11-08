@@ -1,5 +1,5 @@
-use crate::compiler::compiler::BlockCompiler;
-use crate::compiler::resolver::BlockResolver;
+use crate::compiler::BlockCompiler;
+use crate::resolver::BlockResolver;
 use crate::executor::Inst;
 use inkwell::values::BasicValue;
 use std::fmt::{Display, Formatter};

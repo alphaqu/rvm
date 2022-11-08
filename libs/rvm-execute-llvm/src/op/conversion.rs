@@ -1,10 +1,10 @@
-use crate::compiler::compiler::BlockCompiler;
-use crate::compiler::op::Task;
-use crate::compiler::resolver::BlockResolver;
+use crate::compiler::BlockCompiler;
+use crate::op::Task;
+use crate::resolver::BlockResolver;
 use crate::executor::Inst;
-use crate::object::ValueType;
 use inkwell::values::{BasicValue, BasicValueEnum};
 use std::fmt::{Display, Formatter};
+use rvm_core::Kind;
 
 #[derive(Clone, Debug)]
 pub struct ConversionTask {
@@ -104,15 +104,15 @@ impl ConversionTask {
 		bc.push(output);
 	}
 
-	pub fn get_type(&self) -> ValueType {
+	pub fn get_type(&self) -> Kind {
 		match self.kind {
-			ConversionKind::F2I | ConversionKind::L2I | ConversionKind::D2I => ValueType::Int,
-			ConversionKind::D2F | ConversionKind::I2F | ConversionKind::L2F => ValueType::Float,
-			ConversionKind::D2L | ConversionKind::F2L | ConversionKind::I2L => ValueType::Long,
-			ConversionKind::F2D | ConversionKind::I2D | ConversionKind::L2D => ValueType::Double,
-			ConversionKind::I2B => ValueType::Int,
-			ConversionKind::I2C => ValueType::Int,
-			ConversionKind::I2S => ValueType::Int,
+			ConversionKind::F2I | ConversionKind::L2I | ConversionKind::D2I => Kind::Int,
+			ConversionKind::D2F | ConversionKind::I2F | ConversionKind::L2F => Kind::Float,
+			ConversionKind::D2L | ConversionKind::F2L | ConversionKind::I2L => Kind::Long,
+			ConversionKind::F2D | ConversionKind::I2D | ConversionKind::L2D => Kind::Double,
+			ConversionKind::I2B => Kind::Int,
+			ConversionKind::I2C => Kind::Int,
+			ConversionKind::I2S => Kind::Int,
 		}
 	}
 }

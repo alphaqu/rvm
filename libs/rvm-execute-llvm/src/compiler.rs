@@ -22,7 +22,7 @@ pub struct FunctionCompiler<'a, 'ctx> {
 	builder: Builder<'ctx>,
 	blocks: Vec<Block<'a, 'ctx>>,
 
-	returns: ReturnDescriptor,
+	returns: Option<Type>,
 	pub func: FunctionValue<'ctx>,
 }
 
@@ -56,8 +56,8 @@ impl<'a, 'ctx> FunctionCompiler<'a, 'ctx> {
 			.map(|v| BasicMetadataTypeEnum::from(*v))
 			.collect();
 		let ty = match &desc.ret {
-			ReturnDescriptor::Field(ty) => ty.ty().ir(ctx).fn_type(&param_types, false),
-			ReturnDescriptor::Void => ctx.void_type().fn_type(&param_types, false),
+			Some(ty) => ty.ty().ir(ctx).fn_type(&param_types, false),
+			None => ctx.void_type().fn_type(&param_types, false),
 		};
 
 		let id = name.def_name();
