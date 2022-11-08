@@ -1,25 +1,27 @@
 #![feature(map_try_insert)]
 
-use std::sync::atomic::{AtomicBool, Ordering};
+mod storage;
+mod ty;
+mod r#ref;
 
+pub use r#ref::Ref;
+pub use ty::*;
+pub use storage::*;
 use tracing::Level;
 use tracing_subscriber::filter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
-pub use storage::*;
-
-mod storage;
+static mut INITIALIZED: bool = false;
 
 pub fn init() {
-	static INITIALIZED: AtomicBool = AtomicBool::new(false);
-
-	if INITIALIZED
-		.compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
-		.is_ok()
-	{
+	if !unsafe {
+		let initialized = INITIALIZED;
+		INITIALIZED = true;
+		initialized
+	} {
 		let filter = filter::Targets::new()
-			.with_default(Level::TRACE)
+			.with_default(Level::ERROR)
 			.with_target("gc", Level::INFO)
 			.with_target("exec", Level::INFO);
 

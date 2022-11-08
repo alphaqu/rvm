@@ -1,0 +1,19 @@
+[package]
+name = "rvm-execute-llvm"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rvm-core = { path = "../rvm-core" }
+rvm-reader = { path = "../rvm-reader" }
+rvm-execute = { path = "../rvm-execute" }
+
+inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "master", features = ["llvm14-0"] }
+
+tracing = "0.1"
+ahash = "0.8"
+either = "1.8.0"
+once_cell = "1"
+self_cell = "0.10"

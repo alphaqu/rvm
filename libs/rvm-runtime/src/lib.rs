@@ -36,7 +36,6 @@ pub mod error;
 pub mod executor;
 pub mod gc;
 pub mod object;
-pub mod prelude;
 pub mod reader;
 
 #[cfg(feature = "native")]
