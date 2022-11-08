@@ -1,5 +1,5 @@
 use rvm_consts::MethodAccessFlags;
-use rvm_core::{StorageValue, Type};
+use rvm_core::{MethodDesc, StorageValue, Type};
 use rvm_reader::{Code, ConstantPool};
 use std::ffi::{c_char, c_void};
 
@@ -22,11 +22,6 @@ pub struct Method {
 	pub desc: MethodDesc,
 	pub flags: MethodAccessFlags,
 	pub code: Code,
-}
-
-pub struct MethodDesc {
-	parameters: Vec<Type>,
-	ret: Option<Type>,
 }
 
 impl StorageValue for Method {
