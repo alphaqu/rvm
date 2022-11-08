@@ -2,11 +2,15 @@ use std::fmt::{Display, Formatter, Write};
 pub use kind::*;
 pub use value::*;
 pub use desc::*;
+pub use flags::*;
+pub use op::*;
 pub(crate) use value::read_arr;
 pub(crate) use value::write_arr;
 mod kind;
 mod value;
 mod desc;
+mod op;
+mod flags;
 
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 pub enum Type {

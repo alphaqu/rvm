@@ -7,4 +7,3 @@ edition = "2021"
 
 [dependencies]
 rvm-core = { path = "../rvm-core" }
-rvm-consts = { path = "../rvm-consts" }

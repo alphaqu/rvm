@@ -7,8 +7,8 @@ use nom::bytes::complete::tag;
 use nom::combinator::{map, map_opt};
 use nom::multi::length_count;
 use nom::number::complete::be_u16;
-use rvm_consts::ClassAccessFlags;
 use tracing::trace;
+use rvm_core::ClassAccessFlags;
 
 pub struct ClassInfo {
 	pub minor_version: u16,

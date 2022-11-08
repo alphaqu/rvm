@@ -4,8 +4,8 @@ use crate::{ConstPtr, IResult, UTF8Const};
 use nom::combinator::map_opt;
 use nom::multi::length_count;
 use nom::number::complete::be_u16;
-use rvm_consts::MethodAccessFlags;
 use tracing::trace;
+use rvm_core::MethodAccessFlags;
 
 //method_info {
 //     u16             access_flags;

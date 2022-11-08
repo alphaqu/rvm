@@ -4,7 +4,7 @@ use crate::{ConstPtr, IResult, UTF8Const};
 use nom::combinator::map_opt;
 use nom::multi::length_count;
 use nom::number::complete::be_u16;
-use rvm_consts::FieldAccessFlags;
+use rvm_core::FieldAccessFlags;
 
 //field_info {
 //     u16             access_flags;

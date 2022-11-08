@@ -1,8 +1,4 @@
-use crate::reference::Ref;
-use crate::ty::Type;
-use crate::ty::ValueEnum;
-use rvm_consts::FieldAccessFlags;
-use rvm_core::{Id, Ref, Storage, StorageValue, Type, ValueEnum};
+use rvm_core::{FieldAccessFlags, Id, Ref, Storage, StorageValue, Type, ValueEnum};
 
 pub struct ObjectDesc {
 	size: usize,
