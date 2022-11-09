@@ -1,10 +1,15 @@
-use rvm_consts::MethodAccessFlags;
-use rvm_core::{MethodDesc, StorageValue, Type};
-use rvm_reader::{Code, ConstantPool};
 use std::ffi::{c_char, c_void};
 
+use rvm_core::{MethodAccessFlags, MethodDesc, StorageValue, Type};
+use rvm_reader::{Code, ConstantPool};
+
 pub trait ExecutionEngine {
-	fn compile_method(&self, bindings: &Bindings, method: &Method, cp: &ConstantPool) -> *const c_void;
+	fn compile_method(
+		&self,
+		bindings: &Bindings,
+		method: &Method,
+		cp: &ConstantPool,
+	) -> *const c_void;
 }
 
 pub struct Bindings {

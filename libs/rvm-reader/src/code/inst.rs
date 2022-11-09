@@ -1,10 +1,12 @@
-use crate::{be_cp, IResult};
-use crate::{ClassConst, ConstPtr, FieldConst, MethodConst};
 use nom::combinator::map;
 use nom::number::complete::{be_i16, be_i32, be_i8, be_u16, be_u8};
 use nom::sequence::tuple;
-use rvm_core::{Kind, Op, PrimitiveType, StackKind};
 use tracing::trace;
+
+use rvm_core::{Kind, Op, PrimitiveType, StackKind};
+
+use crate::{be_cp, IResult};
+use crate::{ClassConst, ConstPtr, FieldConst, MethodConst};
 
 #[derive(Copy, Clone, Debug)]
 pub enum ConstInst {
@@ -87,8 +89,8 @@ pub enum ComparisonInst {
 
 #[derive(Copy, Clone, Debug)]
 pub struct JumpInst {
-	offset: i32,
-	kind: JumpKind,
+	pub offset: i32,
+	pub kind: JumpKind,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -686,9 +688,7 @@ impl Inst {
 			Op::ATHROW => (input, Inst::Throw(ThrowInst {})),
 			Op::BIPUSH => map(be_i8, |v| Inst::Push(PushInst(v as i16)))(input)?,
 			Op::SIPUSH => map(be_i16, |v| Inst::Push(PushInst(v as i16)))(input)?,
-			Op::CHECKCAST => {
-				map(be_cp, |value| Inst::CheckCast(CheckCastInst { value }))(input)?
-			}
+			Op::CHECKCAST => map(be_cp, |value| Inst::CheckCast(CheckCastInst { value }))(input)?,
 			Op::INSTANCEOF => {
 				map(be_cp, |value| Inst::InstanceOf(InstanceOfInst { value }))(input)?
 			}
@@ -720,30 +720,36 @@ impl Inst {
 					kind: FieldInstKind::Put,
 				})
 			})(input)?,
-			Op::INVOKEDYNAMIC => {
-				map(tuple((be_cp, be_u16)), |(v, _)| Inst::Invoke(InvokeInst {
+			Op::INVOKEDYNAMIC => map(tuple((be_cp, be_u16)), |(v, _)| {
+				Inst::Invoke(InvokeInst {
 					value: v,
-					kind: InvokeInstKind::Dynamic
-				}))(input)?
-			}
+					kind: InvokeInstKind::Dynamic,
+				})
+			})(input)?,
 			Op::INVOKEINTERFACE => map(tuple((be_cp, be_u8, be_u8)), |(v, count, _)| {
 				Inst::Invoke(InvokeInst {
 					value: v,
-					kind: InvokeInstKind::Interface(count)
+					kind: InvokeInstKind::Interface(count),
 				})
 			})(input)?,
-			Op::INVOKESPECIAL => map(be_cp, |v| Inst::Invoke(InvokeInst {
-				value: v,
-				kind: InvokeInstKind::Special
-			}))(input)?,
-			Op::INVOKESTATIC => map(be_cp, |v| Inst::Invoke(InvokeInst {
-				value: v,
-				kind: InvokeInstKind::Static
-			}))(input)?,
-			Op::INVOKEVIRTUAL => map(be_cp, |v| Inst::Invoke(InvokeInst {
-				value: v,
-				kind: InvokeInstKind::Virtual
-			}))(input)?,
+			Op::INVOKESPECIAL => map(be_cp, |v| {
+				Inst::Invoke(InvokeInst {
+					value: v,
+					kind: InvokeInstKind::Special,
+				})
+			})(input)?,
+			Op::INVOKESTATIC => map(be_cp, |v| {
+				Inst::Invoke(InvokeInst {
+					value: v,
+					kind: InvokeInstKind::Static,
+				})
+			})(input)?,
+			Op::INVOKEVIRTUAL => map(be_cp, |v| {
+				Inst::Invoke(InvokeInst {
+					value: v,
+					kind: InvokeInstKind::Virtual,
+				})
+			})(input)?,
 			v => {
 				panic!("instruction {v:?} kinda dodo");
 			}
