@@ -8,6 +8,7 @@ Is it your responsibility
 - that I write good unsafe code which does not segfault your revolutionary and groundbreaking dating app
 - to not use features that im too lazy to implement
 - to not care about children because extending is not supported
+- to take care of your children
 - to not make interfaces because those are objectively cringe
 - to write java like you are in 1969
 - to not run hospital software on this
