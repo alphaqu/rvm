@@ -11,3 +11,4 @@ Is it your responsibility
 - to not make interfaces because those are objectively cringe
 - to write java like you are in 1969
 - to not run hospital software on this
+- to run Linux 
