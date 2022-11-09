@@ -26,4 +26,5 @@ members = [
     "./libs/rvm-object",
     "./libs/rvm-reader",
     "./libs/rvm-gc",
+    "./libs/rvm-tests",
 ]

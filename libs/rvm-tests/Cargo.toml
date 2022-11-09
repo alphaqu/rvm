@@ -1,0 +1,11 @@
+[package]
+name = "rvm-tests"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "master", features = ["llvm14-0"] }
+rvm-core = { path = "../rvm-core" }
+rvm-runtime = { path = "../rvm-runtime" }
+
+walkdir = "2.3.2"
