@@ -3,10 +3,9 @@ use inkwell::values::BasicValue;
 use std::fmt::{Display, Formatter};
 use std::mem::transmute;
 use rvm_core::Kind;
-use rvm_reader::ConstantInfo;
+use rvm_reader::{ConstantInfo, ConstInst};
 
 use crate::resolver::BlockResolver;
-use crate::executor::Inst;
 
 /// Loads a constant to the stack.
 /// # Stack
@@ -23,7 +22,7 @@ pub enum ConstTask {
 }
 
 impl ConstTask {
-	pub fn resolve(inst: &Inst, resolver: &mut BlockResolver) -> ConstTask {
+	pub fn resolve(inst: &ConstInst, resolver: &mut BlockResolver) -> ConstTask {
 		let ldc = |value: u16| -> ConstTask {
 			let constant = resolver.cp().get_raw(value).unwrap();
 			match constant {
@@ -50,39 +49,39 @@ impl ConstTask {
 				}
 			}
 		};
-
 		match inst {
-			Inst::BIPUSH(v) => ConstTask::I32(*v as i32),
-			Inst::SIPUSH(v) => ConstTask::I32(*v as i32),
-			Inst::ACONST_NULL => ConstTask::Null,
-			Inst::DCONST_0 => ConstTask::F64(0.0),
-			Inst::DCONST_1 => ConstTask::F64(1.0),
-			Inst::FCONST_0 => ConstTask::F32(0.0),
-			Inst::FCONST_1 => ConstTask::F32(1.0),
-			Inst::FCONST_2 => ConstTask::F32(2.0),
-			Inst::ICONST_M1 => ConstTask::I32(-1),
-			Inst::ICONST_0 => ConstTask::I32(0),
-			Inst::ICONST_1 => ConstTask::I32(1),
-			Inst::ICONST_2 => ConstTask::I32(2),
-			Inst::ICONST_3 => ConstTask::I32(3),
-			Inst::ICONST_4 => ConstTask::I32(4),
-			Inst::ICONST_5 => ConstTask::I32(5),
-			Inst::LCONST_0 => ConstTask::I64(0),
-			Inst::LCONST_1 => ConstTask::I64(1),
-			Inst::LDC(value) => ldc(*value as u16),
-			Inst::LDC_W(value) => ldc(*value),
-			Inst::LDC2_W(value) => {
-				let constant = resolver.cp().get_raw(*value).unwrap();
+			ConstInst::Null => ConstTask::Null,
+			ConstInst::Int(v) => ConstTask::I32(*v),
+			ConstInst::Long(v) => ConstTask::I64(*v),
+			ConstInst::Float(v) =>  ConstTask::F32(*v),
+			ConstInst::Double(v) => ConstTask::F64(*v),
+			ConstInst::Ldc { id, cat2 } => {
+				let constant = resolver.cp().get_raw(*id).unwrap();
 				match constant {
-					ConstantInfo::Float(float) => ConstTask::F32(float.bytes),
-					ConstantInfo::Double(double) => ConstTask::F64(double.bytes),
+					ConstantInfo::Integer(v) => ConstTask::I32(v.bytes),
+					ConstantInfo::Float(v) => ConstTask::F32(v.bytes),
+					ConstantInfo::Long(v) => ConstTask::I64(v.bytes),
+					ConstantInfo::Double(v) => ConstTask::F64(v.bytes),
+					ConstantInfo::String(string) => {
+						//let string = string.string.get(&class.cp);
+						//let id = runtime
+						//	.cl
+						//	.get_class_id(&BinaryName::Object("java.lang.String".to_string()));
+						todo!("string constants")
+					}
+					ConstantInfo::Class(class) => {
+						todo!("Class objects")
+					}
+					ConstantInfo::MethodHandle(_) => {
+						todo!("method handle")
+					}
+					ConstantInfo::MethodType(_) => {
+						todo!("method type")
+					}
 					_ => {
 						todo!("maybe unsupported")
 					}
 				}
-			}
-			_ => {
-				panic!("wtf")
 			}
 		}
 	}

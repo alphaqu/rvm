@@ -1,7 +1,7 @@
 use std::fmt::{Display, Formatter};
+use rvm_reader::JumpKind;
 use crate::compiler::BlockCompiler;
 
-use crate::executor::Inst;
 use crate::resolver::BlockResolver;
 
 #[derive(Clone, Debug)]
@@ -10,17 +10,9 @@ pub struct JumpTask {
 }
 
 impl JumpTask {
-	pub fn resolve(i: usize, inst: &Inst, resolver: &mut BlockResolver) -> JumpTask {
-		let offset = match inst {
-			Inst::GOTO(offset) => offset.0 as i32,
-			Inst::GOTO_W(offset) => offset.0,
-			_ => {
-				panic!("what")
-			}
-		};
-
+	pub fn resolve(target: usize, resolver: &mut BlockResolver) -> JumpTask {
 		JumpTask {
-			target: resolver.inst_to_block(i.saturating_add_signed(offset as isize)),
+			target,
 		}
 	}
 

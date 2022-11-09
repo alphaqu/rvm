@@ -1,8 +1,8 @@
 use inkwell::types::BasicTypeEnum;
 use std::fmt::{Display, Formatter};
+use rvm_reader::StackInst;
 use crate::compiler::BlockCompiler;
 
-use crate::executor::Inst;
 use crate::resolver::BlockResolver;
 
 #[derive(Clone, Debug)]
@@ -18,17 +18,17 @@ pub enum StackTask {
 	SWAP,
 }
 impl StackTask {
-	pub fn resolve(inst: &Inst, _: &mut BlockResolver) -> StackTask {
+	pub fn resolve(inst: &StackInst, _: &mut BlockResolver) -> StackTask {
 		match inst {
-			Inst::DUP => StackTask::DUP,
-			Inst::DUP_X1 => StackTask::DUP_X1,
-			Inst::DUP_X2 => StackTask::DUP_X2,
-			Inst::DUP2 => StackTask::DUP2,
-			Inst::DUP2_X1 => StackTask::DUP2_X1,
-			Inst::DUP2_X2 => StackTask::DUP2_X2,
-			Inst::POP => StackTask::POP,
-			Inst::POP2 => StackTask::POP2,
-			Inst::SWAP => StackTask::SWAP,
+			StackInst::DUP => StackTask::DUP,
+			StackInst::DUP_X1 => StackTask::DUP_X1,
+			StackInst::DUP_X2 => StackTask::DUP_X2,
+			StackInst::DUP2 => StackTask::DUP2,
+			StackInst::DUP2_X1 => StackTask::DUP2_X1,
+			StackInst::DUP2_X2 => StackTask::DUP2_X2,
+			StackInst::POP => StackTask::POP,
+			StackInst::POP2 => StackTask::POP2,
+			StackInst::SWAP => StackTask::SWAP,
 			_ => panic!("what"),
 		}
 	}

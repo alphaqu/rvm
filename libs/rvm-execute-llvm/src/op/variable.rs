@@ -3,8 +3,8 @@ use std::mem::transmute;
 
 use inkwell::values::BasicValue;
 use rvm_core::Kind;
+use crate::compiler::{BlockCompiler, LocalId};
 
-use crate::executor::Inst;
 use crate::op::Task;
 use crate::resolver::BlockResolver;
 
@@ -18,51 +18,12 @@ impl From<LoadVariableTask> for Task {
 }
 
 impl LoadVariableTask {
-	pub fn resolve(inst: &Inst, resolver: &mut BlockResolver) -> LoadVariableTask {
-		let mut load = |pos: u16, ty: Kind| {
-			let variable = resolver.get_local(pos, ty);
-
-			LoadVariableTask(variable)
-		};
-
-		match inst {
-			Inst::ALOAD(v) => load(*v as u16, Kind::Reference),
-			Inst::ALOAD_W(v) => load(*v, Kind::Reference),
-			Inst::ALOAD0 => load(0, Kind::Reference),
-			Inst::ALOAD1 => load(1, Kind::Reference),
-			Inst::ALOAD2 => load(2, Kind::Reference),
-			Inst::ALOAD3 => load(3, Kind::Reference),
-			Inst::FLOAD(v) => load(*v as u16, Kind::Float),
-			Inst::FLOAD_W(v) => load(*v, Kind::Float),
-			Inst::FLOAD0 => load(0, Kind::Float),
-			Inst::FLOAD1 => load(1, Kind::Float),
-			Inst::FLOAD2 => load(2, Kind::Float),
-			Inst::FLOAD3 => load(3, Kind::Float),
-			Inst::ILOAD(v) => load(*v as u16, Kind::Int),
-			Inst::ILOAD_W(v) => load(*v, Kind::Int),
-			Inst::ILOAD0 => load(0, Kind::Int),
-			Inst::ILOAD1 => load(1, Kind::Int),
-			Inst::ILOAD2 => load(2, Kind::Int),
-			Inst::ILOAD3 => load(3, Kind::Int),
-			Inst::DLOAD(v) => load(*v as u16, Kind::Double),
-			Inst::DLOAD_W(v) => load(*v, Kind::Double),
-			Inst::DLOAD0 => load(0, Kind::Double),
-			Inst::DLOAD1 => load(1, Kind::Double),
-			Inst::DLOAD2 => load(2, Kind::Double),
-			Inst::DLOAD3 => load(3, Kind::Double),
-			Inst::LLOAD(v) => load(*v as u16, Kind::Long),
-			Inst::LLOAD_W(v) => load(*v, Kind::Long),
-			Inst::LLOAD0 => load(0, Kind::Long),
-			Inst::LLOAD1 => load(1, Kind::Long),
-			Inst::LLOAD2 => load(2, Kind::Long),
-			Inst::LLOAD3 => load(3, Kind::Long),
-			_ => {
-				panic!("what")
-			}
-		}
+	pub fn resolve(kind: Kind, var: u16, resolver: &mut BlockResolver) -> LoadVariableTask {
+		let variable = resolver.get_local(var, kind);
+		LoadVariableTask(variable)
 	}
 
-	pub fn get_type(&self) -> ValueType {
+	pub fn get_type(&self) -> Kind {
 		self.0.ty
 	}
 
@@ -88,45 +49,9 @@ pub struct StoreVariableTask {
 }
 
 impl StoreVariableTask {
-	pub fn resolve(inst: &Inst, resolver: &mut BlockResolver) -> StoreVariableTask {
-		let mut store = |pos: u16, ty: ValueType| {
-			let var = resolver.get_local(pos, ty);
-			StoreVariableTask { var }
-		};
-
-		match inst {
-			Inst::ASTORE(v) => store(*v as u16, ValueType::Reference),
-			Inst::ASTORE_W(v) => store(*v, ValueType::Reference),
-			Inst::ASTORE0 => store(0, ValueType::Reference),
-			Inst::ASTORE1 => store(1, ValueType::Reference),
-			Inst::ASTORE2 => store(2, ValueType::Reference),
-			Inst::ASTORE3 => store(3, ValueType::Reference),
-			Inst::FSTORE(v) => store(*v as u16, ValueType::Float),
-			Inst::FSTORE_W(v) => store(*v, ValueType::Float),
-			Inst::FSTORE0 => store(0, ValueType::Float),
-			Inst::FSTORE1 => store(1, ValueType::Float),
-			Inst::FSTORE2 => store(2, ValueType::Float),
-			Inst::FSTORE3 => store(3, ValueType::Float),
-			Inst::ISTORE(v) => store(*v as u16, ValueType::Int),
-			Inst::ISTORE_W(v) => store(*v, ValueType::Int),
-			Inst::ISTORE0 => store(0, ValueType::Int),
-			Inst::ISTORE1 => store(1, ValueType::Int),
-			Inst::ISTORE2 => store(2, ValueType::Int),
-			Inst::ISTORE3 => store(3, ValueType::Int),
-			Inst::DSTORE(v) => store(*v as u16, ValueType::Double),
-			Inst::DSTORE_W(v) => store(*v, ValueType::Double),
-			Inst::DSTORE0 => store(0, ValueType::Double),
-			Inst::DSTORE1 => store(1, ValueType::Double),
-			Inst::DSTORE2 => store(2, ValueType::Double),
-			Inst::DSTORE3 => store(3, ValueType::Double),
-			Inst::LSTORE(v) => store(*v as u16, ValueType::Long),
-			Inst::LSTORE_W(v) => store(*v, ValueType::Long),
-			Inst::LSTORE0 => store(0, ValueType::Long),
-			Inst::LSTORE1 => store(1, ValueType::Long),
-			Inst::LSTORE2 => store(2, ValueType::Long),
-			Inst::LSTORE3 => store(3, ValueType::Long),
-			_ => panic!("what"),
-		}
+	pub fn resolve(kind: Kind, var: u16, resolver: &mut BlockResolver) -> StoreVariableTask {
+		let var = resolver.get_local(var, kind);
+		StoreVariableTask { var }
 	}
 
 	pub fn compile(&self, bc: &mut BlockCompiler) {
@@ -155,17 +80,8 @@ pub struct IncrementTask {
 }
 
 impl IncrementTask {
-	pub fn resolve(inst: &Inst, resolver: &mut BlockResolver) -> IncrementTask {
-		let (index, amount) = match inst {
-			Inst::IINC(index, amount) => (*index as u16, *amount as i16),
-			Inst::IINC_W(index, amount) => (*index, *amount),
-			_ => {
-				panic!("what")
-			}
-		};
-
-		let var = resolver.get_local(index, ValueType::Int);
-
+	pub fn resolve(var: u16, amount: i16, resolver: &mut BlockResolver) -> IncrementTask {
+		let var = resolver.get_local(var, Kind::Int);
 		IncrementTask { var, amount }
 	}
 

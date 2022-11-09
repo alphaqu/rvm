@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use crate::Type;
 
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
@@ -26,5 +27,23 @@ impl MethodDesc {
 		}
 
 		Some(MethodDesc { parameters, ret })
+	}
+}
+
+impl Display for MethodDesc {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		write!(f, "(")?;
+		for ty in &self.parameters {
+			write!(f, "{ty}")?;
+		}
+		write!(f, ")")?;
+		match &self.ret {
+			None => {
+				write!(f, "V")
+			}
+			Some(ty) => {
+				write!(f, "{ty}")
+			}
+		}
 	}
 }

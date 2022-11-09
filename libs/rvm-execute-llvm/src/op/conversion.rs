@@ -1,10 +1,10 @@
 use crate::compiler::BlockCompiler;
 use crate::op::Task;
 use crate::resolver::BlockResolver;
-use crate::executor::Inst;
 use inkwell::values::{BasicValue, BasicValueEnum};
 use std::fmt::{Display, Formatter};
 use rvm_core::Kind;
+use rvm_reader::ConversionInst;
 
 #[derive(Clone, Debug)]
 pub struct ConversionTask {
@@ -12,23 +12,23 @@ pub struct ConversionTask {
 }
 
 impl ConversionTask {
-	pub fn resolve(inst: &Inst, _: &mut BlockResolver) -> ConversionTask {
+	pub fn resolve(inst: &ConversionInst, _: &mut BlockResolver) -> ConversionTask {
 		let kind = match inst {
-			Inst::D2F => ConversionKind::D2F,
-			Inst::D2I => ConversionKind::D2I,
-			Inst::D2L => ConversionKind::D2L,
-			Inst::F2D => ConversionKind::F2D,
-			Inst::F2I => ConversionKind::F2I,
-			Inst::F2L => ConversionKind::F2L,
-			Inst::I2B => ConversionKind::I2B,
-			Inst::I2C => ConversionKind::I2C,
-			Inst::I2D => ConversionKind::I2D,
-			Inst::I2F => ConversionKind::I2F,
-			Inst::I2L => ConversionKind::I2L,
-			Inst::I2S => ConversionKind::I2S,
-			Inst::L2D => ConversionKind::L2D,
-			Inst::L2F => ConversionKind::L2F,
-			Inst::L2I => ConversionKind::L2I,
+			ConversionInst::D2F => ConversionKind::D2F,
+			ConversionInst::D2I => ConversionKind::D2I,
+			ConversionInst::D2L => ConversionKind::D2L,
+			ConversionInst::F2D => ConversionKind::F2D,
+			ConversionInst::F2I => ConversionKind::F2I,
+			ConversionInst::F2L => ConversionKind::F2L,
+			ConversionInst::I2B => ConversionKind::I2B,
+			ConversionInst::I2C => ConversionKind::I2C,
+			ConversionInst::I2D => ConversionKind::I2D,
+			ConversionInst::I2F => ConversionKind::I2F,
+			ConversionInst::I2L => ConversionKind::I2L,
+			ConversionInst::I2S => ConversionKind::I2S,
+			ConversionInst::L2D => ConversionKind::L2D,
+			ConversionInst::L2F => ConversionKind::L2F,
+			ConversionInst::L2I => ConversionKind::L2I,
 			_ => panic!("what"),
 		};
 

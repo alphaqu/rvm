@@ -1,45 +1,37 @@
 use crate::compiler::BlockCompiler;
 
 use crate::resolver::BlockResolver;
-use crate::executor::{Inst, Reference};
+use crate::executor::{MethodReference, Reference};
 
-use crate::compiler::{MethodReference};
 use either::Either;
 use inkwell::values::{BasicMetadataValueEnum, CallableValue};
 use std::fmt::{Display, Formatter};
+use rvm_reader::{InvokeInst, InvokeInstKind};
 
 #[derive(Clone, Debug)]
 pub struct InvokeTask {
-	pub kind: InvokeKind,
+	pub kind: InvokeInstKind,
 	pub method: MethodReference,
 }
 
 impl InvokeTask {
-	pub fn resolve(inst: &Inst, resolver: &mut BlockResolver) -> InvokeTask {
-		let (ptr, kind) = match inst {
-			Inst::INVOKEINTERFACE(_, _) => todo!("interface"),
-			Inst::INVOKEDYNAMIC(_) => todo!("dynamic"),
-			Inst::INVOKESPECIAL(v) => (v, InvokeKind::Dynamic),
-			Inst::INVOKESTATIC(v) => (v, InvokeKind::Static),
-			Inst::INVOKEVIRTUAL(v) => (v, InvokeKind::Virtual),
-			_ => panic!("what"),
-		};
+	pub fn resolve(inst: &InvokeInst, resolver: &mut BlockResolver) -> InvokeTask {
 
 		let cp = resolver.cp();
-		let method = cp.get(*ptr);
+		let method = cp.get(inst.value);
 		let name_and_type = method.name_and_type.get(cp);
 
 		let class_name = method.class.get(cp).name.get(cp).as_str().to_string();
 		let method_name = name_and_type.name.get(cp).to_string();
 		let desc_raw = name_and_type.descriptor.get(cp).as_str();
 		resolver.add_ref(Reference::Method(MethodReference {
-			class_name: method.class.get(cp).name.get(cp).0.clone(),
+			class_name: method.class.get(cp).name.get(cp).to_string(),
 			method_name: method_name.clone(),
 			desc: desc_raw.to_string(),
 		}));
 
 		InvokeTask {
-			kind,
+			kind: inst.kind,
 			method: MethodReference {
 				class_name,
 				method_name,
@@ -52,7 +44,7 @@ impl InvokeTask {
 		// Create args
 		let mut args = Vec::new();
 		let desc = self.method.desc();
-		let instance = !matches!(self.kind, InvokeKind::Static);
+		let instance = !matches!(self.kind, InvokeInstKind::Static);
 
 		for _parameter in desc.parameters.iter().rev() {
 			// Todo check parameters
@@ -90,11 +82,4 @@ impl Display for InvokeTask {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		write!(f, "invoke {}{}", self.method.method_name, self.method.desc)
 	}
-}
-
-#[derive(Clone, Debug)]
-pub enum InvokeKind {
-	Static,
-	Dynamic,
-	Virtual,
 }

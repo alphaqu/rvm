@@ -9,10 +9,12 @@ use inkwell::values::{BasicValueEnum, FunctionValue};
 use std::collections::hash_map::Entry;
 use std::ops::Deref;
 use tracing::{info, warn};
-use rvm_core::Type;
+use rvm_core::{Kind, MethodAccessFlags, Type};
+use rvm_execute::Method;
 use crate::block::{Block, BlockVariable, CompiledBlock, CompilingBlock};
 use crate::executor::MethodReference;
 use crate::ir_gen::IrNameGen;
+use crate::util::{desc_ty, kind_ty};
 
 pub struct FunctionCompiler<'a, 'ctx> {
 	ctx: &'ctx Context,
@@ -31,36 +33,20 @@ impl<'a, 'ctx> FunctionCompiler<'a, 'ctx> {
 		ctx: &'ctx Context,
 		module: &'a Module<'ctx>,
 		fpm: &'a PassManager<FunctionValue<'ctx>>,
-		name: &MethodReference,
-		is_static: bool,
+		method: &Method,
 		mut blocks: Vec<Block<'a, 'ctx>>,
 	) -> FunctionCompiler<'a, 'ctx> {
 		let mut gen = IrNameGen::default();
-		let desc = name.desc();
+		let desc = &method.desc;
 
 		// Create the signature
-		let mut parameter_types = Vec::new();
-		let param = desc.parameters.clone();
 
-		if !is_static {
+		if !method.flags.contains(MethodAccessFlags::STATIC) {
 			panic!("not static method")
 		}
 
-		for parameter in &param {
-			let ty = parameter.0.ty().ir(ctx);
-			parameter_types.push(ty);
-		}
-
-		let param_types: Vec<BasicMetadataTypeEnum> = parameter_types
-			.iter()
-			.map(|v| BasicMetadataTypeEnum::from(*v))
-			.collect();
-		let ty = match &desc.ret {
-			Some(ty) => ty.ty().ir(ctx).fn_type(&param_types, false),
-			None => ctx.void_type().fn_type(&param_types, false),
-		};
-
-		let id = name.def_name();
+		let ty = desc_ty(desc, ctx);
+		let id = method.name.clone();
 
 		let func = module.add_function(&id, ty, Some(Linkage::External));
 
@@ -71,14 +57,14 @@ impl<'a, 'ctx> FunctionCompiler<'a, 'ctx> {
 
 		// Define parameters
 		let mut parameters = AHashMap::new();
-		for (i, (ty, desc)) in parameter_types.iter().zip(param.iter()).enumerate() {
+		for (i, (ty, desc)) in ty.get_param_types().iter().zip(desc.parameters.iter()).enumerate() {
 			let pointer_value = builder.build_alloca(*ty, &gen.next());
 			builder.build_store(pointer_value, func.get_nth_param(i as u32).unwrap());
 			parameters.insert(
 				LocalId::Local(i as u16),
 				BlockVariable {
 					value: pointer_value,
-					ty: desc.0.ty(),
+					ty: desc.kind(),
 				},
 			);
 		}
@@ -103,41 +89,6 @@ impl<'a, 'ctx> FunctionCompiler<'a, 'ctx> {
 				}
 			}
 
-			// Compile inputs values by allocating inputs
-			// 			let res = block.resolved.as_ref().expect("unresolved");
-			//
-			// 			let mut outputs = Vec::new();
-			// 			if !res.outputs.is_empty() {
-			// 				// Check if outputs already exist
-			// 				'check: for target in &block.targets {
-			// 					let target_sources = &blocks[*target].sources;
-			// 					for target_source in target_sources {
-			// 						if let Some(input) = blocks[*target_source].compiling.as_ref() {
-			// 							outputs = input.outputs.clone();
-			// 							break 'check;
-			// 						}
-			// 					}
-			// 				}
-			//
-			// 				// Create stack outputs and pray llvm optimizes things
-			// 				if outputs.is_empty() {
-			// 					for op in res.outputs.iter() {
-			// 						let ty = op.get_type();
-			// 						let value = ty.ir(ctx);
-			// 						let value = builder.build_alloca(value, &gen.next());
-			// 						outputs.push(BlockVariable { value, ty })
-			// 					}
-			// 				}
-			// 			}
-			//
-			// 			let mut inputs = Vec::new();
-			// 			for source in &block.sources {
-			// 				if let Some(compiling) = &blocks[*source].compiling {
-			// 					inputs = compiling.outputs.clone();
-			// 					break;
-			// 				}
-			// 			}
-
 			blocks[id].compiling = Some(CompilingBlock {
 				variables: parameters.clone(),
 				basic_block,
@@ -151,7 +102,7 @@ impl<'a, 'ctx> FunctionCompiler<'a, 'ctx> {
 			gen,
 			builder,
 			blocks,
-			returns: desc.ret,
+			returns: desc.ret.clone(),
 			func,
 		}
 	}
@@ -281,7 +232,7 @@ pub struct BlockCompiler<'b, 'ctx> {
 }
 
 impl<'b, 'a> BlockCompiler<'b, 'a> {
-	pub fn define_variable(&mut self, id: LocalId, ty: ValueType) {
+	pub fn define_variable(&mut self, id: LocalId, ty: Kind) {
 		match self.variables.entry(id) {
 			Entry::Occupied(mut occupied) => {
 				if occupied.get().ty != ty {
@@ -291,7 +242,7 @@ impl<'b, 'a> BlockCompiler<'b, 'a> {
 			}
 			Entry::Vacant(vacant) => {
 				info!("Defining local {ty} {id:?}");
-				let basic_ty = ty.ir(self.ctx);
+				let basic_ty = kind_ty(ty, self.ctx);
 				let value = self.builder.build_alloca(basic_ty, &self.gen.next());
 
 				vacant.insert(BlockVariable { value, ty });

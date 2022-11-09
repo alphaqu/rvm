@@ -15,6 +15,10 @@ pub enum ConstInst {
 	Long(i64),
 	Float(f32),
 	Double(f64),
+	Ldc {
+		id: u16,
+		cat2: bool,
+	},
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -114,6 +118,47 @@ pub enum JumpKind {
 	GOTO,
 }
 
+impl JumpKind {
+	pub fn args(&self) -> u32 {
+		match self {
+			JumpKind::IF_ACMPEQ |
+			JumpKind::IF_ACMPNE |
+			JumpKind::IF_ICMPEQ |
+			JumpKind::IF_ICMPNE |
+			JumpKind::IF_ICMPLT |
+			JumpKind::IF_ICMPGE |
+			JumpKind::IF_ICMPGT |
+			JumpKind::IF_ICMPLE => 2,
+			JumpKind::IFEQ |
+			JumpKind::IFNE |
+			JumpKind::IFLT |
+			JumpKind::IFGE |
+			JumpKind::IFGT |
+			JumpKind::IFLE |
+			JumpKind::IFNONNULL |
+			JumpKind::IFNULL => 1,
+			JumpKind::GOTO => 0 ,
+		}
+	}
+	pub fn is_conditional(&self) -> bool {
+		matches!(
+			self,
+			JumpKind::IF_ACMPEQ
+				| JumpKind::IF_ACMPNE
+				| JumpKind::IF_ICMPEQ
+				| JumpKind::IF_ICMPNE
+				| JumpKind::IF_ICMPLT
+				| JumpKind::IF_ICMPGE
+				| JumpKind::IF_ICMPGT
+				| JumpKind::IF_ICMPLE
+				| JumpKind::IFEQ | JumpKind::IFNE
+				| JumpKind::IFLT | JumpKind::IFGE
+				| JumpKind::IFGT | JumpKind::IFLE
+				| JumpKind::IFNONNULL
+				| JumpKind::IFNULL
+		)
+	}
+}
 #[derive(Copy, Clone, Debug)]
 pub enum LocalInst {
 	Load(StackKind, u16),
@@ -123,12 +168,12 @@ pub enum LocalInst {
 
 #[derive(Copy, Clone, Debug)]
 pub struct ReturnInst {
-	value: Option<StackKind>,
+	pub value: Option<StackKind>,
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct NewInst {
-	class: ConstPtr<ClassConst>,
+	pub class: ConstPtr<ClassConst>,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -137,23 +182,20 @@ pub struct ThrowInst {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct PushInst(i16);
-
-#[derive(Copy, Clone, Debug)]
 pub struct CheckCastInst {
-	value: ConstPtr<ClassConst>,
+	pub value: ConstPtr<ClassConst>,
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct InstanceOfInst {
-	value: ConstPtr<ClassConst>,
+	pub value: ConstPtr<ClassConst>,
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct FieldInst {
-	value: ConstPtr<FieldConst>,
-	instance: bool,
-	kind: FieldInstKind,
+	pub value: ConstPtr<FieldConst>,
+	pub instance: bool,
+	pub kind: FieldInstKind,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -164,8 +206,8 @@ pub enum FieldInstKind {
 
 #[derive(Copy, Clone, Debug)]
 pub struct InvokeInst {
-	value: ConstPtr<MethodConst>,
-	kind: InvokeInstKind,
+	pub value: ConstPtr<MethodConst>,
+	pub kind: InvokeInstKind,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -192,7 +234,6 @@ pub enum Inst {
 	Return(ReturnInst),
 	New(NewInst),
 	Throw(ThrowInst),
-	Push(PushInst),
 	CheckCast(CheckCastInst),
 	InstanceOf(InstanceOfInst),
 	Field(FieldInst),
@@ -201,10 +242,6 @@ pub enum Inst {
 	JSR(BranchOffset),
 	JSR_W(WideBranchOffset),
 	RET(u8),
-	// ConstantPool Loading
-	LDC(u8),
-	LDC_W(u16),
-	LDC2_W(u16),
 	// TODO read
 	LOOKUPSWITCH,
 	TABLESWITCH,
@@ -680,14 +717,23 @@ impl Inst {
 				Inst::Local(LocalInst::Increment(v1 as i16, v0 as u16))
 			})(input)?,
 			// ConstantPool Loading
-			Op::LDC => map(be_u8, Inst::LDC)(input)?,
-			Op::LDC_W => map(be_u16, Inst::LDC_W)(input)?,
-			Op::LDC2_W => map(be_u16, Inst::LDC2_W)(input)?,
+			Op::LDC => map(be_u8, |v| Inst::Const(ConstInst::Ldc {
+				id: v as u16,
+				cat2: false
+			}))(input)?,
+			Op::LDC_W => map(be_u16, |v| Inst::Const(ConstInst::Ldc {
+				id: v as u16,
+				cat2: false
+			}))(input)?,
+			Op::LDC2_W => map(be_u16, |v| Inst::Const(ConstInst::Ldc {
+				id: v as u16,
+				cat2: true
+			}))(input)?,
 			// Misc
 			Op::NEW => map(be_cp, |v| Inst::New(NewInst { class: v }))(input)?,
 			Op::ATHROW => (input, Inst::Throw(ThrowInst {})),
-			Op::BIPUSH => map(be_i8, |v| Inst::Push(PushInst(v as i16)))(input)?,
-			Op::SIPUSH => map(be_i16, |v| Inst::Push(PushInst(v as i16)))(input)?,
+			Op::BIPUSH => map(be_i8, |v| Inst::Const(ConstInst::Int(v as i32)))(input)?,
+			Op::SIPUSH => map(be_i16, |v| Inst::Const(ConstInst::Int(v as i32)))(input)?,
 			Op::CHECKCAST => map(be_cp, |value| Inst::CheckCast(CheckCastInst { value }))(input)?,
 			Op::INSTANCEOF => {
 				map(be_cp, |value| Inst::InstanceOf(InstanceOfInst { value }))(input)?

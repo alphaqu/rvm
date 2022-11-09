@@ -2,8 +2,7 @@ use nom::multi::length_count;
 use nom::number::streaming::{be_u16, be_u32};
 
 use crate::attribute::{AttributeException, AttributeInfo};
-pub use crate::code::inst::Inst;
-use crate::code::inst::JumpInst;
+pub use crate::code::inst::*;
 use crate::consts::ConstantPool;
 use crate::IResult;
 

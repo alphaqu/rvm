@@ -1,9 +1,9 @@
 use crate::compiler::BlockCompiler;
 use inkwell::IntPredicate;
 use std::fmt::{Display, Formatter};
+use rvm_reader::JumpKind;
 
 use crate::resolver::BlockResolver;
-use crate::executor::Inst;
 
 /// Compares two values against eachother
 #[derive(Clone, Debug)]
@@ -13,23 +13,23 @@ pub struct CompareTask {
 }
 
 impl CompareTask {
-	pub fn resolve(i: usize, inst: &Inst, resolver: &mut BlockResolver) -> CompareTask {
-		let (kind, target) = match inst {
-			Inst::IF_ACMPEQ(target) => (CompareKind::Equals, target),
-			Inst::IF_ACMPNE(target) => (CompareKind::NotEquals, target),
-			Inst::IF_ICMPEQ(target) => (CompareKind::Equals, target),
-			Inst::IF_ICMPNE(target) => (CompareKind::NotEquals, target),
-			Inst::IF_ICMPLT(target) => (CompareKind::LessThan, target),
-			Inst::IF_ICMPLE(target) => (CompareKind::LessOrEquals, target),
-			Inst::IF_ICMPGT(target) => (CompareKind::GreaterThan, target),
-			Inst::IF_ICMPGE(target) => (CompareKind::GreaterOrEquals, target),
+	pub fn resolve(target: usize, kind: &JumpKind, resolver: &mut BlockResolver) -> CompareTask {
+		let kind = match kind {
+			JumpKind::IF_ACMPEQ => CompareKind::Equals,
+			JumpKind::IF_ACMPNE => CompareKind::NotEquals,
+			JumpKind::IF_ICMPEQ => CompareKind::Equals,
+			JumpKind::IF_ICMPNE => CompareKind::NotEquals,
+			JumpKind::IF_ICMPLT => CompareKind::LessThan,
+			JumpKind::IF_ICMPLE => CompareKind::LessOrEquals,
+			JumpKind::IF_ICMPGT => CompareKind::GreaterThan,
+			JumpKind::IF_ICMPGE => CompareKind::GreaterOrEquals,
 			_ => {
 				panic!("invalid input, inputs needs to be matched")
 			}
 		};
 
 		CompareTask {
-			target: resolver.inst_to_block(i.saturating_add_signed(target.0 as isize)),
+			target,
 			kind,
 		}
 	}

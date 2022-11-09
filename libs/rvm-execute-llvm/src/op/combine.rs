@@ -1,11 +1,11 @@
 use crate::compiler::BlockCompiler;
 
 use crate::resolver::BlockResolver;
-use crate::executor::Inst;
 
 use inkwell::values::BasicValue;
 use inkwell::{FloatPredicate, IntPredicate};
 use std::fmt::{Display, Formatter};
+use rvm_reader::MathInst;
 
 /// Applies an operation on both values.
 #[derive(Clone, Debug)]
@@ -14,44 +14,32 @@ pub struct CombineTask {
 }
 
 impl CombineTask {
-	pub fn resolve(inst: &Inst, resolver: &mut BlockResolver) -> CombineTask {
+	pub fn resolve(inst: &MathInst, resolver: &mut BlockResolver) -> CombineTask {
 		let kind = match inst {
-			Inst::DADD => CombineKind::ADD(true),
-			Inst::DDIV => CombineKind::DIV(true),
-			Inst::DMUL => CombineKind::MUL(true),
-			Inst::DREM => CombineKind::REM(true),
-			Inst::DSUB => CombineKind::SUB(true),
-			Inst::FADD => CombineKind::ADD(true),
-			Inst::FDIV => CombineKind::DIV(true),
-			Inst::FMUL => CombineKind::MUL(true),
-			Inst::FREM => CombineKind::REM(true),
-			Inst::FSUB => CombineKind::SUB(true),
-			Inst::IADD => CombineKind::ADD(false),
-			Inst::IDIV => CombineKind::DIV(false),
-			Inst::IMUL => CombineKind::MUL(false),
-			Inst::IREM => CombineKind::REM(false),
-			Inst::ISUB => CombineKind::SUB(false),
-			Inst::LADD => CombineKind::ADD(false),
-			Inst::LDIV => CombineKind::DIV(false),
-			Inst::LMUL => CombineKind::MUL(false),
-			Inst::LREM => CombineKind::REM(false),
-			Inst::LSUB => CombineKind::SUB(false),
-			Inst::IAND => CombineKind::AND,
-			Inst::IOR => CombineKind::OR,
-			Inst::ISHL => CombineKind::SHL,
-			Inst::ISHR => CombineKind::SHR,
-			Inst::IUSHR => CombineKind::USHR,
-			Inst::IXOR => CombineKind::XOR,
-			Inst::LAND => CombineKind::AND,
-			Inst::LOR => CombineKind::OR,
-			Inst::LSHL => CombineKind::SHL,
-			Inst::LSHR => CombineKind::SHR,
-			Inst::LUSHR => CombineKind::USHR,
-			Inst::LXOR => CombineKind::XOR,
-			Inst::FCMPG | Inst::DCMPG => CombineKind::FCMPG,
-			Inst::LCMP => CombineKind::ICMP,
-			Inst::FCMPL | Inst::DCMPL => CombineKind::FCMPL,
-			_ => panic!("what"),
+			MathInst::Add(value) => {
+				CombineKind::ADD(value.kind().is_floating())
+			}
+			MathInst::Sub(value) => {
+				CombineKind::SUB(value.kind().is_floating())
+			}
+			MathInst::Div(value) => {
+				CombineKind::DIV(value.kind().is_floating())
+			}
+			MathInst::Mul(value) => {
+				CombineKind::MUL(value.kind().is_floating())
+			}
+			MathInst::Rem(value) => {
+				CombineKind::REM(value.kind().is_floating())
+			}
+			MathInst::And(_) => CombineKind::AND,
+			MathInst::Or(_) => CombineKind::OR,
+			MathInst::Xor(_) => CombineKind::XOR,
+			MathInst::Shl(_) => CombineKind::SHL,
+			MathInst::Shr(_) => CombineKind::SHR,
+			MathInst::Ushr(_) => CombineKind::USHR,
+			MathInst::Neg(_) => {
+				panic!("not combine")
+			}
 		};
 
 		CombineTask { kind }

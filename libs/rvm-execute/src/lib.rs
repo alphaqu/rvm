@@ -24,6 +24,7 @@ pub struct Bindings {
 
 pub struct Method {
 	pub name: String,
+	pub call_name: String,
 	pub desc: MethodDesc,
 	pub flags: MethodAccessFlags,
 	pub code: Code,
