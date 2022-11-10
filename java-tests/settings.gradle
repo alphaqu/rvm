@@ -1,4 +1,0 @@
-for (def test in file("tests").listFiles()) {
-    include(test.name)
-    project(":${test.name}").projectDir = test
-}
