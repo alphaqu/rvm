@@ -20,10 +20,6 @@ members = [
     "./libs/rvm-bind",
     "./libs/rvm-core",
     "./libs/rvm-runtime",
-    "./libs/rvm-execute",
-    "./libs/rvm-execute-llvm",
-    "./libs/rvm-object",
     "./libs/rvm-reader",
-    "./libs/rvm-gc",
     "./libs/rvm-tests",
 ]
