@@ -21,7 +21,6 @@ members = [
     "./libs/rvm-core",
     "./libs/rvm-consts",
     "./libs/rvm-runtime",
-    "./libs/rvm-commissionaire",
     "./libs/rvm-execute",
     "./libs/rvm-execute-llvm",
     "./libs/rvm-object",
