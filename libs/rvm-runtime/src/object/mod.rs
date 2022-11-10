@@ -9,16 +9,12 @@ use std::ptr::{null_mut, read, write};
 
 mod field;
 mod method;
-mod value;
 
 pub use field::Field;
 pub use method::Method;
 pub use method::MethodCode;
 pub use method::MethodIdentifier;
 pub use method::NativeCode;
-pub use value::Type;
-pub use value::Value;
-pub use value::ValueType;
 
 // 4 for class and 1 for flag
 pub const HEADER_SIZE: usize = 5;
@@ -79,7 +75,7 @@ impl Ref {
 			let target = runtime.cl.get(target);
 			Err(JError::new(format!(
 				"Expected class {} but found {}",
-				&this.binary_name, &target.binary_name
+				&this.name, &target.name
 			)))
 		} else {
 			Ok(())

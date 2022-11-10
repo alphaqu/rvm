@@ -1,9 +1,8 @@
 use crate::class::{read_arr, write_arr};
-use crate::object::{Type, ValueType};
 use crate::{Class, ClassKind, JError, JResult, Ref, Runtime};
 use parking_lot::lock_api::MappedRwLockReadGuard;
 use parking_lot::RawRwLock;
-use rvm_core::Id;
+use rvm_core::{Id, Type, Value};
 use std::marker::PhantomData;
 use std::mem::size_of;
 use std::ops::Deref;
@@ -11,25 +10,26 @@ use std::ops::Deref;
 pub const ARRAY_BASE_OFFSET: usize = size_of::<i32>();
 
 pub struct ArrayClass {
-	component: ValueType,
+	component: Type,
 }
 
 impl ArrayClass {
-	pub fn new(component: ValueType) -> ArrayClass {
+	pub fn new(component: Type) -> ArrayClass {
 		ArrayClass { component }
 	}
 
 	#[deprecated]
 	pub fn new_array(&self, class_id: Id<Class>, length: i32, runtime: &Runtime) -> Ref {
-		unsafe {
-			let object = runtime.gc.write().unwrap().alloc(
-				class_id,
-				ARRAY_BASE_OFFSET + (self.component.size() * (length as usize)),
-			);
-			let ptr = object.ptr().add(0);
-			write_arr(ptr, i32::to_le_bytes(length));
-			object
-		}
+		todo!()
+		//unsafe {
+		//	let object = runtime.gc.write().unwrap().alloc(
+		//		class_id,
+		//		ARRAY_BASE_OFFSET + (self.component.size() * (length as usize)),
+		//	);
+		//	let ptr = object.ptr().add(0);
+		//	write_arr(ptr, i32::to_le_bytes(length));
+		//	object
+		//}
 	}
 
 	pub fn size(&self, obj: Ref) -> usize {
@@ -39,11 +39,11 @@ impl ArrayClass {
 			_p: Default::default(),
 		}
 		.get_length();
-		ARRAY_BASE_OFFSET + (self.component.size() * (length as usize))
+		ARRAY_BASE_OFFSET + (self.component.kind().size() * (length as usize))
 	}
 
-	pub fn component(&self) -> ValueType {
-		self.component
+	pub fn component(&self) -> &Type {
+		&self.component
 	}
 }
 
@@ -75,8 +75,8 @@ impl<'a> Runtime<'a> {
 		})
 	}
 
-	pub fn get_array<T: Type>(&self, reference: Ref) -> JResult<Array<T>> {
-		let component = self.get_array_class(reference.get_class())?.component;
+	pub fn get_array<T: Value>(&self, reference: Ref) -> JResult<Array<T>> {
+		let component = self.get_array_class(reference.get_class())?.component.kind();
 		if T::ty() != component {
 			Err(JError::new("Array component mismatch"))
 		} else {
@@ -119,7 +119,7 @@ impl<T> Array<T> {
 	}
 }
 
-impl<T: Type> Array<T> {
+impl<T: Value> Array<T> {
 	pub fn load(&self, idx: i32) -> T {
 		unsafe {
 			let ptr = self.get_index_ptr(idx);
@@ -141,7 +141,7 @@ impl<T: Type> Array<T> {
 	}
 }
 
-impl<T: Type> Deref for Array<T> {
+impl<T: Value> Deref for Array<T> {
 	type Target = Ref;
 
 	fn deref(&self) -> &Self::Target {

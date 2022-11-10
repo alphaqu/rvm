@@ -5,13 +5,12 @@ use anyways::ext::AuditExt;
 use anyways::Result;
 use parking_lot::MappedRwLockReadGuard;
 
-use rvm_consts::FieldAccessFlags;
+use rvm_core::{FieldAccessFlags, Value};
 use rvm_core::Id;
 
 use crate::class::field::ClassFieldManager;
 use crate::class::method::ClassMethodManager;
 use crate::class::ClassKind;
-use crate::executor::StackValue;
 use crate::object::ObjectData;
 use crate::{Class, ClassInfo, ClassLoader, ConstantPool, Field, JResult, Ref, Runtime};
 
@@ -42,32 +41,33 @@ impl ObjectClass {
 				cp: info.constant_pool,
 				fields,
 			}),
-			binary_name,
+			name: binary_name,
 		})
 	}
 
-	pub fn get_static(&self, field: Id<Field>) -> StackValue {
-		let field = self.fields.get(field);
-		unsafe {
-			if !field.flags.contains(FieldAccessFlags::STATIC) {
-				panic!("Field not static");
-			}
-			let field_ptr = self.static_object.ptr().add(field.offset as usize);
-			StackValue::from_value(field.ty.read(field_ptr))
-		}
-	}
-
-	pub fn set_static(&self, field: Id<Field>, value: StackValue) {
-		let field = self.fields.get(field);
-		unsafe {
-			if !field.flags.contains(FieldAccessFlags::STATIC) {
-				panic!("Field not static");
-			}
-			let value = field.ty.new_val(value);
-			let field_ptr = self.static_object.ptr().add(field.offset as usize);
-			field.ty.write(field_ptr, value);
-		}
-	}
+	//pub fn get_static(&self, field: Id<Field>) -> StackValue {
+	// 		let field = self.fields.get(field);
+	// 		unsafe {
+	// 			if !field.flags.contains(FieldAccessFlags::STATIC) {
+	// 				panic!("Field not static");
+	// 			}
+	// 			let field_ptr = self.static_object.ptr().add(field.offset as usize);
+	//
+	// 			StackValue::from_value(field.ty.read(field_ptr))
+	// 		}
+	// 	}
+	//
+	// 	pub fn set_static(&self, field: Id<Field>, value: StackValue) {
+	// 		let field = self.fields.get(field);
+	// 		unsafe {
+	// 			if !field.flags.contains(FieldAccessFlags::STATIC) {
+	// 				panic!("Field not static");
+	// 			}
+	// 			let value = field.ty.new_val(value);
+	// 			let field_ptr = self.static_object.ptr().add(field.offset as usize);
+	// 			field.ty.write(field_ptr, value);
+	// 		}
+	// 	}
 
 	pub fn size(&self, static_obj: bool) -> usize {
 		self.fields.size(static_obj) as usize
@@ -76,12 +76,13 @@ impl ObjectClass {
 
 impl<'a> Runtime<'a> {
 	pub fn new_object(&self, class_id: Id<Class>) -> JResult<Object> {
-		let class = self.cl.get_obj_class(class_id);
-
-		unsafe {
-			let reference = self.gc.write().unwrap().alloc(class_id, class.size(false));
-			Ok(Object { reference, class })
-		}
+		todo!()
+		//let class = self.cl.get_obj_class(class_id);
+//
+		//unsafe {
+		//	let reference = self.gc.write().unwrap().alloc(class_id, class.size(false));
+		//	Ok(Object { reference, class })
+		//}
 	}
 
 	pub fn get_object(&self, class_id: Id<Class>, reference: Ref) -> JResult<Object> {
@@ -97,26 +98,32 @@ pub struct Object<'a> {
 }
 
 impl<'a> Object<'a> {
-	pub fn set_field(&self, field: Id<Field>, value: StackValue) {
+	pub fn set_field<V: Value>(&self, field: Id<Field>, value: V) {
 		let field = self.class.fields.get(field);
 		unsafe {
+			if field.ty.kind() != V::ty() {
+				panic!("Field mismatch")
+			}
 			if field.flags.contains(FieldAccessFlags::STATIC) {
 				panic!("Field is static");
 			}
-			let value = field.ty.new_val(value);
 			let field_ptr = self.ptr().add(field.offset as usize);
-			field.ty.write(field_ptr, value);
+			V::write(field_ptr, value);
 		}
 	}
 
-	pub fn get_field(&self, field: Id<Field>) -> StackValue {
+	pub fn get_field<V: Value>(&self, field: Id<Field>) -> V {
 		let field = self.class.fields.get(field);
 		unsafe {
+			if field.ty.kind() != V::ty() {
+				panic!("Field mismatch")
+			}
+
 			if field.flags.contains(FieldAccessFlags::STATIC) {
 				panic!("Field is static");
 			}
 			let field_ptr = self.ptr().add(field.offset as usize);
-			StackValue::from_value(field.ty.read(field_ptr))
+			V::read(field_ptr)
 		}
 	}
 }

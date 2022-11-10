@@ -1,12 +1,17 @@
 use rvm_core::{FieldAccessFlags, Id, Ref, Storage, StorageValue, Type, ValueEnum};
+use rvm_reader::ClassInfo;
 
-pub struct ObjectDesc {
+pub struct ObjectClass {
 	size: usize,
 	fields: Storage<String, ObjectField>,
 }
 
-impl ObjectDesc {
-	pub fn new(values: Vec<(FieldAccessFlags, String, Type)>) -> ObjectDesc {
+impl ObjectClass {
+	pub fn parse(info: ClassInfo) {
+
+	}
+
+	pub fn new(values: Vec<(FieldAccessFlags, String, Type)>) -> ObjectClass {
 		let mut fields = Storage::new();
 		let mut size = 0;
 		for (flags, name, ty) in values {
@@ -22,7 +27,7 @@ impl ObjectDesc {
 			size += field_size;
 		}
 
-		ObjectDesc { size, fields }
+		ObjectClass { size, fields }
 	}
     
     pub fn size(&self) -> usize {
@@ -36,11 +41,11 @@ impl ObjectDesc {
 
 pub struct Object<'a> {
 	reference: Ref,
-	desc: &'a ObjectDesc,
+	desc: &'a ObjectClass,
 }
 
 impl<'a> Object<'a> {
-	pub unsafe fn new(reference: Ref, desc: &'a ObjectDesc) -> Object<'a> {
+	pub unsafe fn new(reference: Ref, desc: &'a ObjectClass) -> Object<'a> {
 		Object { reference, desc }
 	}
 

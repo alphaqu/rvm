@@ -1,17 +1,16 @@
 use crate::class::{ArrayClass, ObjectClass};
-use crate::reader::{BinaryName, ValueDesc};
 use crate::{Class, ClassInfo, ClassKind, MethodIdentifier, NativeCode};
 use ahash::AHashMap;
 use anyways::audit::Audit;
 use anyways::ext::AuditExt;
 use parking_lot::lock_api::MappedRwLockReadGuard;
 use parking_lot::{RawRwLock, RwLock, RwLockReadGuard};
-use rvm_core::{Id, Storage};
+use rvm_core::{Id, Kind, ObjectType, Storage, Type};
 use std::io::{Cursor, Read};
 use tracing::{debug, info, instrument, warn};
 
 pub struct ClassLoader {
-	classes: RwLock<Storage<BinaryName, Class>>,
+	classes: RwLock<Storage<Type, Class>>,
 	native_methods: AHashMap<(String, MethodIdentifier), NativeCode>,
 }
 
@@ -54,7 +53,7 @@ impl ClassLoader {
 		}
 	}
 
-	pub fn get_class_id(&self, desc: &BinaryName) -> Id<Class> {
+	pub fn get_class_id(&self, desc: &Type) -> Id<Class> {
 		// if its in the match the lock wont get dropped
 		let option = self.classes.read().get_id(desc);
 		match option {
@@ -62,54 +61,30 @@ impl ClassLoader {
 			None => {
 				info!("defining class {desc}");
 				let kind = match desc {
-					BinaryName::Object(object) => {
-						panic!("CLASS NOT LOADED {object:?}, Java ClassLoader not yet implemented");
+					Type::Primitive(_) => {
+						panic!("primitive?!?!??!?!")
 					}
-					BinaryName::Array(component) => {
-						if let ValueDesc::Object(name) = component {
+					Type::Object(object) => {
+						panic!("CLASS NOT LOADED {object:?}, Cannot load classes while running... yet.");
+					}
+					Type::Array(value) => {
+						if let Kind::Reference = value.component.kind() {
 							// ensure loaded
-							self.get_class_id(&BinaryName::parse(name));
+							self.get_class_id(&value.component);
 						}
 
-						ClassKind::Array(ArrayClass::new(component.ty()))
+						ClassKind::Array(ArrayClass::new(value.component.clone()))
 					}
 				};
 
 				self.define(
 					desc.clone(),
 					Class {
-						binary_name: desc.to_string(),
+						name: desc.to_string(),
 						kind,
 					},
 				)
-
-				//let class = match desc {
-				//                     BinaryName::Base(base) => {
-				//                         Class {
-				//                             name: base.to_string(),
-				//                             kind: ClassKind::Primitive(*base)
-				//                         }
-				//                     }
-				//                     ValueDesc::Object(object) => {
-				//                         panic!("CLASS NOT LOADED {object:?}, Java ClassLoader not yet implemented");
-				//                     }
-				//                     ValueDesc::Array(component) => {
-				//                         let desc = &**component;
-				//                         let component = match desc {
-				//                             ValueDesc::Base(base) => base.ty(),
-				//                             obj @ (ValueDesc::Object(_) | ValueDesc::Array(_)) => {
-				//                                 // ensure its loaded
-				//                                 self.get_class_id(&obj);
-				//                                 ValueType::Reference
-				//                             }
-				//                         };
-				//
-				//                         Class {
-				//                             name: desc.to_string(),
-				//                             kind: ClassKind::Array(ArrayClass::new(component))
-				//                         }
-				//                     }
-				//                 };
+				
 			}
 		}
 	}
@@ -138,19 +113,19 @@ impl ClassLoader {
 			ClassInfo::parse(data).map_err(|_| Audit::new("Failed to parse classfile"))?;
 		let class = ObjectClass::parse(info, self)?;
 
-		debug!("Parsed class {}", class.binary_name);
+		debug!("Parsed class {}", class.name);
 
-		// Safe because we are adding it at the end
-		let string = class.binary_name.clone();
-		Ok(self.define(BinaryName::Object(string), class))
+		Ok(self.define(Type::Object(ObjectType {
+			name: class.name.replace(".", "/")
+		}), class))
 	}
 
-	fn define(&self, desc: BinaryName, class: Class) -> Id<Class> {
-		debug!("Inject and defining new class {desc:?}");
+	fn define(&self, ty: Type, class: Class) -> Id<Class> {
+		debug!("Inject and defining new class {ty:?}");
 		if self.classes.is_locked() {
 			warn!("Classes are locked");
 		}
-		self.classes.try_write().unwrap().insert(desc, class)
+		self.classes.try_write().unwrap().insert(ty, class)
 	}
 
 	pub fn is_locked(&self) -> bool {

@@ -2,8 +2,7 @@ mod chunk;
 mod root;
 
 use crate::class::Class;
-use crate::executor::{Frame, LocalVar, StackValue};
-use crate::object::{ObjectData, Ref, ValueType, HEADER_SIZE};
+use crate::object::{ObjectData, Ref, HEADER_SIZE};
 use crate::{ClassKind, JResult, Runtime};
 use ahash::HashSet;
 use mimalloc::MiMalloc;

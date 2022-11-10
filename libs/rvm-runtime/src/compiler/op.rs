@@ -22,8 +22,8 @@ use crate::compiler::op::ret::ReturnTask;
 use crate::compiler::op::stack::StackTask;
 use crate::compiler::op::variable::{IncrementTask, LoadVariableTask, StoreVariableTask};
 use crate::compiler::resolver::BlockResolver;
-use crate::executor::Inst;
 use combine::CombineTask;
+use rvm_reader::{Inst, JumpInst, JumpKind, LocalInst, MathInst};
 use std::fmt::{Display, Formatter};
 
 #[derive(Clone, Debug)]
@@ -47,237 +47,88 @@ pub enum Task {
 impl Task {
 	pub fn resolve(i: usize, inst: &Inst, resolver: &mut BlockResolver) -> Task {
 		match inst {
-			Inst::NOP => Task::Nop,
-			// Apply
-			Inst::FNEG | Inst::DNEG | Inst::INEG | Inst::LNEG => {
+			Inst::Nop => Task::Nop,
+			Inst::Math(inst @ MathInst::Neg(_)) => {
 				Task::Apply(ApplyTask::resolve(inst, resolver))
 			}
-			// Combine
-			Inst::DADD
-			| Inst::DDIV
-			| Inst::DMUL
-			| Inst::DREM
-			| Inst::DSUB
-			| Inst::FADD
-			| Inst::FDIV
-			| Inst::FMUL
-			| Inst::FREM
-			| Inst::FSUB
-			| Inst::IADD
-			| Inst::IDIV
-			| Inst::IMUL
-			| Inst::IREM
-			| Inst::ISUB
-			| Inst::LADD
-			| Inst::LDIV
-			| Inst::LMUL
-			| Inst::LREM
-			| Inst::LSUB
-			| Inst::IAND
-			| Inst::IOR
-			| Inst::ISHL
-			| Inst::ISHR
-			| Inst::IUSHR
-			| Inst::IXOR
-			| Inst::LAND
-			| Inst::LOR
-			| Inst::LSHL
-			| Inst::LSHR
-			| Inst::LUSHR
-			| Inst::LXOR
-			| Inst::FCMPG
-			| Inst::DCMPG
-			| Inst::LCMP
-			| Inst::FCMPL
-			| Inst::DCMPL => Task::Combine(CombineTask::resolve(inst, resolver)),
-			// Const
-			Inst::ACONST_NULL
-			| Inst::DCONST_0
-			| Inst::DCONST_1
-			| Inst::FCONST_0
-			| Inst::FCONST_1
-			| Inst::FCONST_2
-			| Inst::ICONST_M1
-			| Inst::ICONST_0
-			| Inst::ICONST_1
-			| Inst::ICONST_2
-			| Inst::ICONST_3
-			| Inst::ICONST_4
-			| Inst::ICONST_5
-			| Inst::LCONST_0
-			| Inst::LCONST_1
-			| Inst::BIPUSH(_)
-			| Inst::SIPUSH(_)
-			| Inst::LDC(_)
-			| Inst::LDC_W(_)
-			| Inst::LDC2_W(_) => Task::Const(ConstTask::resolve(inst, resolver)),
-			// Stack
-			Inst::DUP
-			| Inst::DUP_X1
-			| Inst::DUP_X2
-			| Inst::DUP2
-			| Inst::DUP2_X1
-			| Inst::DUP2_X2
-			| Inst::POP
-			| Inst::POP2
-			| Inst::SWAP => Task::Stack(StackTask::resolve(inst, resolver)),
-			// Array
-			Inst::NEWARRAY(_)
-			| Inst::AALOAD
-			| Inst::AASTORE
-			| Inst::BALOAD
-			| Inst::BASTORE
-			| Inst::CALOAD
-			| Inst::CASTORE
-			| Inst::DALOAD
-			| Inst::DASTORE
-			| Inst::FALOAD
-			| Inst::FASTORE
-			| Inst::IALOAD
-			| Inst::IASTORE
-			| Inst::LALOAD
-			| Inst::LASTORE
-			| Inst::SALOAD
-			| Inst::SASTORE
-			| Inst::ARRAYLENGTH
-			| Inst::ANEWARRAY(_)
-			| Inst::MULTIANEWARRAY { .. } => todo!("array compilation"),
-			// Conversion
-			Inst::D2F
-			| Inst::D2I
-			| Inst::D2L
-			| Inst::F2D
-			| Inst::F2I
-			| Inst::F2L
-			| Inst::I2B
-			| Inst::I2C
-			| Inst::I2D
-			| Inst::I2F
-			| Inst::I2L
-			| Inst::I2S
-			| Inst::L2D
-			| Inst::L2F
-			| Inst::L2I => Task::Conversion(ConversionTask::resolve(inst, resolver)),
-			// Compare
-			Inst::IF_ACMPEQ(_)
-			| Inst::IF_ACMPNE(_)
-			| Inst::IF_ICMPEQ(_)
-			| Inst::IF_ICMPNE(_)
-			| Inst::IF_ICMPLT(_)
-			| Inst::IF_ICMPGE(_)
-			| Inst::IF_ICMPGT(_)
-			| Inst::IF_ICMPLE(_) => Task::Compare(CompareTask::resolve(i, inst, resolver)),
-			// Check
-			Inst::IFEQ(_)
-			| Inst::IFNE(_)
-			| Inst::IFLT(_)
-			| Inst::IFGE(_)
-			| Inst::IFGT(_)
-			| Inst::IFLE(_)
-			| Inst::IFNONNULL(_)
-			| Inst::IFNULL(_) => Task::Check(CheckTask::resolve(i, inst, resolver)),
-			// Jump
-			Inst::GOTO(_) | Inst::GOTO_W(_) => Task::Jump(JumpTask::resolve(i, inst, resolver)),
-			// LoadVar
-			Inst::ALOAD(_)
-			| Inst::ALOAD_W(_)
-			| Inst::ALOAD0
-			| Inst::ALOAD1
-			| Inst::ALOAD2
-			| Inst::ALOAD3
-			| Inst::DLOAD(_)
-			| Inst::DLOAD_W(_)
-			| Inst::DLOAD0
-			| Inst::DLOAD1
-			| Inst::DLOAD2
-			| Inst::DLOAD3
-			| Inst::FLOAD(_)
-			| Inst::FLOAD_W(_)
-			| Inst::FLOAD0
-			| Inst::FLOAD1
-			| Inst::FLOAD2
-			| Inst::FLOAD3
-			| Inst::ILOAD(_)
-			| Inst::ILOAD_W(_)
-			| Inst::ILOAD0
-			| Inst::ILOAD1
-			| Inst::ILOAD2
-			| Inst::ILOAD3
-			| Inst::LLOAD(_)
-			| Inst::LLOAD_W(_)
-			| Inst::LLOAD0
-			| Inst::LLOAD1
-			| Inst::LLOAD2
-			| Inst::LLOAD3 => Task::LoadVariable(LoadVariableTask::resolve(inst, resolver)),
-			Inst::ASTORE(_)
-			| Inst::ASTORE_W(_)
-			| Inst::ASTORE0
-			| Inst::ASTORE1
-			| Inst::ASTORE2
-			| Inst::ASTORE3
-			| Inst::DSTORE(_)
-			| Inst::DSTORE_W(_)
-			| Inst::DSTORE0
-			| Inst::DSTORE1
-			| Inst::DSTORE2
-			| Inst::DSTORE3
-			| Inst::FSTORE(_)
-			| Inst::FSTORE_W(_)
-			| Inst::FSTORE0
-			| Inst::FSTORE1
-			| Inst::FSTORE2
-			| Inst::FSTORE3
-			| Inst::ISTORE(_)
-			| Inst::ISTORE_W(_)
-			| Inst::ISTORE0
-			| Inst::ISTORE1
-			| Inst::ISTORE2
-			| Inst::ISTORE3
-			| Inst::LSTORE(_)
-			| Inst::LSTORE_W(_)
-			| Inst::LSTORE0
-			| Inst::LSTORE1
-			| Inst::LSTORE2
-			| Inst::LSTORE3 => Task::StoreVariable(StoreVariableTask::resolve(inst, resolver)),
-			Inst::IINC(_, _) | Inst::IINC_W(_, _) => {
-				Task::Increase(IncrementTask::resolve(inst, resolver))
+			Inst::Math(inst) => {
+				Task::Combine(CombineTask::resolve(inst, resolver))
 			}
-			// Return
-			Inst::RETURN
-			| Inst::ARETURN
-			| Inst::DRETURN
-			| Inst::FRETURN
-			| Inst::IRETURN
-			| Inst::LRETURN => Task::Return(ReturnTask::resolve(inst, resolver)),
+			Inst::Const(inst) => {
+				Task::Const(ConstTask::resolve(inst, resolver))
+			}
+			Inst::Stack(inst) => {
+				Task::Stack(StackTask::resolve(inst, resolver))
+			}
+			Inst::Array(_) => {
+				todo!("array")
+			}
+			Inst::Conversion(inst) => {
+				Task::Conversion(ConversionTask::resolve(inst, resolver))
+			}
+			Inst::Jump(JumpInst {
+				offset,
+				kind
+					   }) => {
+				let target = resolver.inst_to_block(i.saturating_add_signed(*offset as isize));
+				match kind.args() {
+					2 => {
+						Task::Compare(CompareTask::resolve(target, kind, resolver))
+					}
+					1 => {
+						Task::Check(CheckTask::resolve(target, kind, resolver))
+					}
+					_ => {
+						Task::Jump(JumpTask::resolve(target, resolver))
+					}
+				}
+			}
+			Inst::Local(inst) => {
+				match inst {
+					LocalInst::Load(kind, var) => {
+						Task::LoadVariable(LoadVariableTask::resolve(kind.kind(), *var, resolver))
+					}
+					LocalInst::Store(kind, var) => {
+						Task::StoreVariable(StoreVariableTask::resolve(kind.kind(), *var, resolver))
+					}
+					LocalInst::Increment(amount, var) => {
+						Task::Increase(IncrementTask::resolve(*var, *amount, resolver))
+					}
+				}
+			}
+			Inst::Return(inst) => {
+				Task::Return(ReturnTask::resolve(inst, resolver))
+			}
+			Inst::Invoke(inst) => {
+				Task::Invoke(InvokeTask::resolve(inst, resolver))
+			}
 			// grandpa shit
 			Inst::JSR(_) => todo!("grandpa shit"),
 			Inst::JSR_W(_) => todo!("grandpa shit"),
 			Inst::RET(_) => todo!("grandpa shit"),
-			Inst::ATHROW => {
+			Inst::Throw(_) => {
 				todo!("throw")
 			}
-			Inst::CHECKCAST(class) => {
+			Inst::Comparison(_) => {
+				todo!("comparison")
+			}
+			Inst::CheckCast(_) => {
 				todo!("checkcast")
 			}
-			Inst::INSTANCEOF(_) => {
+			Inst::InstanceOf(_) => {
 				todo!("instanceof")
+			}
+			Inst::New(_) => {
+				todo!("new")
+			}
+			Inst::Field(_) => {
+				todo!("field")
 			}
 			// alpha reading challange any%
 			Inst::LOOKUPSWITCH => todo!("read"),
 			Inst::TABLESWITCH => todo!("read"),
 			Inst::MONITORENTER => todo!("read"),
 			Inst::MONITOREXIT => todo!("read"),
-
-			Inst::NEW(_) => todo!("NEW"),
-			Inst::GETFIELD(_) => todo!("GETFIELD"),
-			Inst::GETSTATIC(_) => todo!("GETSTATIC"),
-			Inst::PUTFIELD(_) => todo!("PUTFIELD"),
-			Inst::PUTSTATIC(_) => todo!("PUTSTATIC"),
-			Inst::INVOKEDYNAMIC(_)
-			| Inst::INVOKEINTERFACE(_, _)
-			| Inst::INVOKESPECIAL(_)
-			| Inst::INVOKESTATIC(_)
-			| Inst::INVOKEVIRTUAL(_) => Task::Invoke(InvokeTask::resolve(inst, resolver)),
 		}
 	}
 

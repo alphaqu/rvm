@@ -49,12 +49,12 @@ impl TraceEntry {
 			ClassKind::Object(object) => {
 				let method = object.methods.get(self.method);
 				writeln!(
-					f,
-					"\tat {full_class_name}.{method_name}({class_name}.java:{line})",
-					full_class_name = class.binary_name,
-					class_name = class.binary_name,
-					method_name = method.name,
-					line = self.line,
+                    f,
+                    "\tat {full_class_name}.{method_name}({class_name}.java:{line})",
+                    full_class_name = class.name,
+                    class_name = class.name,
+                    method_name = method.name,
+                    line = self.line,
 				)
 			}
 			ClassKind::Array(_) => {

@@ -1,18 +1,23 @@
+mod block;
+mod compiler;
+mod ir_gen;
+mod op;
+mod resolver;
+mod util;
+
 use crate::compiler::block::Block;
 use crate::compiler::compiler::FunctionCompiler;
 use crate::compiler::ir_gen::IrNameGen;
-use crate::Runtime;
 
 use crate::compiler::resolver::BlockResolver;
-use crate::executor::Inst;
 
-use crate::reader::{Code, ConstantPool, MethodDescriptor, StrParse};
 use ahash::{AHashMap, AHashSet};
 use either::Either;
 use inkwell::context::Context;
 use inkwell::execution_engine::ExecutionEngine;
 use inkwell::module::{Linkage, Module};
 use inkwell::passes::{PassManager, PassManagerBuilder, PassRegistry};
+use rvm_reader::{Code, ConstantPool, Inst, JumpKind};
 
 use inkwell::types::BasicMetadataTypeEnum;
 use inkwell::values::{BasicMetadataValueEnum, CallableValue, FunctionValue};
@@ -21,26 +26,25 @@ use std::ffi::{c_char, c_void, CStr};
 use std::fmt;
 use std::fmt::{Display, Formatter};
 
+use crate::object::{Method, MethodCode};
+use crate::Runtime;
 use inkwell::targets::{
 	CodeModel, InitializationConfig, RelocMode, Target, TargetMachine, TargetTriple,
 };
+use rvm_core::MethodDesc;
 use std::path::Path;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tracing::{debug, info, instrument, trace};
+use crate::compiler::util::desc_ty;
 
-mod block;
-mod compiler;
-mod ir_gen;
-mod op;
-mod resolver;
-
-pub struct Executor<'ctx> {
-	ctx: &'ctx Context,
-	module: Module<'ctx>,
-	exec: ExecutionEngine<'ctx>,
-	fpm: PassManager<FunctionValue<'ctx>>,
-	mpm: PassManager<Module<'ctx>>,
+#[derive(Debug)]
+pub struct Executor<'a> {
+	ctx: &'a Context,
+	module: Module<'a>,
+	exec: ExecutionEngine<'a>,
+	fpm: PassManager<FunctionValue<'a>>,
+	mpm: PassManager<Module<'a>>,
 
 	initialized: AtomicBool,
 }
@@ -170,7 +174,7 @@ impl<'ctx> Executor<'ctx> {
 		let mut gen = IrNameGen::default();
 
 		let descriptor = reference.desc();
-		let fn_type = descriptor.func(self.ctx);
+		let fn_type = desc_ty(&descriptor, self.ctx);
 
 		let name = reference.call_name();
 		debug!("Defining relay {name}");
@@ -243,12 +247,14 @@ impl<'ctx> Executor<'ctx> {
 	pub fn compile_method(
 		&self,
 		runtime: &Pin<&Runtime>,
-		name: &MethodReference,
-		is_static: bool,
-		code: &Code,
+		method: &Method,
 		cp: &ConstantPool,
 	) -> usize {
-		if self.initialized.compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed).is_ok() {
+		if self
+			.initialized
+			.compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
+			.is_ok()
+		{
 			let runtime = self.ctx.i8_type().ptr_type(AddressSpace::Generic);
 			let string = self.ctx.i8_type().ptr_type(AddressSpace::Generic);
 			let function_type = self.ctx.i8_type().ptr_type(AddressSpace::Generic).fn_type(
@@ -260,9 +266,6 @@ impl<'ctx> Executor<'ctx> {
 				],
 				false,
 			);
-			let value =
-				self.module
-					.add_function("resolve_method", function_type, Some(Linkage::External));
 
 			extern "C" fn compile_method_c(
 				runtime: *const Pin<&Runtime>,
@@ -277,56 +280,58 @@ impl<'ctx> Executor<'ctx> {
 				runtime.compile_method(class, method, desc)
 			}
 
+			let value =
+				self.module
+					.add_function("resolve_method", function_type, Some(Linkage::External));
 			self.exec
 				.add_global_mapping(&value, compile_method_c as usize);
 		}
 
-		debug!("Computing {name}");
+		debug!("Computing {}", method.name);
 		// STAGE 1: Computation of blocks
 		// This stage decompiles the bytecode to a block form where jump instructions go to a certain block.
 		// Blocks are way more useful for compilation purposes.
-		let mut data = self.compute_blocks(&code.instructions);
+		let mut data = match &method.code {
+			Some(MethodCode::Java(code, _)) => {
+				self.compute_blocks(&code.instructions)
+			}
+			_ => {
+				panic!("not code")
+			}
+		};
 
-		debug!("Resolving {name}");
+		debug!("Resolving {}", method.name);
 		// STAGE 2: Resolution of blocks.
 		// This resolves things like stack values and makes the code more IR convertible
 		// by partly decompiling the code and creating a concept with variables and temporaries
 		self.resolve_blocks(runtime, &mut data, cp);
 
-		debug!("Compiling {name}");
+		debug!("Compiling {}", method.name);
 		//Self::print_blocks(&data.blocks);
 		// STAGE 3: Compilation
 		// This takes the resolution result and makes it into IR where LLVM can optimize away!
-		self.compile_blocks(name, is_static, data);
-
-		let fn_name = name.def_name();
+		self.compile_blocks(method, data);
 
 		self.module
-			.write_bitcode_to_path(Path::new(&format!("./{name}.bc")));
+			.write_bitcode_to_path(Path::new(&format!("./{}.bc", method.name)));
 		let function = self
 			.exec
-			.get_function_address(&fn_name)
+			.get_function_address(&method.name)
 			.expect("Could not find function");
 
 		function
 	}
 
-	#[instrument(name = "Computing blocks", skip_all, fields(target=format!("{}/{}:{}", name.class_name, name.method_name, name.desc)))]
-	fn compile_blocks(&self, name: &MethodReference, is_static: bool, data: BlocksData<'_, 'ctx>) {
-		let mut block_compiler = FunctionCompiler::new(
-			self.ctx,
-			&self.module,
-			&self.fpm,
-			name,
-			is_static,
-			data.blocks,
-		);
+	#[instrument(name = "Computing blocks", skip_all, fields(target=format!("{}:{}", method.name, method.desc)))]
+	fn compile_blocks(&self, method: &Method, data: BlocksData<'_, 'ctx>) {
+		let mut block_compiler =
+			FunctionCompiler::new(self.ctx, &self.module, &self.fpm, method, data.blocks);
 		block_compiler.compile(&data.compile_order);
 
 		info!("Redefining module");
 
 		//self.module.print_to_stderr();
-		if let Some(caller) = self.module.get_function(&name.call_name()) {
+		if let Some(caller) = self.module.get_function(&method.name) {
 			caller.replace_all_uses_with(block_compiler.func);
 		}
 
@@ -375,41 +380,11 @@ impl<'ctx> Executor<'ctx> {
 		let mut splits = Vec::new();
 		for (i, inst) in code.iter().enumerate() {
 			match inst {
-				Inst::IF_ACMPEQ(value)
-				| Inst::IF_ACMPNE(value)
-				| Inst::IF_ICMPEQ(value)
-				| Inst::IF_ICMPNE(value)
-				| Inst::IF_ICMPLT(value)
-				| Inst::IF_ICMPGE(value)
-				| Inst::IF_ICMPGT(value)
-				| Inst::IF_ICMPLE(value)
-				| Inst::IFEQ(value)
-				| Inst::IFNE(value)
-				| Inst::IFLT(value)
-				| Inst::IFGE(value)
-				| Inst::IFGT(value)
-				| Inst::IFLE(value)
-				| Inst::IFNONNULL(value)
-				| Inst::IFNULL(value) => {
+				Inst::Jump(inst) => {
 					splits.push(i + 1);
-					splits.push((value.0 as isize + i as isize) as usize);
+					splits.push((inst.offset as isize + i as isize) as usize);
 				}
-				Inst::GOTO(value) => {
-					splits.push(i + 1);
-					splits.push((value.0 as isize + i as isize) as usize);
-				}
-				Inst::GOTO_W(value) => {
-					splits.push(i + 1);
-					splits.push((value.0 as isize + i as isize) as usize);
-				}
-				Inst::RETURN
-				| Inst::ARETURN
-				// TODO implement throw correctly
-				| Inst::ATHROW
-				| Inst::DRETURN
-				| Inst::FRETURN
-				| Inst::IRETURN
-				| Inst::LRETURN => {
+				Inst::Return(_) => {
 					splits.push(i + 1);
 				}
 				_ => {}
@@ -451,57 +426,24 @@ impl<'ctx> Executor<'ctx> {
 		for (i, last) in values {
 			if let Some(last) = last {
 				match last {
-					Inst::IF_ACMPEQ(value)
-					| Inst::IF_ACMPNE(value)
-					| Inst::IF_ICMPEQ(value)
-					| Inst::IF_ICMPNE(value)
-					| Inst::IF_ICMPLT(value)
-					| Inst::IF_ICMPGE(value)
-					| Inst::IF_ICMPGT(value)
-					| Inst::IF_ICMPLE(value)
-					| Inst::IFEQ(value)
-					| Inst::IFNE(value)
-					| Inst::IFLT(value)
-					| Inst::IFGE(value)
-					| Inst::IFGT(value)
-					| Inst::IFLE(value)
-					| Inst::IFNONNULL(value)
-					| Inst::IFNULL(value) => {
+					Inst::Jump(inst) => {
 						let this = &mut blocks[i];
-						let position = (value.0 as isize + this.get_end_idx() as isize) as usize;
-						let target = *inst_to_block.get(&position).expect("Could not find target");
+						let target_inst =
+							(inst.offset as isize + this.get_end_idx() as isize) as usize;
+						let target = *inst_to_block
+							.get(&target_inst)
+							.expect("Could not find target");
 						this.targets = vec![i + 1, target];
 						blocks[target].sources.push(i);
-						blocks[i + 1].sources.push(i);
+						if inst.kind.is_conditional() {
+							blocks[i + 1].sources.push(i);
+						}
 					}
-					Inst::GOTO(value) => {
-						let this = &mut blocks[i];
-						let position = (value.0 as isize + this.get_end_idx() as isize) as usize;
-						let target = *inst_to_block.get(&position).expect("Could not find target");
-						this.targets = vec![target];
-						blocks[target].sources.push(i);
-					}
-					Inst::GOTO_W(value) => {
-						let this = &mut blocks[i];
-						let position = (value.0 as isize + this.get_end_idx() as isize) as usize;
-						let target = *inst_to_block.get(&position).expect("Could not find target");
-						this.targets = vec![target];
-						blocks[target].sources.push(i);
-					}
-					Inst::RETURN
-					// TODO implement throw correctly
-					| Inst::ATHROW
-					| Inst::ARETURN
-					| Inst::DRETURN
-					| Inst::FRETURN
-					| Inst::IRETURN
-					| Inst::LRETURN => {
-						let this = &mut blocks[i];
-						this.targets = vec![];
+					Inst::Return(_) | Inst::Throw(_) => {
+						blocks[i].targets = vec![];
 					}
 					_ => {
-						let this = &mut blocks[i];
-						this.targets = vec![i + 1];
+						blocks[i].targets = vec![i + 1];
 						blocks[i + 1].sources.push(i);
 					}
 				}
@@ -592,10 +534,10 @@ impl<'ctx> Executor<'ctx> {
 }
 
 pub struct BlocksData<'a, 'ctx> {
-	inst_to_block: AHashMap<usize, usize>,
+	pub inst_to_block: AHashMap<usize, usize>,
 	// compilation order
-	compile_order: Vec<usize>,
-	blocks: Vec<Block<'a, 'ctx>>,
+	pub compile_order: Vec<usize>,
+	pub blocks: Vec<Block<'a, 'ctx>>,
 }
 
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
@@ -629,9 +571,9 @@ impl MethodReference {
 		format!("DEF{}", self)
 	}
 
-	pub fn desc(&self) -> MethodDescriptor {
+	pub fn desc(&self) -> MethodDesc {
 		// valid because checked on creation
-		MethodDescriptor::parse(&self.desc).unwrap()
+		MethodDesc::parse(&self.desc).unwrap()
 	}
 }
 

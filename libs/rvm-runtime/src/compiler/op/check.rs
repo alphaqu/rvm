@@ -1,9 +1,9 @@
 use crate::compiler::compiler::BlockCompiler;
 use inkwell::IntPredicate;
 use std::fmt::{Display, Formatter};
+use rvm_reader::JumpKind;
 
 use crate::compiler::resolver::BlockResolver;
-use crate::executor::Inst;
 
 /// Checks a single value against a constant value
 #[derive(Clone, Debug)]
@@ -13,23 +13,23 @@ pub struct CheckTask {
 }
 
 impl CheckTask {
-	pub fn resolve(i: usize, inst: &Inst, resolver: &mut BlockResolver) -> CheckTask {
-		let (kind, offset) = match inst {
-			Inst::IFEQ(v) => (CheckKind::EqualZero, v),
-			Inst::IFNE(v) => (CheckKind::NotEqualZero, v),
-			Inst::IFLT(v) => (CheckKind::LessThanZero, v),
-			Inst::IFLE(v) => (CheckKind::LessOrEqualZero, v),
-			Inst::IFGT(v) => (CheckKind::GreaterThanZero, v),
-			Inst::IFGE(v) => (CheckKind::GreaterOrEqualZero, v),
-			Inst::IFNONNULL(v) => (CheckKind::NotNull, v),
-			Inst::IFNULL(v) => (CheckKind::Null, v),
+	pub fn resolve(target: usize, kind: &JumpKind, resolver: &mut BlockResolver) -> CheckTask {
+		let kind = match kind {
+			JumpKind::IFEQ => CheckKind::EqualZero,
+			JumpKind::IFNE => CheckKind::NotEqualZero,
+			JumpKind::IFLT => CheckKind::LessThanZero,
+			JumpKind::IFLE => CheckKind::LessOrEqualZero,
+			JumpKind::IFGT => CheckKind::GreaterThanZero,
+			JumpKind::IFGE => CheckKind::GreaterOrEqualZero,
+			JumpKind::IFNONNULL => CheckKind::NotNull,
+			JumpKind::IFNULL => CheckKind::Null,
 			_ => {
 				panic!("invalid input, inputs needs to be matched")
 			}
 		};
 
 		CheckTask {
-			target: resolver.inst_to_block(i.saturating_add_signed(offset.0 as isize)),
+			target,
 			kind,
 		}
 	}

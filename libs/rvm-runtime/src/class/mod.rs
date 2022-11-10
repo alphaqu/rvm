@@ -3,11 +3,10 @@ mod field;
 mod method;
 mod object;
 
-use rvm_core::StorageValue;
+use rvm_core::{PrimitiveType, StorageValue};
 
 use std::ptr::{read, write};
 
-use crate::reader::BaseDesc;
 use crate::Ref;
 pub use array::Array;
 pub use array::ArrayClass;
@@ -17,7 +16,7 @@ pub use object::Object;
 pub use object::ObjectClass;
 
 pub struct Class {
-	pub binary_name: String,
+	pub name: String,
 	pub kind: ClassKind,
 }
 
@@ -26,7 +25,7 @@ impl Class {}
 pub enum ClassKind {
 	Object(ObjectClass),
 	Array(ArrayClass),
-	Primitive(BaseDesc),
+	Primitive(PrimitiveType),
 }
 
 impl ClassKind {

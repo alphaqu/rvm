@@ -47,7 +47,7 @@ pub fn compile(runtime: &Runtime, sources: &[(&str, &str)]) -> Result<()> {
 	let result: Result<()> = try {
 		std::fs::create_dir_all(&root)?;
 
-		let mut process = std::process::Command::new("javac");
+		let mut process = std::process::Command::new("/home/alphasucks/jdk/openjdk-java19-0.1/bin/javac");
 		process.current_dir(&root).arg("-Xlint");
 
 		for &(name, source) in sources {
@@ -61,9 +61,10 @@ pub fn compile(runtime: &Runtime, sources: &[(&str, &str)]) -> Result<()> {
 			std::fs::write(file, source)?;
 			process.arg(name);
 		}
-
+		println!("{:?}", process.get_args());
 		process.status()?.exit_ok().expect("javac not successful");
 
+		println!("hi");
 		for entry in WalkDir::new(&root) {
 			let entry = entry?;
 

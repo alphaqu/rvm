@@ -89,7 +89,9 @@ fn run() {
 
 	runtime
 		.cl
-		.load_jar(include_bytes!("../rt.jar"), |v| v == "java/lang/Object.class")
+		.load_jar(include_bytes!("../rt.zip"), |v| {
+			v == "java/lang/Object.class"
+		})
 		.unwrap();
 
 	for jar in std::env::args().skip(1) {

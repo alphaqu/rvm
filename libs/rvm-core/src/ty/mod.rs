@@ -114,7 +114,7 @@ impl Display for PrimitiveType {
 
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 pub struct ObjectType {
-	pub binary_name: String,
+	pub name: String,
 }
 
 impl ObjectType {
@@ -126,7 +126,7 @@ impl ObjectType {
 		let end = string.find(';')?;
 		Some((
 			ObjectType {
-				binary_name: string[1..end].to_string(),
+				name: string[1..end].to_string(),
 			},
 			end + 1,
 		))
@@ -140,7 +140,7 @@ impl ObjectType {
 impl Display for ObjectType {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		f.write_char('L')?;
-		f.write_str(&self.binary_name)?;
+		f.write_str(&self.name)?;
 		f.write_char(';')
 	}
 }

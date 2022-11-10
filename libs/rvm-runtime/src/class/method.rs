@@ -5,7 +5,7 @@ use anyways::Result;
 
 use rvm_core::Storage;
 
-use crate::reader::{ConstantPool, MethodInfo};
+use rvm_reader::{ConstantPool, MethodInfo};
 use crate::{Method, MethodIdentifier};
 
 pub struct ClassMethodManager {

@@ -1,8 +1,9 @@
 use crate::compiler::compiler::BlockCompiler;
 use crate::compiler::resolver::BlockResolver;
-use crate::executor::Inst;
 use inkwell::values::BasicValue;
 use std::fmt::{Display, Formatter};
+use rvm_core::PrimitiveType;
+use rvm_reader::MathInst;
 
 /// Applies an operation on one value and spits out another
 #[derive(Clone, Debug)]
@@ -11,10 +12,14 @@ pub struct ApplyTask {
 }
 
 impl ApplyTask {
-	pub fn resolve(inst: &Inst, resolver: &mut BlockResolver) -> ApplyTask {
+	pub fn resolve(inst: &MathInst, resolver: &mut BlockResolver) -> ApplyTask {
 		let kind = match inst {
-			Inst::FNEG | Inst::DNEG => ApplyKind::NEG(true),
-			Inst::INEG | Inst::LNEG => ApplyKind::NEG(false),
+			MathInst::Neg(PrimitiveType::Float) | MathInst::Neg(PrimitiveType::Double) => {
+				ApplyKind::NEG(true)
+			}
+			MathInst::Neg(PrimitiveType::Int) | MathInst::Neg(PrimitiveType::Long) => {
+				ApplyKind::NEG(false)
+			}
 			_ => {
 				panic!("what")
 			}

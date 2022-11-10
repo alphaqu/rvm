@@ -1,6 +1,6 @@
-use crate::reader::{ConstantPool, FieldInfo, ValueDesc};
-use crate::{BinaryName, ClassLoader, Field, StrParse};
-use rvm_consts::FieldAccessFlags;
+use rvm_reader::{ConstantPool, FieldInfo};
+use crate::{ClassLoader, Field};
+use rvm_core::{FieldAccessFlags, Type};
 use rvm_core::{Id, Storage, StorageValue};
 use std::ops::Deref;
 
@@ -28,16 +28,16 @@ impl ClassFieldManager {
 			let name = field.name_index.get(cp).to_string();
 
 			let desc = field.descriptor_index.get(cp).as_str();
-			let field_type = ValueDesc::parse(desc).unwrap();
+			let field_type = Type::parse(desc).unwrap();
 			let static_field = field.access_flags.contains(FieldAccessFlags::STATIC);
-			let object_field = matches!(field_type, ValueDesc::Object(_));
+			let object_field = matches!(field_type, Type::Object(_));
 
 			if object_field {
 				// ensure loaded
-				class_loader.get_class_id(&BinaryName::parse(desc));
+				class_loader.get_class_id(&field_type);
 			}
 
-			let ty = field_type.ty();
+			let ty = field_type.kind();
 			let field_size = if static_field {
 				let value = static_size;
 				static_size += ty.size() as u32;
@@ -53,8 +53,7 @@ impl ClassFieldManager {
 				Field {
 					offset: field_size,
 					flags: field.access_flags,
-					desc: field_type,
-					ty,
+					ty: field_type,
 				},
 			);
 

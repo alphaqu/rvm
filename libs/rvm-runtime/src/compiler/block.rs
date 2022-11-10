@@ -1,10 +1,11 @@
-use crate::compiler::compiler::LocalId;
-use crate::compiler::op::Task;
-use crate::executor::Inst;
-use crate::object::ValueType;
+
 use ahash::AHashMap;
 use inkwell::basic_block::BasicBlock;
 use inkwell::values::PointerValue;
+use rvm_core::Kind;
+use rvm_reader::Inst;
+use crate::compiler::compiler::LocalId;
+use crate::compiler::op::Task;
 
 pub struct Block<'a, 'ctx> {
 	pub inst_start: usize,
@@ -42,5 +43,5 @@ pub struct CompiledBlock<'ctx> {
 #[derive(Clone, Copy)]
 pub struct BlockVariable<'ctx> {
 	pub value: PointerValue<'ctx>,
-	pub ty: ValueType,
+	pub ty: Kind,
 }

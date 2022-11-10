@@ -5,13 +5,13 @@ use rvm_core::{Kind, Ref, Value};
 
 pub const ARRAY_BASE_OFFSET: usize = size_of::<i32>();
 
-pub struct ArrayDesc {
+pub struct ArrayClass {
 	component: Kind,
 }
 
-impl ArrayDesc {
-	pub fn new(component: Kind) -> ArrayDesc {
-		ArrayDesc { component }
+impl ArrayClass {
+	pub fn new(component: Kind) -> ArrayClass {
+		ArrayClass { component }
 	}
 
 	pub fn size(&self, obj: Ref) -> usize {

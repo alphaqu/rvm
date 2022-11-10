@@ -1,21 +1,19 @@
-use crate::executor::{LocalVariables, StackValue};
-use crate::reader::{
-	AttributeInfo, Code, ConstantPool, MethodDescriptor, MethodInfo, NameAndTypeConst,
+use std::cell::Cell;
+use rvm_reader::{
+	AttributeInfo, Code, ConstantPool, MethodInfo, NameAndTypeConst,
 };
-use crate::{JResult, Runtime, StrParse};
+use crate::{JResult, Runtime};
 use anyways::Result;
 use either::Either;
-use rvm_consts::MethodAccessFlags;
+use rvm_core::{MethodAccessFlags, MethodDesc};
 use rvm_core::StorageValue;
 use std::ffi::c_void;
 use std::sync::Arc;
 
 pub struct Method {
 	pub name: String,
-	pub desc: MethodDescriptor,
+	pub desc: MethodDesc,
 	pub flags: MethodAccessFlags,
-	pub max_locals: u16,
-	pub max_stack: u16,
 	pub code: Option<MethodCode>,
 }
 
@@ -33,10 +31,8 @@ impl Method {
 			},
 			Method {
 				name,
-				desc: MethodDescriptor::parse(&desc).unwrap(),
+				desc: MethodDesc::parse(&desc).unwrap(),
 				flags,
-				max_locals: code.max_locals().unwrap_or(0),
-				max_stack: code.max_stack(),
 				code: Some(code),
 			},
 		)
@@ -48,7 +44,7 @@ impl Method {
 		consts: &ConstantPool,
 	) -> Result<(MethodIdentifier, Method)> {
 		let desc_str = consts.get(info.descriptor_index);
-		let desc = MethodDescriptor::parse(desc_str).unwrap();
+		let desc = MethodDesc::parse(desc_str).unwrap();
 
 		let mut code = None;
 		let ident = MethodIdentifier {
@@ -64,7 +60,7 @@ impl Method {
 		} else {
 			for attribute in info.attribute_info {
 				if let AttributeInfo::CodeAttribute { code: c } = attribute {
-					code = Some(MethodCode::JVM(Arc::new(c)));
+					code = Some(MethodCode::Java(c, Cell::new(None)));
 				}
 			}
 		}
@@ -75,8 +71,6 @@ impl Method {
 				name: ident.name,
 				desc,
 				flags: info.access_flags,
-				max_locals: code.as_ref().and_then(|v| v.max_locals()).unwrap_or(0),
-				max_stack: code.as_ref().map(|v| v.max_stack()).unwrap_or(0),
 				code,
 			},
 		))
@@ -87,33 +81,14 @@ impl StorageValue for Method {
 	type Idx = u16;
 }
 
-#[derive(Clone)]
 pub enum MethodCode {
-	JVM(Arc<Code>),
-	LLVM(Arc<Code>, *const c_void),
+	Java(Code, Cell<Option<*const c_void>>),
 	Native(Either<(String, MethodIdentifier), NativeCode>),
-}
-
-impl MethodCode {
-	pub fn max_locals(&self) -> Option<u16> {
-		match self {
-			MethodCode::LLVM(code, _) | MethodCode::JVM(code) => Some(code.max_locals),
-			MethodCode::Native(code) => code.as_ref().right().map(|code| code.max_locals),
-		}
-	}
-
-	pub fn max_stack(&self) -> u16 {
-		match self {
-			MethodCode::LLVM(code, _) | MethodCode::JVM(code) => code.max_stack,
-			MethodCode::Native(_) => 0,
-		}
-	}
 }
 
 #[derive(Copy, Clone)]
 pub struct NativeCode {
-	pub func: fn(&mut LocalVariables, &Runtime) -> JResult<Option<StackValue>>,
-	pub max_locals: u16,
+	pub func: *const c_void,
 }
 
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
