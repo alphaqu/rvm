@@ -13,3 +13,4 @@ Is it your responsibility
 - to write java like you are in 1969
 - to not run hospital software on this
 - to run Linux 
+- to check that the responsibilities are up-to-date
