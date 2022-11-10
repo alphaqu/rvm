@@ -1,3 +1,4 @@
+use inkwell::context::Context;
 use inkwell::types::{BasicMetadataTypeEnum, BasicType, BasicTypeEnum, FunctionType};
 use rvm_core::{Kind, MethodDesc};
 
