@@ -1,9 +1,11 @@
-use crate::{Class, ClassKind, Method, Runtime};
+use crate::{Runtime};
 use rvm_core::Id;
 use std::fmt::Debug;
 
 pub type JResult<V> = Result<V, JError>;
 use std::fmt::Write;
+use rvm_object::{Class, ClassKind, Method};
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct JError {
 	// thread: Id<Thread>

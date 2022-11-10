@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 rvm-core = { path = "../rvm-core" }
 rvm-reader = { path = "../rvm-reader" }
+rvm-object = { path = "../rvm-object" }
 
 # Compilation
 inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "master", features = ["llvm14-0"] }

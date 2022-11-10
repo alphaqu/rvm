@@ -1,8 +1,8 @@
 use rvm_reader::{ConstantPool, FieldInfo};
-use crate::{ClassLoader, Field};
 use rvm_core::{FieldAccessFlags, Type};
 use rvm_core::{Id, Storage, StorageValue};
 use std::ops::Deref;
+use crate::class_loader::ClassLoader;
 
 pub struct ClassFieldManager {
 	object_size: u32,
@@ -103,4 +103,10 @@ impl Deref for ClassFieldManager {
 
 impl StorageValue for Field {
 	type Idx = u16;
+}
+
+pub struct Field {
+	pub offset: u32,
+	pub flags: FieldAccessFlags,
+	pub ty: Type,
 }

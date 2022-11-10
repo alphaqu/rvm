@@ -1,14 +1,47 @@
-use std::cell::Cell;
-use rvm_reader::{
-	AttributeInfo, Code, ConstantPool, MethodInfo, NameAndTypeConst,
-};
-use crate::{JResult, Runtime};
+use std::ops::Deref;
+
+use anyways::ext::AuditExt;
 use anyways::Result;
+
+use rvm_core::Storage;
+
 use either::Either;
-use rvm_core::{MethodAccessFlags, MethodDesc};
 use rvm_core::StorageValue;
+use rvm_core::{MethodAccessFlags, MethodDesc};
+use rvm_reader::{AttributeInfo, Code, ConstantPool, MethodInfo, NameAndTypeConst};
+use std::cell::Cell;
 use std::ffi::c_void;
 use std::sync::Arc;
+
+
+pub struct ClassMethodManager {
+	storage: Storage<MethodIdentifier, Method>,
+}
+
+impl ClassMethodManager {
+	pub fn parse(
+		methods: Vec<MethodInfo>,
+		class_name: &str,
+		cp: &ConstantPool,
+	) -> Result<ClassMethodManager> {
+		let mut storage = Storage::new();
+		for method in methods {
+			let name = method.name_index.get(cp).as_str();
+			let (name, method) = Method::parse(method, class_name, cp)
+				.wrap_err_with(|| format!("in METHOD \"{}\"", name))?;
+			storage.insert(name, method);
+		}
+		Ok(ClassMethodManager { storage })
+	}
+}
+
+impl Deref for ClassMethodManager {
+	type Target = Storage<MethodIdentifier, Method>;
+
+	fn deref(&self) -> &Self::Target {
+		&self.storage
+	}
+}
 
 pub struct Method {
 	pub name: String,

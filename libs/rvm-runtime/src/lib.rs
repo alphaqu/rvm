@@ -14,23 +14,16 @@ use tracing::{debug, info};
 
 use rvm_core::{MethodAccessFlags, ObjectType, Type};
 use rvm_core::Id;
+use rvm_object::{ClassLoader, MethodCode, MethodIdentifier};
 
-use crate::class::{Class, ClassKind};
-use crate::class_loader::ClassLoader;
 use crate::compiler::{Executor, MethodReference};
 use crate::error::{JError, JResult};
-use crate::object::Ref;
-use crate::object::{Field, MethodCode};
-use crate::object::{Method, MethodIdentifier, NativeCode};
 use rvm_reader::{
 	ClassConst, ClassInfo, ConstPtr, ConstantPool, FieldConst, MethodConst,
 };
 
-pub mod class;
-mod class_loader;
 pub mod compiler;
 pub mod error;
-pub mod object;
 pub mod prelude;
 
 #[cfg(feature = "native")]

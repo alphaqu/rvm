@@ -10,10 +10,10 @@ use std::collections::hash_map::Entry;
 use std::ops::Deref;
 use tracing::{info, warn};
 use rvm_core::{Kind, MethodAccessFlags, Type};
+use rvm_object::Method;
 use crate::compiler::block::{Block, BlockVariable, CompiledBlock, CompilingBlock};
 use crate::compiler::ir_gen::IrNameGen;
 use crate::compiler::util::{desc_ty, kind_ty};
-use crate::object::Method;
 
 pub struct FunctionCompiler<'a, 'ctx> {
 	ctx: &'ctx Context,

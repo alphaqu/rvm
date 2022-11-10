@@ -5,14 +5,19 @@ use anyways::ext::AuditExt;
 use anyways::Result;
 use parking_lot::MappedRwLockReadGuard;
 
-use rvm_core::{FieldAccessFlags, Value};
+use rvm_core::{FieldAccessFlags};
 use rvm_core::Id;
+use rvm_reader::{ClassInfo, ConstantPool};
+use crate::class_loader::ClassLoader;
+use field::Field;
 
-use crate::class::field::ClassFieldManager;
-use crate::class::method::ClassMethodManager;
-use crate::class::ClassKind;
-use crate::object::ObjectData;
-use crate::{Class, ClassInfo, ClassLoader, ConstantPool, Field, JResult, Ref, Runtime};
+mod field;
+mod method;
+
+pub use field::*;
+pub use method::*;
+use crate::{Class, ClassKind, ObjectData};
+
 
 pub struct ObjectClass {
 	pub cp: ConstantPool,
@@ -74,67 +79,66 @@ impl ObjectClass {
 	}
 }
 
-impl<'a> Runtime<'a> {
-	pub fn new_object(&self, class_id: Id<Class>) -> JResult<Object> {
-		todo!()
-		//let class = self.cl.get_obj_class(class_id);
+// impl<'a> Runtime<'a> {
+// 	pub fn new_object(&self, class_id: Id<Class>) -> JResult<Object> {
+// 		todo!()
+// 		//let class = self.cl.get_obj_class(class_id);
+// //
+// 		//unsafe {
+// 		//	let reference = self.gc.write().unwrap().alloc(class_id, class.size(false));
+// 		//	Ok(Object { reference, class })
+// 		//}
+// 	}
 //
-		//unsafe {
-		//	let reference = self.gc.write().unwrap().alloc(class_id, class.size(false));
-		//	Ok(Object { reference, class })
-		//}
-	}
-
-	pub fn get_object(&self, class_id: Id<Class>, reference: Ref) -> JResult<Object> {
-		reference.assert_matching_class(class_id, self)?;
-		let class = self.cl.get_obj_class(class_id);
-		Ok(Object { reference, class })
-	}
-}
-
-pub struct Object<'a> {
-	reference: Ref,
-	pub class: MappedRwLockReadGuard<'a, ObjectClass>,
-}
-
-impl<'a> Object<'a> {
-	pub fn set_field<V: Value>(&self, field: Id<Field>, value: V) {
-		let field = self.class.fields.get(field);
-		unsafe {
-			if field.ty.kind() != V::ty() {
-				panic!("Field mismatch")
-			}
-			if field.flags.contains(FieldAccessFlags::STATIC) {
-				panic!("Field is static");
-			}
-			let field_ptr = self.ptr().add(field.offset as usize);
-			V::write(field_ptr, value);
-		}
-	}
-
-	pub fn get_field<V: Value>(&self, field: Id<Field>) -> V {
-		let field = self.class.fields.get(field);
-		unsafe {
-			if field.ty.kind() != V::ty() {
-				panic!("Field mismatch")
-			}
-
-			if field.flags.contains(FieldAccessFlags::STATIC) {
-				panic!("Field is static");
-			}
-			let field_ptr = self.ptr().add(field.offset as usize);
-			V::read(field_ptr)
-		}
-	}
-}
-
-impl<'a> Deref for Object<'a> {
-	type Target = Ref;
-
-	fn deref(&self) -> &Self::Target {
-		&self.reference
-	}
-}
+// 	pub fn get_object(&self, class_id: Id<Class>, reference: Ref) -> JResult<Object> {
+// 		reference.assert_matching_class(class_id, self)?;
+// 		let class = self.cl.get_obj_class(class_id);
+// 		Ok(Object { reference, class })
+// 	}
+// }
+//pub struct Object<'a> {
+// 	reference: Ref,
+// 	pub class: MappedRwLockReadGuard<'a, ObjectClass>,
+// }
+//
+// impl<'a> Object<'a> {
+// 	pub fn set_field<V: Value>(&self, field: Id<Field>, value: V) {
+// 		let field = self.class.fields.get(field);
+// 		unsafe {
+// 			if field.ty.kind() != V::ty() {
+// 				panic!("Field mismatch")
+// 			}
+// 			if field.flags.contains(FieldAccessFlags::STATIC) {
+// 				panic!("Field is static");
+// 			}
+// 			let field_ptr = self.ptr().add(field.offset as usize);
+// 			V::write(field_ptr, value);
+// 		}
+// 	}
+//
+// 	pub fn get_field<V: Value>(&self, field: Id<Field>) -> V {
+// 		let field = self.class.fields.get(field);
+// 		unsafe {
+// 			if field.ty.kind() != V::ty() {
+// 				panic!("Field mismatch")
+// 			}
+//
+// 			if field.flags.contains(FieldAccessFlags::STATIC) {
+// 				panic!("Field is static");
+// 			}
+// 			let field_ptr = self.ptr().add(field.offset as usize);
+// 			V::read(field_ptr)
+// 		}
+// 	}
+// }
+//
+// impl<'a> Deref for Object<'a> {
+// 	type Target = Ref;
+//
+// 	fn deref(&self) -> &Self::Target {
+// 		&self.reference
+// 	}
+// }
 
 impl Drop for ObjectClass {
 	fn drop(&mut self) {

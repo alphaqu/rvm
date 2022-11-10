@@ -26,7 +26,6 @@ use std::ffi::{c_char, c_void, CStr};
 use std::fmt;
 use std::fmt::{Display, Formatter};
 
-use crate::object::{Method, MethodCode};
 use crate::Runtime;
 use inkwell::targets::{
 	CodeModel, InitializationConfig, RelocMode, Target, TargetMachine, TargetTriple,
@@ -36,6 +35,7 @@ use std::path::Path;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tracing::{debug, info, instrument, trace};
+use rvm_object::{Method, MethodCode};
 use crate::compiler::util::desc_ty;
 
 #[derive(Debug)]
