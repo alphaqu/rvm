@@ -9,7 +9,7 @@ use either::Either;
 use rvm_core::StorageValue;
 use rvm_core::{MethodAccessFlags, MethodDesc};
 use rvm_reader::{AttributeInfo, Code, ConstantPool, MethodInfo, NameAndTypeConst};
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::ffi::c_void;
 use std::sync::Arc;
 
@@ -27,9 +27,12 @@ impl ClassMethodManager {
 		let mut storage = Storage::new();
 		for method in methods {
 			let name = method.name_index.get(cp).as_str();
-			let (name, method) = Method::parse(method, class_name, cp)
+			let (name, method) = MethodData::parse(method, class_name, cp)
 				.wrap_err_with(|| format!("in METHOD \"{}\"", name))?;
-			storage.insert(name, method);
+			storage.insert(name, Method {
+				data: method,
+				compiled: Cell::new(None),
+			});
 		}
 		Ok(ClassMethodManager { storage })
 	}
@@ -44,29 +47,43 @@ impl Deref for ClassMethodManager {
 }
 
 pub struct Method {
+	data: MethodData,
+	pub compiled: Cell<Option<*const c_void>>
+}
+
+impl Deref for Method {
+	type Target = MethodData;
+
+	fn deref(&self) -> &Self::Target {
+		&self.data
+	}
+}
+
+#[derive(Clone)]
+pub struct MethodData {
 	pub name: String,
 	pub desc: MethodDesc,
 	pub flags: MethodAccessFlags,
-	pub code: Option<MethodCode>,
+	pub code: Option<Arc<MethodCode>>,
 }
 
-impl Method {
+impl MethodData {
 	pub fn new(
 		name: String,
 		desc: String,
 		flags: MethodAccessFlags,
 		code: MethodCode,
-	) -> (MethodIdentifier, Method) {
+	) -> (MethodIdentifier, MethodData) {
 		(
 			MethodIdentifier {
 				name: name.to_string(),
 				descriptor: desc.to_string(),
 			},
-			Method {
+			MethodData {
 				name,
 				desc: MethodDesc::parse(&desc).unwrap(),
 				flags,
-				code: Some(code),
+				code: Some(Arc::new(code)),
 			},
 		)
 	}
@@ -75,7 +92,7 @@ impl Method {
 		info: MethodInfo,
 		class_name: &str,
 		consts: &ConstantPool,
-	) -> Result<(MethodIdentifier, Method)> {
+	) -> Result<(MethodIdentifier, MethodData)> {
 		let desc_str = consts.get(info.descriptor_index);
 		let desc = MethodDesc::parse(desc_str).unwrap();
 
@@ -86,21 +103,21 @@ impl Method {
 		};
 
 		if info.access_flags.contains(MethodAccessFlags::NATIVE) {
-			code = Some(MethodCode::Native(Either::Left((
+			code = Some(Arc::new(MethodCode::Native(Either::Left((
 				class_name.to_string(),
 				ident.clone(),
-			))));
+			)))));
 		} else {
 			for attribute in info.attribute_info {
 				if let AttributeInfo::CodeAttribute { code: c } = attribute {
-					code = Some(MethodCode::Java(c, Cell::new(None)));
+					code = Some(Arc::new(MethodCode::Java(c)));
 				}
 			}
 		}
 
 		Ok((
 			ident.clone(),
-			Method {
+			MethodData {
 				name: ident.name,
 				desc,
 				flags: info.access_flags,
@@ -115,13 +132,13 @@ impl StorageValue for Method {
 }
 
 pub enum MethodCode {
-	Java(Code, Cell<Option<*const c_void>>),
+	Java(Code),
 	Native(Either<(String, MethodIdentifier), NativeCode>),
 }
 
 #[derive(Copy, Clone)]
 pub struct NativeCode {
-	pub func: *const c_void,
+	pub func: unsafe extern "C" fn(),
 }
 
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]

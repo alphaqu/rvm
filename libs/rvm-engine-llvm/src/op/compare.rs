@@ -1,9 +1,9 @@
-use crate::compiler::compiler::BlockCompiler;
+use crate::compiler::BlockCompiler;
 use inkwell::IntPredicate;
 use std::fmt::{Display, Formatter};
 use rvm_reader::JumpKind;
 
-use crate::compiler::resolver::BlockResolver;
+use crate::resolver::BlockResolver;
 
 /// Compares two values against eachother
 #[derive(Clone, Debug)]

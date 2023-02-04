@@ -1,6 +1,6 @@
-use crate::compiler::compiler::BlockCompiler;
-use crate::compiler::op::Task;
-use crate::compiler::resolver::BlockResolver;
+use crate::compiler::BlockCompiler;
+use crate::op::Task;
+use crate::resolver::BlockResolver;
 use inkwell::values::{BasicValue, BasicValueEnum};
 use std::fmt::{Display, Formatter};
 use rvm_core::Kind;

@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 pub type JResult<V> = Result<V, JError>;
 use std::fmt::Write;
-use rvm_object::{Class, ClassKind, Method};
+use rvm_object::{Class, ClassKind, Method, MethodData};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct JError {

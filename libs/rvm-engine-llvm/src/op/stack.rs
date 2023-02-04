@@ -1,9 +1,8 @@
 use inkwell::types::BasicTypeEnum;
 use std::fmt::{Display, Formatter};
 use rvm_reader::StackInst;
-use crate::compiler::compiler::BlockCompiler;
-
-use crate::compiler::resolver::BlockResolver;
+use crate::compiler::BlockCompiler;
+use crate::resolver::BlockResolver;
 
 #[derive(Clone, Debug)]
 pub enum StackTask {

@@ -1,4 +1,3 @@
-use inkwell::context::Context;
 use std::collections::HashMap;
 use std::ffi::{c_void, CStr};
 use std::ptr::null_mut;
@@ -35,47 +34,47 @@ pub unsafe extern "system" fn JNI_CreateJavaVM(
 
 	todo!();
 
-	let mut context = Box::leak(Box::new(Context::create()));
-	let mut runtime = Box::pin(Runtime::new(&context));
-	let mut properties = HashMap::new();
-
-	for arg in 0..usize::try_from(args.nOptions).unwrap() {
-		let arg = &*(args.options.add(arg));
-
-		match CStr::from_ptr(arg.optionString).to_str() {
-			Ok("-verbose") => {}
-			Ok("-verbose:class") => {}
-			Ok("-verbose:gc") => {}
-			Ok("-verbose:jni") => {}
-			Ok("vfprintf") => {}
-			Ok("exit") => {}
-			Ok("abort") => {}
-			Ok(x) if x.starts_with("-D") => {
-				let (k, v) = x[2..].split_once('=').unwrap_or((x, ""));
-				properties.insert(k.to_string(), v.to_string());
-			}
-			Ok(_) if args.ignoreUnrecognized == JNI_TRUE => {}
-			other => {
-				panic!("Unrecognised option {:?}", other);
-			}
-		}
-	}
-
-	// We probably want to Arc Mutex this instead
-	let leak = Box::leak(Box::new(runtime));
-	let jvm = JNIInvokeInterface_ {
-		reserved0: leak as *mut _ as *mut c_void,
-		reserved1: null_mut(),
-		reserved2: null_mut(),
-		DestroyJavaVM: Some(destroy_java_vm),
-		AttachCurrentThread: Some(attach_current_thread),
-		DetachCurrentThread: Some(detach_current_thread),
-		GetEnv: Some(get_env),
-		AttachCurrentThreadAsDaemon: Some(attach_current_thread_as_daemon),
-	};
-	*pvm = &mut (Box::leak(Box::new(jvm)) as *const JNIInvokeInterface_);
-
-	JNI_OK
+	// let mut context = Box::leak(Box::new(Context::create()));
+	// 	let mut runtime = Box::pin(Runtime::new(&context));
+	// 	let mut properties = HashMap::new();
+	//
+	// 	for arg in 0..usize::try_from(args.nOptions).unwrap() {
+	// 		let arg = &*(args.options.add(arg));
+	//
+	// 		match CStr::from_ptr(arg.optionString).to_str() {
+	// 			Ok("-verbose") => {}
+	// 			Ok("-verbose:class") => {}
+	// 			Ok("-verbose:gc") => {}
+	// 			Ok("-verbose:jni") => {}
+	// 			Ok("vfprintf") => {}
+	// 			Ok("exit") => {}
+	// 			Ok("abort") => {}
+	// 			Ok(x) if x.starts_with("-D") => {
+	// 				let (k, v) = x[2..].split_once('=').unwrap_or((x, ""));
+	// 				properties.insert(k.to_string(), v.to_string());
+	// 			}
+	// 			Ok(_) if args.ignoreUnrecognized == JNI_TRUE => {}
+	// 			other => {
+	// 				panic!("Unrecognised option {:?}", other);
+	// 			}
+	// 		}
+	// 	}
+	//
+	// 	// We probably want to Arc Mutex this instead
+	// 	let leak = Box::leak(Box::new(runtime));
+	// 	let jvm = JNIInvokeInterface_ {
+	// 		reserved0: leak as *mut _ as *mut c_void,
+	// 		reserved1: null_mut(),
+	// 		reserved2: null_mut(),
+	// 		DestroyJavaVM: Some(destroy_java_vm),
+	// 		AttachCurrentThread: Some(attach_current_thread),
+	// 		DetachCurrentThread: Some(detach_current_thread),
+	// 		GetEnv: Some(get_env),
+	// 		AttachCurrentThreadAsDaemon: Some(attach_current_thread_as_daemon),
+	// 	};
+	// 	*pvm = &mut (Box::leak(Box::new(jvm)) as *const JNIInvokeInterface_);
+	//
+	// 	JNI_OK
 }
 
 pub unsafe extern "system" fn destroy_java_vm(vm: *mut JavaVM) -> jint {

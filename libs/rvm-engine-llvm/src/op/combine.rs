@@ -1,6 +1,5 @@
-use crate::compiler::compiler::BlockCompiler;
-
-use crate::compiler::resolver::BlockResolver;
+use crate::compiler::BlockCompiler;
+use crate::resolver::BlockResolver;
 
 use inkwell::values::BasicValue;
 use inkwell::{FloatPredicate, IntPredicate};

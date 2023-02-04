@@ -1,11 +1,11 @@
-use crate::compiler::compiler::BlockCompiler;
+use crate::compiler::BlockCompiler;
 use inkwell::values::BasicValue;
 use std::fmt::{Display, Formatter};
 use std::mem::transmute;
 use rvm_core::Kind;
 use rvm_reader::{ConstantInfo, ConstInst};
 
-use crate::compiler::resolver::BlockResolver;
+use crate::resolver::BlockResolver;
 
 /// Loads a constant to the stack.
 /// # Stack

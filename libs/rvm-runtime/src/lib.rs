@@ -9,23 +9,16 @@ use std::pin::Pin;
 use std::sync::RwLock;
 
 use either::Either;
-use inkwell::context::Context;
-use tracing::{debug, info};
-
-use rvm_core::{MethodAccessFlags, ObjectType, Type};
-use rvm_core::Id;
+use tracing::info;
+use rvm_core::{ObjectType, Type};
 use rvm_object::{ClassLoader, MethodCode, MethodIdentifier};
 
-use crate::compiler::{Executor, MethodReference};
-use crate::error::{JError, JResult};
-use rvm_reader::{
-	ClassConst, ClassInfo, ConstPtr, ConstantPool, FieldConst, MethodConst,
-};
+use crate::engine::Engine;
 
-pub mod compiler;
 pub mod error;
 pub mod prelude;
 
+pub mod engine;
 #[cfg(feature = "native")]
 pub mod native;
 
@@ -35,16 +28,16 @@ pub mod native;
 ///
 /// [jvms]: https://docs.oracle.com/javase/specs/jvms/se19/html/index.html
 /// [llvm]: https://llvm.org/
-pub struct Runtime<'ctx> {
+pub struct Runtime {
 	pub cl: ClassLoader,
-	pub compiler: Executor<'ctx>,
+	pub engine: Box<dyn Engine>,
 }
 
-impl<'ctx> Runtime<'ctx> {
-	pub fn new(ctx: &'ctx Context) -> Runtime<'ctx> {
+impl Runtime {
+	pub fn new(engine: Box<dyn Engine>) -> Runtime {
 		Runtime {
 			cl: ClassLoader::new(),
-			compiler: Executor::new(ctx),
+			engine,
 		}
 	}
 
@@ -68,9 +61,9 @@ impl<'ctx> Runtime<'ctx> {
 		desc: &str,
 	) -> *const c_void {
 		info!("Resolving {class_name}:{method_name}:{desc}");
-		let class_id = self
-			.cl
-			.get_class_id(&Type::Object(ObjectType { name: class_name.to_string() }));
+		let class_id = self.cl.get_class_id(&Type::Object(ObjectType {
+			name: class_name.to_string(),
+		}));
 		let class = self.cl.get_obj_class(class_id);
 
 		let method_id = class
@@ -82,39 +75,34 @@ impl<'ctx> Runtime<'ctx> {
 			.expect("Method not found");
 
 		let method = class.methods.get(method_id);
-		return match &method.code {
-			Some(MethodCode::Java(code, pointer)) => {
-				let value = pointer.get();
-				match value {
-					None => {
-						let value = self.compiler.compile_method(
-							self,
-							method,
-							&class.cp,
-						) as *const c_void;
-						pointer.set(Some(value));
-						value
+		return match method.compiled.get() {
+			None => {
+				if let Some(code) = &method.code {
+					match code.as_ref() {
+						MethodCode::Java(_) => {
+							let value = self.engine.compile_method(self, method, &class.cp)
+								as *const c_void;
+							method.compiled.set(Some(value));
+							value
+						}
+						MethodCode::Native(either) => {
+							let code = match &either {
+								Either::Left(source) => {
+									let code = self.cl.native_methods().get(source).unwrap();
+									// todo: save in method.code as Some(MethodCode::Native(Either::Right(*code)))
+									code
+								}
+								Either::Right(code) => code,
+							};
+
+							panic!("Native code is not supported yet");
+						}
 					}
-					Some(value) => {
-						value
-					}
+				} else {
+					panic!("Code is missing");
 				}
 			}
-			Some(MethodCode::Native(either)) => {
-				let code = match &either {
-					Either::Left(source) => {
-						let code = self.cl.native_methods().get(source).unwrap();
-						// todo: save in method.code as Some(MethodCode::Native(Either::Right(*code)))
-						code
-					}
-					Either::Right(code) => code,
-				};
-
-				panic!("Native code is not supported yet");
-			}
-			None => {
-				panic!("Code is missing");
-			}
+			Some(value) => value,
 		};
 	}
 }

@@ -1,14 +1,13 @@
-use crate::compiler::block::{Block, ResolvedBlock};
+use crate::block::{Block, ResolvedBlock};
 use ahash::AHashSet;
 use rvm_core::Kind;
 use rvm_reader::{ConstantPool, Inst};
 
-
-use crate::compiler::compiler::LocalId::Local;
-use crate::compiler::op::jump::JumpTask;
-use crate::compiler::op::variable::{Var, VarData};
-use crate::compiler::op::Task;
-use crate::compiler::{BlocksData, Reference};
+use crate::compiler::LocalId::Local;
+use crate::op::jump::JumpTask;
+use crate::op::variable::{Var, VarData};
+use crate::op::Task;
+use crate::{BlocksData, Reference};
 
 /// Psudo executes the java instructions to parse
 /// them into an instruction tree which later gets

@@ -1,5 +1,6 @@
 use std::alloc::dealloc;
 use std::ops::Deref;
+use std::sync::Arc;
 
 use anyways::ext::AuditExt;
 use anyways::Result;
@@ -20,7 +21,7 @@ use crate::{Class, ClassKind, ObjectData};
 
 
 pub struct ObjectClass {
-	pub cp: ConstantPool,
+	pub cp: Arc<ConstantPool>,
 	pub fields: ClassFieldManager,
 	pub methods: ClassMethodManager,
 	pub static_object: ObjectData,
@@ -43,7 +44,7 @@ impl ObjectClass {
 				)
 				.wrap_err_with(|| format!("in CLASS \"{}\"", name.as_str()))?,
 				static_object: unsafe { ObjectData::new(fields.size(true) as usize) },
-				cp: info.constant_pool,
+				cp: Arc::new(info.constant_pool),
 				fields,
 			}),
 			name: binary_name,

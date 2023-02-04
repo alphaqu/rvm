@@ -1,12 +1,12 @@
-use crate::compiler::compiler::BlockCompiler;
+use crate::compiler::BlockCompiler;
 
-use crate::compiler::resolver::BlockResolver;
+use crate::resolver::BlockResolver;
 
 use either::Either;
 use inkwell::values::{BasicMetadataValueEnum, CallableValue};
 use std::fmt::{Display, Formatter};
 use rvm_reader::{InvokeInst, InvokeInstKind};
-use crate::compiler::{MethodReference, Reference};
+use crate::{MethodReference, Reference};
 
 #[derive(Clone, Debug)]
 pub struct InvokeTask {

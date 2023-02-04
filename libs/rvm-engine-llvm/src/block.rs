@@ -4,8 +4,8 @@ use inkwell::basic_block::BasicBlock;
 use inkwell::values::PointerValue;
 use rvm_core::Kind;
 use rvm_reader::Inst;
-use crate::compiler::compiler::LocalId;
-use crate::compiler::op::Task;
+use crate::compiler::LocalId;
+use crate::op::Task;
 
 pub struct Block<'a, 'ctx> {
 	pub inst_start: usize,

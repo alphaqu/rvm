@@ -1,8 +1,8 @@
 use std::fmt::{Display, Formatter};
 use rvm_reader::JumpKind;
-use crate::compiler::compiler::BlockCompiler;
+use crate::compiler::BlockCompiler;
 
-use crate::compiler::resolver::BlockResolver;
+use crate::resolver::BlockResolver;
 
 #[derive(Clone, Debug)]
 pub struct JumpTask {

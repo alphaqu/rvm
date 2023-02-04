@@ -3,10 +3,9 @@ use std::mem::transmute;
 
 use inkwell::values::BasicValue;
 use rvm_core::Kind;
-use crate::compiler::compiler::{BlockCompiler, LocalId};
-
-use crate::compiler::op::Task;
-use crate::compiler::resolver::BlockResolver;
+use crate::compiler::{BlockCompiler, LocalId};
+use crate::op::Task;
+use crate::resolver::BlockResolver;
 
 #[derive(Clone, Debug)]
 pub struct LoadVariableTask(pub Var);

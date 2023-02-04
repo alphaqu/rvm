@@ -5,11 +5,9 @@ mod op;
 mod resolver;
 mod util;
 
-use crate::compiler::block::Block;
-use crate::compiler::compiler::FunctionCompiler;
-use crate::compiler::ir_gen::IrNameGen;
-
-use crate::compiler::resolver::BlockResolver;
+use crate::block::Block;
+use crate::ir_gen::IrNameGen;
+use crate::resolver::BlockResolver;
 
 use ahash::{AHashMap, AHashSet};
 use either::Either;
@@ -17,7 +15,7 @@ use inkwell::context::Context;
 use inkwell::execution_engine::ExecutionEngine;
 use inkwell::module::{Linkage, Module};
 use inkwell::passes::{PassManager, PassManagerBuilder, PassRegistry};
-use rvm_reader::{Code, ConstantPool, Inst, JumpKind};
+use rvm_reader::{ConstantPool, Inst};
 
 use inkwell::types::BasicMetadataTypeEnum;
 use inkwell::values::{BasicMetadataValueEnum, CallableValue, FunctionValue};
@@ -26,20 +24,93 @@ use std::ffi::{c_char, c_void, CStr};
 use std::fmt;
 use std::fmt::{Display, Formatter};
 
-use crate::Runtime;
 use inkwell::targets::{
 	CodeModel, InitializationConfig, RelocMode, Target, TargetMachine, TargetTriple,
 };
 use rvm_core::MethodDesc;
 use std::path::Path;
 use std::pin::Pin;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread::{Builder, JoinHandle};
+use crossbeam::channel::{bounded, Receiver, Sender};
 use tracing::{debug, info, instrument, trace};
-use rvm_object::{Method, MethodCode};
-use crate::compiler::util::desc_ty;
+use rvm_object::{MethodData, MethodCode};
+use rvm_runtime::engine::Engine;
+use rvm_runtime::Runtime;
+use crate::compiler::FunctionCompiler;
+use crate::util::desc_ty;
+
+
+pub enum EngineTask {
+	CompileMethod {
+		runtime_ptr: usize,
+		method: MethodData,
+		cp: Arc<ConstantPool>,
+	}
+}
+
+pub enum EngineResponse {
+	CompileMethod {
+		value: usize
+	}
+}
+
+pub struct LLVMBinding {
+	send: Sender<EngineTask>,
+	recv: Receiver<EngineResponse>,
+	handle: JoinHandle<()>
+}
+
+impl Engine for LLVMBinding {
+	fn compile_method(&self, runtime: &Pin<&Runtime>, method: &MethodData, cp: &Arc<ConstantPool>) -> *const c_void {
+		self.send.send(EngineTask::CompileMethod {
+			runtime_ptr: runtime as *const _ as usize,
+			method: method.clone(),
+			cp: cp.clone(),
+		}).unwrap();
+		let task = self.recv.recv().unwrap();
+		match task {
+			EngineResponse::CompileMethod { value } => {
+				return value as *const c_void;
+			}
+			_ => {
+				panic!("wtf");
+			}
+		}
+	}
+}
+
+impl LLVMBinding {
+	pub fn new() -> LLVMBinding {
+		let (sender, receiver) = bounded(1);
+		let (sender_in, receiver_in) = bounded(1);
+		let handle = Builder::new().spawn(move || {
+			let context = Context::create();
+			let engine = LLVMEngine::new(&context);
+
+			loop {
+				let task = receiver.recv().unwrap();
+				match task {
+					EngineTask::CompileMethod { runtime_ptr, method, cp } => {
+						let x = engine.compile_method(runtime_ptr, &method, &cp);
+						sender_in.send(EngineResponse::CompileMethod { value: x as usize }).unwrap();
+					}
+				}
+			}
+		}).unwrap();
+
+		LLVMBinding {
+			send: sender,
+			recv: receiver_in,
+			handle,
+		}
+	}
+}
+
 
 #[derive(Debug)]
-pub struct Executor<'a> {
+pub struct LLVMEngine<'a> {
 	ctx: &'a Context,
 	module: Module<'a>,
 	exec: ExecutionEngine<'a>,
@@ -49,8 +120,8 @@ pub struct Executor<'a> {
 	initialized: AtomicBool,
 }
 
-impl<'ctx> Executor<'ctx> {
-	pub fn new(context: &'ctx Context) -> Executor<'ctx> {
+impl<'ctx> LLVMEngine<'ctx> {
+	pub fn new(context: &'ctx Context) -> LLVMEngine<'ctx> {
 		let module = context.create_module("module");
 		Target::initialize_x86(&InitializationConfig::default());
 		let triple = TargetTriple::create("x86_64-pc-linux-gnu");
@@ -146,7 +217,7 @@ impl<'ctx> Executor<'ctx> {
 			.create_jit_execution_engine(OptimizationLevel::Aggressive)
 			.unwrap();
 
-		Executor {
+		LLVMEngine {
 			ctx: context,
 			module,
 			exec,
@@ -156,7 +227,7 @@ impl<'ctx> Executor<'ctx> {
 		}
 	}
 
-	pub fn prepare(&self, runtime: &Pin<&Runtime>, reference: &Reference) {
+	pub fn prepare(&self, runtime_ptr: usize, reference: &Reference) {
 		debug!("Preparing {reference:?}");
 
 		match reference {
@@ -164,13 +235,13 @@ impl<'ctx> Executor<'ctx> {
 				let fn_name = method.call_name();
 				debug!("Checking relay existance {fn_name}");
 				if self.exec.get_function_address(&fn_name).is_err() {
-					self.compile_relay(runtime, method);
+					self.compile_relay(runtime_ptr, method);
 				}
 			}
 		}
 	}
 
-	fn compile_relay(&self, runtime: &Pin<&Runtime>, reference: &MethodReference) {
+	fn compile_relay(&self, runtime_ptr: usize, reference: &MethodReference) {
 		let mut gen = IrNameGen::default();
 
 		let descriptor = reference.desc();
@@ -202,7 +273,7 @@ impl<'ctx> Executor<'ctx> {
 						.build_int_to_ptr(
 							self.ctx
 								.i64_type()
-								.const_int(runtime as *const _ as u64, false),
+								.const_int(runtime_ptr as u64, false),
 							self.ctx.i8_type().ptr_type(AddressSpace::Generic),
 							"runtime",
 						)
@@ -246,10 +317,10 @@ impl<'ctx> Executor<'ctx> {
 
 	pub fn compile_method(
 		&self,
-		runtime: &Pin<&Runtime>,
-		method: &Method,
+		runtime_ptr: usize,
+		method: &MethodData,
 		cp: &ConstantPool,
-	) -> usize {
+	) -> *const c_void {
 		if self
 			.initialized
 			.compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
@@ -292,8 +363,15 @@ impl<'ctx> Executor<'ctx> {
 		// This stage decompiles the bytecode to a block form where jump instructions go to a certain block.
 		// Blocks are way more useful for compilation purposes.
 		let mut data = match &method.code {
-			Some(MethodCode::Java(code, _)) => {
-				self.compute_blocks(&code.instructions)
+			Some(meth) => {
+				match meth.as_ref() {
+					MethodCode::Java(code) => {
+						self.compute_blocks(&code.instructions)
+					}
+					MethodCode::Native(_) => {
+						panic!("not code")
+					}
+				}
 			}
 			_ => {
 				panic!("not code")
@@ -304,7 +382,7 @@ impl<'ctx> Executor<'ctx> {
 		// STAGE 2: Resolution of blocks.
 		// This resolves things like stack values and makes the code more IR convertible
 		// by partly decompiling the code and creating a concept with variables and temporaries
-		self.resolve_blocks(runtime, &mut data, cp);
+		self.resolve_blocks(runtime_ptr, &mut data, cp);
 
 		debug!("Compiling {}", method.name);
 		//Self::print_blocks(&data.blocks);
@@ -319,11 +397,11 @@ impl<'ctx> Executor<'ctx> {
 			.get_function_address(&method.name)
 			.expect("Could not find function");
 
-		function
+		function as *const c_void
 	}
 
 	#[instrument(name = "Computing blocks", skip_all, fields(target=format!("{}:{}", method.name, method.desc)))]
-	fn compile_blocks(&self, method: &Method, data: BlocksData<'_, 'ctx>) {
+	fn compile_blocks(&self, method: &MethodData, data: BlocksData<'_, 'ctx>) {
 		let mut block_compiler =
 			FunctionCompiler::new(self.ctx, &self.module, &self.fpm, method, data.blocks);
 		block_compiler.compile(&data.compile_order);
@@ -348,7 +426,7 @@ impl<'ctx> Executor<'ctx> {
 		self.exec.add_module(&self.module).unwrap();
 	}
 
-	fn resolve_blocks(&self, runtime: &Pin<&Runtime>, data: &mut BlocksData, cp: &ConstantPool) {
+	fn resolve_blocks(&self, runtime_ptr: usize, data: &mut BlocksData, cp: &ConstantPool) {
 		let mut references = AHashSet::new();
 		for i in &data.compile_order {
 			info!(target: "resolve", "Resolving block {i}");
@@ -371,7 +449,7 @@ impl<'ctx> Executor<'ctx> {
 
 		// define the references
 		for reference in references {
-			self.prepare(runtime, &reference);
+			self.prepare(runtime_ptr, &reference);
 		}
 	}
 

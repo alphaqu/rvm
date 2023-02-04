@@ -10,10 +10,10 @@ use std::collections::hash_map::Entry;
 use std::ops::Deref;
 use tracing::{info, warn};
 use rvm_core::{Kind, MethodAccessFlags, Type};
-use rvm_object::Method;
-use crate::compiler::block::{Block, BlockVariable, CompiledBlock, CompilingBlock};
-use crate::compiler::ir_gen::IrNameGen;
-use crate::compiler::util::{desc_ty, kind_ty};
+use rvm_object::MethodData;
+use crate::block::{Block, BlockVariable, CompiledBlock, CompilingBlock};
+use crate::ir_gen::IrNameGen;
+use crate::util::{desc_ty, kind_ty};
 
 pub struct FunctionCompiler<'a, 'ctx> {
 	ctx: &'ctx Context,
@@ -32,7 +32,7 @@ impl<'a, 'ctx> FunctionCompiler<'a, 'ctx> {
 		ctx: &'ctx Context,
 		module: &'a Module<'ctx>,
 		fpm: &'a PassManager<FunctionValue<'ctx>>,
-		method: &Method,
+		method: &MethodData,
 		mut blocks: Vec<Block<'a, 'ctx>>,
 	) -> FunctionCompiler<'a, 'ctx> {
 		let mut gen = IrNameGen::default();

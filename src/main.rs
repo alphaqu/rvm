@@ -5,6 +5,7 @@ use std::thread::Builder;
 use inkwell::context::Context;
 
 use rvm_core::init;
+use rvm_engine_llvm::LLVMBinding;
 use rvm_runtime::{java, Runtime};
 
 fn main() {
@@ -21,8 +22,8 @@ fn main() {
 
 fn run() {
 	init();
-	let context = Context::create();
-	let runtime = Box::pin(Runtime::new(&context));
+	let llvm_engine = Box::new(LLVMBinding::new());
+	let runtime = Box::pin(Runtime::new(llvm_engine));
 
 	// 	// bind
 	// 	{
@@ -111,5 +112,6 @@ fn run() {
 	}
 
 	// TODO: ARRAYS PLEASE
-	unsafe { java!(compile &runtime.as_ref(), fn Main.main() -> ())() };
+	let value = unsafe { java!(compile &runtime.as_ref(), fn Main.main() -> i32)() };
+	println!("{value}");
 }

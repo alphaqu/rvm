@@ -5,6 +5,8 @@ use std::borrow::Borrow;
 use std::cmp::Ordering;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
+use std::ops::Deref;
+use std::sync::Arc;
 
 pub struct Storage<K: Hash + Eq + Debug, V: StorageValue> {
 	lookup: HashMap<K, Id<V>>,
@@ -131,4 +133,8 @@ impl<V: StorageValue> Hash for Id<V> {
 
 pub trait StorageValue {
 	type Idx: PrimInt + Hash + Display;
+}
+
+impl<V: StorageValue> StorageValue for Arc<V> {
+	type Idx = V::Idx;
 }

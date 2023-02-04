@@ -30,8 +30,7 @@ where
 		.stack_size(1024 * 1024 * 64)
 		.spawn(|| {
 			rvm_core::init();
-			let context = Context::create();
-			let runtime = Runtime::new(&context);
+			let runtime = Runtime::new();
 			let x = f(&pin!(runtime).into_ref());
 			x
 		})

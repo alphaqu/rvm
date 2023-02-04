@@ -1,0 +1,18 @@
+[package]
+name = "rvm-engine-llvm"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rvm-core = { path = "../rvm-core" }
+rvm-reader = { path = "../rvm-reader" }
+rvm-object = { path = "../rvm-object" }
+rvm-runtime = { path = "../rvm-runtime" }
+
+tracing = "0.1"
+either = "1.8.0"
+crossbeam = "0.8.2"
+ahash = "0.8.3"
+inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "master", features = ["llvm14-0"] }
