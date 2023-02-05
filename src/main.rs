@@ -7,7 +7,7 @@ use inkwell::context::Context;
 use rvm_core::{init, ObjectType, Type};
 use rvm_engine_llvm::LLVMBinding;
 use rvm_object::{ClassKind, DynValue};
-use rvm_runtime::{java, Runtime};
+use rvm_runtime::{java, Runtime, runtime};
 use rvm_runtime::arena::object::Object;
 
 fn main() {
@@ -25,7 +25,7 @@ fn main() {
 fn run() {
 	init();
 	let llvm_engine = Box::new(LLVMBinding::new());
-	let runtime = Box::pin(Runtime::new(1024 * 1024, llvm_engine));
+	rvm_runtime::init(Runtime::new(1024 * 1024, llvm_engine));
 
 	// 	// bind
 	// 	{
@@ -90,6 +90,7 @@ fn run() {
 	// 		fake_define(&mut runtime, "java/lang/Object", "wait", "(J)V");
 	// 	}
 
+	let runtime = runtime();
 	runtime
 		.cl
 		.load_jar(include_bytes!("../rt.zip"), |v| {

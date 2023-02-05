@@ -10,6 +10,7 @@ use std::ffi::c_void;
 use std::pin::Pin;
 
 use either::Either;
+use lazy_static::lazy_static;
 use mmtk::vm::VMBinding;
 use tracing::info;
 use rvm_core::{ObjectType, Type};
@@ -25,6 +26,29 @@ pub mod engine;
 #[cfg(feature = "native")]
 pub mod native;
 pub mod arena;
+mod thread;
+
+static mut RUNTIME: Option<Runtime> = None;
+
+pub fn init(runtime: Runtime) {
+	unsafe {
+		if RUNTIME.is_some() {
+			panic!("Runtime already initialized");
+		}
+
+		RUNTIME = Some(runtime);
+	}
+}
+
+pub fn runtime() -> &'static Runtime {
+	unsafe {
+		if let Some(runtime) = &RUNTIME {
+			return runtime;
+		}
+
+		panic!("Runtime is not initialized")
+	}
+}
 
 /// A runtime which (almost never) conforms to [The Java Virtual Machine Specification, Java SE 19 Edition][jvms]
 ///
