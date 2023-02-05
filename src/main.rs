@@ -138,7 +138,6 @@ fn run() {
 	println!("{:?}", object.get_dyn_field("thing"));
 	println!("{:?}", object.get_dyn_field("child"));
 	println!("{:?}", child.get_dyn_field("haha"));
-
 	//// TODO: ARRAYS PLEASE
 	//let value = unsafe { java!(compile &runtime.as_ref(), fn Main.main() -> i32)() };
 	//println!("{value}");
