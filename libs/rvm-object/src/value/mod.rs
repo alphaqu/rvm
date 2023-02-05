@@ -1,14 +1,72 @@
-use std::ptr::{read, write};
-use rvm_core::Kind;
 pub use crate::value::reference::*;
+use mmtk::util::{Address, ObjectReference};
+use rvm_core::Kind;
+use std::ptr::{read, write};
 
 mod reference;
 
 pub trait Value: Sized {
-    fn ty() -> Kind;
-    unsafe fn write(ptr: *mut u8, value: Self);
-    unsafe fn read(ptr: *mut u8) -> Self;
+	fn ty() -> Kind;
+	unsafe fn write(ptr: *mut u8, value: Self);
+	unsafe fn read(ptr: *mut u8) -> Self;
 }
+
+#[derive(Copy, Clone, Debug)]
+pub enum DynValue {
+	Byte(i8),
+	Short(i16),
+	Int(i32),
+	Long(i64),
+	Char(u16),
+	Float(f32),
+	Double(f64),
+	Bool(bool),
+	Ref(ObjectReference),
+}
+
+impl DynValue  {
+	pub fn ty(&self) -> Kind {
+		match self {
+			DynValue::Byte(_) => i8::ty(),
+			DynValue::Short(_) => i16::ty(),
+			DynValue::Int(_) => i32::ty(),
+			DynValue::Long(_) => i64::ty(),
+			DynValue::Char(_) => u16::ty(),
+			DynValue::Float(_) => f32::ty(),
+			DynValue::Double(_) => f64::ty(),
+			DynValue::Bool(_) => bool::ty(),
+			DynValue::Ref(_) => ObjectReference::ty(),
+		}
+	}
+
+	pub unsafe fn write(self, ptr: *mut u8) {
+		match self {
+			DynValue::Byte(v) => i8::write(ptr,v),
+			DynValue::Short(v) => i16::write(ptr,v),
+			DynValue::Int(v) => i32::write(ptr,v),
+			DynValue::Long(v) => i64::write(ptr,v),
+			DynValue::Char(v) => u16::write(ptr,v),
+			DynValue::Float(v) => f32::write(ptr,v),
+			DynValue::Double(v) => f64::write(ptr,v),
+			DynValue::Bool(v) => bool::write(ptr,v),
+			DynValue::Ref(v) => ObjectReference::write(ptr,v),
+		}
+	}
+	pub unsafe fn read(ptr: *mut u8, kind: Kind) -> Self {
+		match kind {
+			Kind::Byte => DynValue::Byte(i8::read(ptr)),
+			Kind::Short => DynValue::Short(i16::read(ptr)),
+			Kind::Int => DynValue::Int(i32::read(ptr)),
+			Kind::Long => DynValue::Long(i64::read(ptr)),
+			Kind::Char => DynValue::Char(u16::read(ptr)),
+			Kind::Float => DynValue::Float(f32::read(ptr)),
+			Kind::Double => DynValue::Double(f64::read(ptr)),
+			Kind::Boolean => DynValue::Bool(bool::read(ptr)),
+			Kind::Reference => DynValue::Ref(ObjectReference::read(ptr)),
+		}
+	}
+}
+
 
 macro_rules! impl_direct {
 	($VAR:ident $TY:ty) => {
@@ -36,48 +94,51 @@ impl_direct!(Float f32);
 impl_direct!(Double f64);
 
 impl Value for bool {
-    fn ty() -> Kind {
-        Kind::Boolean
-    }
+	fn ty() -> Kind {
+		Kind::Boolean
+	}
 
-    unsafe fn write(ptr: *mut u8, value: Self) {
-        write(ptr, value as u8)
-    }
+	unsafe fn write(ptr: *mut u8, value: Self) {
+		write(ptr, value as u8)
+	}
 
-    unsafe fn read(ptr: *mut u8) -> Self {
-        read(ptr) != 0
-    }
+	unsafe fn read(ptr: *mut u8) -> Self {
+		read(ptr) != 0
+	}
 }
 
-impl Value for Ref {
-    fn ty() -> Kind {
-        Kind::Reference
-    }
+impl Value for ObjectReference {
+	fn ty() -> Kind {
+		Kind::Reference
+	}
 
-    unsafe fn write(ptr: *mut u8, value: Self) {
-        write_arr(ptr, {
-            let i = value.ptr() as usize;
-            i.to_le_bytes()
-        })
-    }
+	unsafe fn write(ptr: *mut u8, value: Self) {
+		write_arr(ptr, {
+			let x: *mut u8 = value.to_raw_address().to_mut_ptr();
+			let i = x as usize;
+			i.to_le_bytes()
+		})
+	}
 
-    unsafe fn read(ptr: *mut u8) -> Self {
-        Ref::new_ptr(usize::from_le_bytes(read_arr(ptr)) as *mut u8)
-    }
+	unsafe fn read(ptr: *mut u8) -> Self {
+		ObjectReference::from_raw_address(Address::from_ptr(
+			usize::from_le_bytes(read_arr(ptr)) as *mut u8
+		))
+	}
 }
 
 #[inline(always)]
 pub(crate) unsafe fn read_arr<const C: usize>(ptr: *mut u8) -> [u8; C] {
-    let mut out = [0; C];
-    for i in 0..C {
-        *out.get_unchecked_mut(i) = read(ptr.add(i));
-    }
-    out
+	let mut out = [0; C];
+	for i in 0..C {
+		*out.get_unchecked_mut(i) = read(ptr.add(i));
+	}
+	out
 }
 
 #[inline(always)]
 pub(crate) unsafe fn write_arr<const C: usize>(ptr: *mut u8, value: [u8; C]) {
-    for i in 0..C {
-        write(ptr.add(i), *value.get_unchecked(i));
-    }
+	for i in 0..C {
+		write(ptr.add(i), *value.get_unchecked(i));
+	}
 }

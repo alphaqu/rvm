@@ -111,7 +111,7 @@ impl ClassLoader {
     #[instrument(skip_all)]
     pub fn load_class(&self, data: &[u8]) -> anyways::Result<Id<Class>> {
         let (_, info) =
-            ClassInfo::parse(data).map_err(|_| Audit::new("Failed to parse classfile"))?;
+            ClassInfo::parse(data).map_err(|v| Audit::new(v.to_string()))?;
         let class = ObjectClass::parse(info, self)?;
 
         debug!("Parsed class {}", class.name);

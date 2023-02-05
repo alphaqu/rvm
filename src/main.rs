@@ -4,9 +4,11 @@ use std::thread::Builder;
 
 use inkwell::context::Context;
 
-use rvm_core::init;
+use rvm_core::{init, ObjectType, Type};
 use rvm_engine_llvm::LLVMBinding;
+use rvm_object::{ClassKind, DynValue};
 use rvm_runtime::{java, Runtime};
+use rvm_runtime::arena::object::Object;
 
 fn main() {
 	Builder::new()
@@ -23,7 +25,7 @@ fn main() {
 fn run() {
 	init();
 	let llvm_engine = Box::new(LLVMBinding::new());
-	let runtime = Box::pin(Runtime::new(llvm_engine));
+	let runtime = Box::pin(Runtime::new(1024 * 1024, llvm_engine));
 
 	// 	// bind
 	// 	{
@@ -111,7 +113,33 @@ fn run() {
 		}
 	}
 
-	// TODO: ARRAYS PLEASE
-	let value = unsafe { java!(compile &runtime.as_ref(), fn Main.main() -> i32)() };
-	println!("{value}");
+
+	let id = runtime.cl.get_class_id(&Type::Object(ObjectType {
+		name: "Main".to_string(),
+	}));
+	let id_child = runtime.cl.get_class_id(&Type::Object(ObjectType {
+		name: "Child".to_string(),
+	}));
+
+	let child = Object::new(&runtime, id_child, [
+		("haha", DynValue::Int(69))
+	]);
+	let object = Object::new(&runtime, id, [
+		("thing", DynValue::Int(2)),
+		("child", DynValue::Ref(child.reference))
+	]);
+
+	println!("{:?}", object.get_dyn_field("thing"));
+	println!("{:?}", object.get_dyn_field("child"));
+	println!("{:?}", child.get_dyn_field("haha"));
+
+
+	runtime.arena.gc();
+	println!("{:?}", object.get_dyn_field("thing"));
+	println!("{:?}", object.get_dyn_field("child"));
+	println!("{:?}", child.get_dyn_field("haha"));
+
+	//// TODO: ARRAYS PLEASE
+	//let value = unsafe { java!(compile &runtime.as_ref(), fn Main.main() -> i32)() };
+	//println!("{value}");
 }

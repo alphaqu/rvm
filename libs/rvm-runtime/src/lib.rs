@@ -3,15 +3,18 @@
 #![feature(drain_filter)]
 #![feature(array_try_from_fn)]
 #![feature(box_syntax)]
+#![feature(thread_local)]
+#![feature(thread_id_value)]
 
 use std::ffi::c_void;
 use std::pin::Pin;
-use std::sync::RwLock;
 
 use either::Either;
+use mmtk::vm::VMBinding;
 use tracing::info;
 use rvm_core::{ObjectType, Type};
 use rvm_object::{ClassLoader, MethodCode, MethodIdentifier};
+use crate::arena::Arena;
 
 use crate::engine::Engine;
 
@@ -21,6 +24,7 @@ pub mod prelude;
 pub mod engine;
 #[cfg(feature = "native")]
 pub mod native;
+pub mod arena;
 
 /// A runtime which (almost never) conforms to [The Java Virtual Machine Specification, Java SE 19 Edition][jvms]
 ///
@@ -31,13 +35,15 @@ pub mod native;
 pub struct Runtime {
 	pub cl: ClassLoader,
 	pub engine: Box<dyn Engine>,
+	pub arena: Arena,
 }
 
 impl Runtime {
-	pub fn new(engine: Box<dyn Engine>) -> Runtime {
+	pub fn new(heap_size: usize, engine: Box<dyn Engine>) -> Runtime {
 		Runtime {
 			cl: ClassLoader::new(),
 			engine,
+			arena: Arena::init(heap_size),
 		}
 	}
 

@@ -3,9 +3,6 @@ mod array;
 
 use rvm_core::{PrimitiveType, StorageValue};
 
-use std::ptr::{read, write};
-
-use crate::value::Ref;
 pub use object::*;
 pub use array::*;
 

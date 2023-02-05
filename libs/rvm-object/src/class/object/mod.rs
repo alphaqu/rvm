@@ -10,7 +10,6 @@ use rvm_core::{FieldAccessFlags};
 use rvm_core::Id;
 use rvm_reader::{ClassInfo, ConstantPool};
 use crate::class_loader::ClassLoader;
-use field::Field;
 
 mod field;
 mod method;
@@ -75,8 +74,8 @@ impl ObjectClass {
 	// 		}
 	// 	}
 
-	pub fn size(&self, static_obj: bool) -> usize {
-		self.fields.size(static_obj) as usize
+	pub fn size(&self) -> usize {
+		self.fields.size(false) as usize
 	}
 }
 
@@ -97,41 +96,7 @@ impl ObjectClass {
 // 		Ok(Object { reference, class })
 // 	}
 // }
-//pub struct Object<'a> {
-// 	reference: Ref,
-// 	pub class: MappedRwLockReadGuard<'a, ObjectClass>,
-// }
-//
-// impl<'a> Object<'a> {
-// 	pub fn set_field<V: Value>(&self, field: Id<Field>, value: V) {
-// 		let field = self.class.fields.get(field);
-// 		unsafe {
-// 			if field.ty.kind() != V::ty() {
-// 				panic!("Field mismatch")
-// 			}
-// 			if field.flags.contains(FieldAccessFlags::STATIC) {
-// 				panic!("Field is static");
-// 			}
-// 			let field_ptr = self.ptr().add(field.offset as usize);
-// 			V::write(field_ptr, value);
-// 		}
-// 	}
-//
-// 	pub fn get_field<V: Value>(&self, field: Id<Field>) -> V {
-// 		let field = self.class.fields.get(field);
-// 		unsafe {
-// 			if field.ty.kind() != V::ty() {
-// 				panic!("Field mismatch")
-// 			}
-//
-// 			if field.flags.contains(FieldAccessFlags::STATIC) {
-// 				panic!("Field is static");
-// 			}
-// 			let field_ptr = self.ptr().add(field.offset as usize);
-// 			V::read(field_ptr)
-// 		}
-// 	}
-// }
+
 //
 // impl<'a> Deref for Object<'a> {
 // 	type Target = Ref;
