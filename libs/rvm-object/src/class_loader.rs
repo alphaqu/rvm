@@ -3,13 +3,15 @@ use crate::{ArrayClass, MethodIdentifier, NativeCode};
 use ahash::AHashMap;
 use anyways::audit::Audit;
 use anyways::ext::AuditExt;
+use nom::error::{convert_error, dbg_dmp, Error, VerboseErrorKind};
 use parking_lot::lock_api::MappedRwLockReadGuard;
 use parking_lot::{RawRwLock, RwLock, RwLockReadGuard};
 use rvm_core::{Id, Kind, ObjectType, Storage, Type};
-use rvm_reader::ClassInfo;
+use rvm_reader::{ClassInfo, IResult};
 use std::io::{Cursor, Read};
 use std::sync::Arc;
 use tracing::{debug, info, instrument, warn};
+use zip::result::ZipError;
 
 pub struct ClassLoader {
 	classes: RwLock<Storage<Type, Class, Arc<Class>>>,
@@ -25,7 +27,7 @@ impl ClassLoader {
 	}
 
 	pub fn get(&self, id: Id<Class>) -> Arc<Class> {
-        self.classes.read().get(id).clone()
+		self.classes.read().get(id).clone()
 	}
 
 	pub fn classes(&self) -> MappedRwLockReadGuard<'_, RawRwLock, [Arc<Class>]> {
@@ -88,7 +90,25 @@ impl ClassLoader {
 	/// Loads a java class to the JVM and injects it to the class table by locking it.
 	#[instrument(skip_all)]
 	pub fn load_class(&self, data: &[u8]) -> anyways::Result<Id<Class>> {
-		let (_, info) = ClassInfo::parse(data).map_err(|v| Audit::new(v.to_string()))?;
+		let info = match ClassInfo::parse(data) {
+			Ok((_, info)) => info,
+			Err(error) => {
+				match error {
+					nom::Err::Incomplete(e) => {}
+					nom::Err::Failure(e) | nom::Err::Error(e) => {
+						for (input, error) in e.errors {
+							match error {
+								VerboseErrorKind::Context(ctx) => {}
+								VerboseErrorKind::Char(char) => {}
+								VerboseErrorKind::Nom(nom) => {}
+							}
+							println!("{:?}", error);
+						}
+					}
+				}
+				panic!();
+			}
+		};
 		let class = ObjectClass::parse(info)?;
 
 		debug!("Parsed class {}", class.name);

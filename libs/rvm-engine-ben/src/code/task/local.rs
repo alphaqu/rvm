@@ -3,12 +3,15 @@ use rvm_reader::LocalInst;
 
 use crate::thread::ThreadFrame;
 use crate::value::StackValue;
+#[derive(Debug)]
 
 pub struct LocalTask {
 	pub kind: LocalTaskKind,
 	pub ty: StackKind,
 	pub idx: u16,
 }
+#[derive(Debug)]
+
 pub enum LocalTaskKind {
 	Load,
 	Store,
@@ -35,15 +38,7 @@ impl LocalTask {
 
 		match self.kind {
 			LocalTaskKind::Load => {
-				let value = match self.ty {
-					StackKind::Int => StackValue::Int(frame.load::<i32>(idx)),
-					StackKind::Long => StackValue::Long(frame.load::<i64>(idx)),
-					StackKind::Float => StackValue::Float(frame.load::<f32>(idx)),
-					StackKind::Double => StackValue::Double(frame.load::<f64>(idx)),
-					StackKind::Reference => {
-						todo!()
-					}
-				};
+				let value = frame.load_dyn(idx, self.ty);
 				frame.push(value);
 			}
 			LocalTaskKind::Store => {
@@ -56,13 +51,7 @@ impl LocalTask {
 					)
 				}
 
-				match value {
-					StackValue::Int(val) => frame.store(idx, val),
-					StackValue::Float(val) => frame.store(idx, val),
-					StackValue::Long(val) => frame.store(idx, val),
-					StackValue::Double(val) => frame.store(idx, val),
-					StackValue::Reference(v) => todo!(),
-				}
+				frame.store_dyn(idx, value);
 			}
 		}
 	}

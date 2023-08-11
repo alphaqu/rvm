@@ -1,11 +1,11 @@
-use rvm_runtime::java_bind_method;
 use crate::{compile, launch};
+use rvm_runtime::java_bind_method;
 
 #[test]
 fn test() -> Result<(), std::io::Error> {
 	launch(|runtime| {
 		compile(
-			&*runtime,
+			&runtime,
 			&[(
 				"Main.java",
 				"public class Main {
@@ -15,9 +15,22 @@ fn test() -> Result<(), std::io::Error> {
         i += 1 * i;
         i += 2 * i;
         i += 3 * i;
-        i += 2 * i;
-        i += 1 * i;
-        i += 0 * i;
+        i += 0 + i;
+        i += 1 + i;
+        i += 2 + i;
+        i += 3 + i;
+    	i += 0 - i;
+        i += 1 - i;
+        i += 2 - i;
+        i += 3 - i;
+		i += 0 % i;
+        i += 1 % i;
+        i += 2 % i;
+        i += 3 % i;
+        i += 4 % i;
+        i += 2 / i;
+        i += 1 / i;
+        i += 0 / i;
         return i;
     }
 }",
@@ -30,9 +43,22 @@ fn test() -> Result<(), std::io::Error> {
 			i += 1.0 * i;
 			i += 2.0 * i;
 			i += 3.0 * i;
-			i += 2.0 * i;
-			i += 1.0 * i;
-			i += 0.0 * i;
+			i += 0.0 + i;
+			i += 1.0 + i;
+			i += 2.0 + i;
+			i += 3.0 + i;
+			i += 0.0 - i;
+			i += 1.0 - i;
+			i += 2.0 - i;
+			i += 3.0 - i;
+			i += 0.0 % i;
+			i += 1.0 % i;
+			i += 2.0 % i;
+			i += 3.0 % i;
+			i += 4.0 % i;
+			i += 2.0 / i;
+			i += 1.0 / i;
+			i += 0.0 / i;
 			i
 		};
 		let java = java_bind_method!(runtime fn Main.get() -> f64);

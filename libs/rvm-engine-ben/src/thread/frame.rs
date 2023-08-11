@@ -1,4 +1,6 @@
 use crate::value::{Local, RawLocal, StackValue};
+use rvm_core::{Kind, StackKind};
+use rvm_object::DynValue;
 use stackalloc::alloca_zeroed;
 use std::mem::{size_of, transmute};
 
@@ -58,6 +60,27 @@ impl Frame {
 		}
 
 		unsafe { self.get_local_table().add(idx as usize).read() }
+	}
+
+	pub fn store_dyn(&mut self, idx: u16, value: StackValue) {
+		match value {
+			StackValue::Int(v) => self.store(idx, v),
+			StackValue::Long(v) => self.store(idx, v),
+			StackValue::Float(v) => self.store(idx, v),
+			StackValue::Double(v) => self.store(idx, v),
+			//DynValue::Ref(v) => self.store(idx, v),
+			_ => todo!(),
+		}
+	}
+
+	pub fn load_dyn(&mut self, idx: u16, kind: StackKind) -> StackValue {
+		match kind {
+			StackKind::Int => StackValue::Int(self.load::<i32>(idx)),
+			StackKind::Long => StackValue::Long(self.load::<i64>(idx)),
+			StackKind::Float => StackValue::Float(self.load::<f32>(idx)),
+			StackKind::Double => StackValue::Double(self.load::<f64>(idx)),
+			_ => todo!(),
+		}
 	}
 
 	pub fn store<L: Local>(&mut self, idx: u16, value: L)

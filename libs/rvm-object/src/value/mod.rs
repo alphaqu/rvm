@@ -20,12 +20,12 @@ pub enum DynValue {
 	Char(u16),
 	Float(f32),
 	Double(f64),
-	Bool(bool),
+	Boolean(bool),
 	Ref(ObjectReference),
 }
 
 macro_rules! impl_from {
-    ($TY:ty, $KIND:ident) => {
+	($TY:ty, $KIND:ident) => {
 		impl From<$TY> for DynValue {
 			fn from(value: $TY) -> Self {
 				DynValue::$KIND(value)
@@ -33,12 +33,12 @@ macro_rules! impl_from {
 		}
 
 		impl TryInto<$TY> for DynValue {
-			type Error = ();
+			type Error = DynValue;
 
 			fn try_into(self) -> Result<$TY, Self::Error> {
 				match self {
 					DynValue::$KIND(v) => Ok(v),
-					_ => Err(()),
+					_ => Err(self),
 				}
 			}
 		}
@@ -52,10 +52,10 @@ impl_from!(i64, Long);
 impl_from!(u16, Char);
 impl_from!(f32, Float);
 impl_from!(f64, Double);
-impl_from!(bool, Bool);
+impl_from!(bool, Boolean);
 impl_from!(ObjectReference, Ref);
 
-impl DynValue  {
+impl DynValue {
 	pub fn ty(&self) -> Kind {
 		match self {
 			DynValue::Byte(_) => i8::ty(),
@@ -65,22 +65,22 @@ impl DynValue  {
 			DynValue::Char(_) => u16::ty(),
 			DynValue::Float(_) => f32::ty(),
 			DynValue::Double(_) => f64::ty(),
-			DynValue::Bool(_) => bool::ty(),
+			DynValue::Boolean(_) => bool::ty(),
 			DynValue::Ref(_) => ObjectReference::ty(),
 		}
 	}
 
 	pub unsafe fn write(self, ptr: *mut u8) {
 		match self {
-			DynValue::Byte(v) => i8::write(ptr,v),
-			DynValue::Short(v) => i16::write(ptr,v),
-			DynValue::Int(v) => i32::write(ptr,v),
-			DynValue::Long(v) => i64::write(ptr,v),
-			DynValue::Char(v) => u16::write(ptr,v),
-			DynValue::Float(v) => f32::write(ptr,v),
-			DynValue::Double(v) => f64::write(ptr,v),
-			DynValue::Bool(v) => bool::write(ptr,v),
-			DynValue::Ref(v) => ObjectReference::write(ptr,v),
+			DynValue::Byte(v) => i8::write(ptr, v),
+			DynValue::Short(v) => i16::write(ptr, v),
+			DynValue::Int(v) => i32::write(ptr, v),
+			DynValue::Long(v) => i64::write(ptr, v),
+			DynValue::Char(v) => u16::write(ptr, v),
+			DynValue::Float(v) => f32::write(ptr, v),
+			DynValue::Double(v) => f64::write(ptr, v),
+			DynValue::Boolean(v) => bool::write(ptr, v),
+			DynValue::Ref(v) => ObjectReference::write(ptr, v),
 		}
 	}
 	pub unsafe fn read(ptr: *mut u8, kind: Kind) -> Self {
@@ -92,12 +92,11 @@ impl DynValue  {
 			Kind::Char => DynValue::Char(u16::read(ptr)),
 			Kind::Float => DynValue::Float(f32::read(ptr)),
 			Kind::Double => DynValue::Double(f64::read(ptr)),
-			Kind::Boolean => DynValue::Bool(bool::read(ptr)),
+			Kind::Boolean => DynValue::Boolean(bool::read(ptr)),
 			Kind::Reference => DynValue::Ref(ObjectReference::read(ptr)),
 		}
 	}
 }
-
 
 macro_rules! impl_direct {
 	($VAR:ident $TY:ty) => {

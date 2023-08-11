@@ -11,3 +11,4 @@ rvm-core = { path = "../rvm-core" }
 nom = "7.1"
 tracing = "0.1"
 
+mutf8 = "0.5.0"

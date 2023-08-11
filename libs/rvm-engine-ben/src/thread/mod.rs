@@ -43,7 +43,7 @@ impl<'r> Thread<'r> {
 							ThreadCommand::Run {
 								ty,
 								method,
-								parameters: value,
+								parameters,
 							} => {
 								debug!("Running {ty:?} {method:?}");
 
@@ -53,7 +53,7 @@ impl<'r> Thread<'r> {
 									runtime: &runtime,
 								};
 
-								out = executor.execute(&ty, &method);
+								out = executor.execute(&ty, &method, parameters);
 								return;
 							}
 							ThreadCommand::Exit => {

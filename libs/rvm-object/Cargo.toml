@@ -9,6 +9,9 @@ edition = "2021"
 rvm-core = { path = "../rvm-core" }
 rvm-reader = { path = "../rvm-reader" }
 
+thiserror = "1.0.44"
+nom = "7.1"
+
 anyways = "0.3"
 either = "1.8.0"
 ahash = "0.8"

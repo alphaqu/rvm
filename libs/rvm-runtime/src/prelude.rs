@@ -45,8 +45,8 @@ macro_rules! java_bind_method {
 			let value = thread.join();
 
 			$(
-				let dyn_value = value.unwrap().unwrap();
-				<rvm_object::DynValue as TryInto<$ret>>::try_into(dyn_value).unwrap()
+				let dyn_value = value.expect("Thread failed to run").expect("Void return");
+				<rvm_object::DynValue as TryInto<$ret>>::try_into(dyn_value).expect("failed to convert")
 			)?
 		};
 			 value

@@ -41,11 +41,24 @@ impl StackValue {
 		}
 	}
 
+	pub fn from_dyn(value: DynValue) -> StackValue {
+		match value {
+			DynValue::Byte(value) => StackValue::Int(value as i32),
+			DynValue::Short(value) => StackValue::Int(value as i32),
+			DynValue::Int(value) => StackValue::Int(value),
+			DynValue::Long(value) => StackValue::Long(value),
+			DynValue::Float(value) => StackValue::Float(value),
+			DynValue::Double(value) => StackValue::Double(value),
+			DynValue::Boolean(value) => StackValue::Int(value as u8 as i32),
+			_ => todo!(),
+		}
+	}
+
 	pub fn convert(self, kind: Kind) -> Option<DynValue> {
 		match kind {
 			Kind::Boolean => {
 				if let StackValue::Int(value) = self {
-					return Some(DynValue::Bool(value != 0));
+					return Some(DynValue::Boolean(value != 0));
 				}
 			}
 			Kind::Byte => {

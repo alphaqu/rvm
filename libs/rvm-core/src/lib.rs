@@ -16,13 +16,13 @@ static START: Once = Once::new();
 pub fn init() {
 	START.call_once(|| {
 		let filter = filter::Targets::new()
-			.with_default(Level::TRACE)
+			.with_default(Level::WARN)
 			.with_target("gc", Level::INFO)
 			.with_target("exec", Level::INFO);
 		let layered = tracing_subscriber::registry()
 			.with(tracing_subscriber::fmt::layer())
 			.with(filter);
 
-		tracing::subscriber::set_default(layered);
+		tracing::subscriber::set_global_default(layered).unwrap();
 	});
 }

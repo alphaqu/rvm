@@ -1,7 +1,8 @@
 use rvm_core::ObjectType;
 use rvm_object::{MethodIdentifier, ObjectClass};
 use rvm_reader::InvokeInst;
-use rvm_runtime::Runtime;
+
+#[derive(Debug)]
 
 pub struct CallTask {
 	pub method: MethodIdentifier,

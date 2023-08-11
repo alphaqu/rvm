@@ -1,6 +1,8 @@
 use crate::thread::ThreadFrame;
 use crate::value::StackValue;
-use rvm_reader::ConstInst;
+use rvm_object::ObjectClass;
+use rvm_reader::{ConstInst, ConstantInfo};
+#[derive(Debug)]
 
 pub enum ConstTask {
 	Null,
@@ -11,14 +13,25 @@ pub enum ConstTask {
 }
 
 impl ConstTask {
-	pub fn new(inst: &ConstInst) -> ConstTask {
+	pub fn new(inst: &ConstInst, class: &ObjectClass) -> ConstTask {
 		match inst {
 			ConstInst::Null => ConstTask::Null,
 			ConstInst::Int(v) => ConstTask::Int(*v),
 			ConstInst::Long(v) => ConstTask::Long(*v),
 			ConstInst::Float(v) => ConstTask::Float(*v),
 			ConstInst::Double(v) => ConstTask::Double(*v),
-			ConstInst::Ldc { .. } => todo!(),
+			ConstInst::Ldc { id, cat2 } => {
+				let info = class.cp.get_raw(*id).unwrap();
+				match info {
+					ConstantInfo::Integer(value) => ConstTask::Int(value.bytes),
+					ConstantInfo::Float(value) => ConstTask::Float(value.bytes),
+					ConstantInfo::Long(value) => ConstTask::Long(value.bytes),
+					ConstantInfo::Double(value) => ConstTask::Double(value.bytes),
+					_ => {
+						panic!();
+					}
+				}
+			}
 		}
 	}
 

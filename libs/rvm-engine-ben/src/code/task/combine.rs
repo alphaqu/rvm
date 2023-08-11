@@ -7,6 +7,7 @@ use std::ops::Div;
 use std::ops::Mul;
 use std::ops::Rem;
 use std::ops::Sub;
+#[derive(Debug)]
 
 pub struct CombineTask {
 	pub ty: CombineTaskType,
@@ -129,6 +130,8 @@ impl CombineTask {
 		}
 	}
 }
+#[derive(Debug)]
+
 pub enum CombineTaskOperation {
 	Add,
 	Sub,
@@ -146,6 +149,7 @@ pub enum CombineTaskOperation {
 	FCMPL,
 	ICMP,
 }
+#[derive(Debug)]
 
 pub enum CombineTaskType {
 	Int,

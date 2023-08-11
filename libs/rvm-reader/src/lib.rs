@@ -13,5 +13,6 @@ pub use code::*;
 pub use consts::*;
 pub use field::*;
 pub use method::*;
+use nom::error::VerboseError;
 
-pub type IResult<'a, O> = nom::IResult<&'a [u8], O>;
+pub type IResult<'a, O> = nom::IResult<&'a [u8], O, VerboseError<&'a [u8]>>;

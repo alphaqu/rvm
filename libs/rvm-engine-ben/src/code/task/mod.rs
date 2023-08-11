@@ -8,13 +8,14 @@ mod local;
 mod r#return;
 mod stack;
 
+use crate::code::task::call::CallTask;
 pub use combine::{CombineTask, CombineTaskOperation, CombineTaskType};
 pub use local::{LocalTask, LocalTaskKind};
 pub use r#const::ConstTask;
 pub use r#return::ReturnTask;
 use rvm_object::ObjectClass;
-use crate::code::task::call::CallTask;
 
+#[derive(Debug)]
 pub enum Task {
 	Nop,
 	Const(ConstTask),
@@ -29,7 +30,7 @@ impl Task {
 	pub fn new(inst: &Inst, class: &ObjectClass) -> Task {
 		match inst {
 			Inst::Nop => Task::Nop,
-			Inst::Const(inst) => Task::Const(ConstTask::new(inst)),
+			Inst::Const(inst) => Task::Const(ConstTask::new(inst, class)),
 			Inst::Math(
 				math @ (MathInst::Add(_)
 				| MathInst::Sub(_)

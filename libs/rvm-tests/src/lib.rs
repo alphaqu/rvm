@@ -4,6 +4,7 @@
 #![feature(pin_macro)]
 
 use std::io::Result;
+use std::path::PathBuf;
 use std::pin::{pin, Pin};
 use std::sync::Arc;
 use std::time::Instant;
@@ -31,7 +32,10 @@ where
 		.stack_size(1024 * 1024 * 64)
 		.spawn(|| {
 			rvm_core::init();
-			f(Arc::new(Runtime::new(1000, Box::new(BenBinding::new()))))
+			f(Arc::new(Runtime::new(
+				1024 * 1024 * 32,
+				Box::new(BenBinding::new()),
+			)))
 		})
 		.unwrap()
 		.join()
@@ -39,9 +43,11 @@ where
 }
 
 pub fn compile(runtime: &Runtime, sources: &[(&str, &str)]) -> Result<()> {
-	let mut root = std::env::temp_dir();
+	let mut root = std::env::current_dir().unwrap();
+	root.push("temp");
 	root.push(&format!("rvm-{:p}", runtime));
 
+	println!("hi {root:?}");
 	let result: Result<()> = try {
 		std::fs::create_dir_all(&root)?;
 
@@ -100,7 +106,7 @@ where
 	println!(
 		"{} took {}ms ({} nanos) on average",
 		message,
-		nanos / 1000_000,
+		nanos as f32 / 1000_000.0,
 		nanos
 	);
 	results
