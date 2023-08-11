@@ -1,4 +1,7 @@
-use rvm_runtime::java;
+use rvm_core::ObjectType;
+use rvm_object::{DynValue, MethodIdentifier};
+use rvm_runtime::engine::ThreadConfig;
+use rvm_runtime::java_bind_method;
 
 use crate::{compile, launch, sample};
 
@@ -38,11 +41,11 @@ fn test() -> Result<(), std::io::Error> {
 			)],
 		)?;
 
-		let jack = unsafe { java!(compile runtime, fn Main.ack(i32, i32) -> i32) };
-
 		const SAMPLES: usize = 3;
+	
+		let java_ack = java_bind_method!(runtime fn Main.ack(m: i32, n: i32) -> i32);
 		let rust = sample("Rust ackermann", SAMPLES, |i| ack(i as i32, 10));
-		let java = sample("Java ackermann", SAMPLES, |i| unsafe { jack(i as i32, 10) });
+		let java = sample("Java ackermann", SAMPLES, |i| java_ack(i as i32, 10));
 
 		for ((i, rust), java) in rust.into_iter().enumerate().zip(java.into_iter()) {
 			assert_eq!(

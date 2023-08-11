@@ -6,18 +6,17 @@ use anyways::ext::AuditExt;
 use anyways::Result;
 use parking_lot::MappedRwLockReadGuard;
 
-use rvm_core::{FieldAccessFlags};
+use crate::class_loader::ClassLoader;
+use rvm_core::FieldAccessFlags;
 use rvm_core::Id;
 use rvm_reader::{ClassInfo, ConstantPool};
-use crate::class_loader::ClassLoader;
 
 mod field;
 mod method;
 
+use crate::{Class, ClassKind, ObjectData};
 pub use field::*;
 pub use method::*;
-use crate::{Class, ClassKind, ObjectData};
-
 
 pub struct ObjectClass {
 	pub cp: Arc<ConstantPool>,
@@ -26,12 +25,14 @@ pub struct ObjectClass {
 	pub static_object: ObjectData,
 }
 
+unsafe impl Send for ObjectClass {}
+unsafe impl Sync for ObjectClass {}
 impl ObjectClass {
-	pub fn parse(info: ClassInfo, class_loader: &ClassLoader) -> Result<Class> {
+	pub fn parse(info: ClassInfo) -> Result<Class> {
 		let class = info.constant_pool.get(info.this_class);
 		let name = info.constant_pool.get(class.name);
 
-		let fields = ClassFieldManager::parse(info.fields, &info.constant_pool, class_loader);
+		let fields = ClassFieldManager::parse(info.fields, &info.constant_pool);
 		let binary_name = name.to_string().replace('/', ".");
 
 		Ok(Class {

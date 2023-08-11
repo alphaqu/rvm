@@ -1,31 +1,28 @@
 #![feature(map_try_insert)]
+#![feature(associated_type_defaults)]
 
 mod storage;
 mod ty;
 
-pub use ty::*;
+use std::sync::Once;
 pub use storage::*;
 use tracing::Level;
 use tracing_subscriber::filter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
+pub use ty::*;
 
-static mut INITIALIZED: bool = false;
-
+static START: Once = Once::new();
 pub fn init() {
-	if !unsafe {
-		let initialized = INITIALIZED;
-		INITIALIZED = true;
-		initialized
-	} {
+	START.call_once(|| {
 		let filter = filter::Targets::new()
 			.with_default(Level::TRACE)
 			.with_target("gc", Level::INFO)
 			.with_target("exec", Level::INFO);
-
-		tracing_subscriber::registry()
+		let layered = tracing_subscriber::registry()
 			.with(tracing_subscriber::fmt::layer())
-			.with(filter)
-			.init();
-	}
+			.with(filter);
+
+		tracing::subscriber::set_default(layered);
+	});
 }

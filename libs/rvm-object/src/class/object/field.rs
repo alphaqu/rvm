@@ -16,7 +16,7 @@ impl ClassFieldManager {
 	pub fn parse(
 		fields: Vec<FieldInfo>,
 		cp: &ConstantPool,
-		class_loader: &ClassLoader,
+		//class_loader: &ClassLoader,
 	) -> ClassFieldManager {
 		let mut out = Storage::new();
 
@@ -32,10 +32,10 @@ impl ClassFieldManager {
 			let static_field = field.access_flags.contains(FieldAccessFlags::STATIC);
 			let object_field = matches!(field_type, Type::Object(_));
 
-			if object_field {
-				// ensure loaded
-				class_loader.get_class_id(&field_type);
-			}
+			//if object_field {
+			//	// ensure loaded
+			//	class_loader.get_class_id(&field_type);
+			//}
 
 			let ty = field_type.kind();
 			let field_size = if static_field {

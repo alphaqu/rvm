@@ -1,6 +1,5 @@
-use rvm_runtime::java;
-
 use crate::{compile, launch};
+use rvm_runtime::java_bind_method;
 
 #[test]
 fn test() -> Result<(), std::io::Error> {
@@ -28,13 +27,12 @@ fn test() -> Result<(), std::io::Error> {
 			)],
 		)?;
 
-		let jack = unsafe { java!(compile runtime, fn Main.pow(i32, i32) -> i32) };
-
 		const SAMPLES: usize = 4;
 
 		for i in 0..8i32 {
 			for j in 0..8i32 {
-				assert_eq!(unsafe { jack(i, j) }, i.pow(j as u32));
+				let pow = java_bind_method!(runtime fn Main.pow(base: i32, power: i32) -> i32);
+				assert_eq!(pow(i, j), i.pow(j as u32));
 			}
 		}
 

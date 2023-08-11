@@ -5,7 +5,7 @@ use mmtk::vm::GCThreadContext;
 use mmtk::Mutator;
 use mmtk::MutatorContext;
 use mmtk::util::Address;
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 use crate::arena::{Arena, SINGLETON};
 
 pub struct VMCollection {
@@ -16,7 +16,7 @@ impl Collection<Arena> for VMCollection {
         where
             F: FnMut(&'static mut Mutator<Arena>),
     {
-        unimplemented!()
+        warn!("Blocking all mutators")
     }
 
     fn resume_mutators(_tls: VMWorkerThread) {

@@ -5,10 +5,11 @@ use std::thread::Builder;
 use inkwell::context::Context;
 
 use rvm_core::{init, ObjectType, Type};
-use rvm_engine_llvm::LLVMBinding;
-use rvm_object::{ClassKind, DynValue};
-use rvm_runtime::{java, Runtime, runtime};
+use rvm_engine_ben::BenBinding;
+use rvm_object::{ClassKind, DynValue, MethodIdentifier};
 use rvm_runtime::arena::object::Object;
+use rvm_runtime::engine::ThreadConfig;
+use rvm_runtime::{runtime, Runtime};
 
 fn main() {
 	Builder::new()
@@ -24,9 +25,52 @@ fn main() {
 
 fn run() {
 	init();
-	let llvm_engine = Box::new(LLVMBinding::new());
-	rvm_runtime::init(Runtime::new(1024 * 1024, llvm_engine));
+	let engine = Box::new(BenBinding::new());
+	rvm_runtime::init(Runtime::new(1024 * 1024, engine));
 
+	let runtime = runtime();
+	runtime
+		.cl
+		.load_jar(include_bytes!("../rt.zip"), |v| {
+			v == "java/lang/Object.class"
+		})
+		.unwrap();
+	runtime
+		.cl
+		.load_jar(include_bytes!("../unnamed.jar"), |v| true)
+		.unwrap();
+	for jar in std::env::args().skip(1) {
+		let path = Path::new(&jar);
+
+		match path.extension().and_then(|x| x.to_str()) {
+			Some("jar") | Some("zip") => {
+				runtime.cl.load_jar(&read(path).unwrap(), |_| true).unwrap();
+			}
+			Some("class") => {
+				runtime.cl.load_class(&read(path).unwrap()).unwrap();
+			}
+			other => {
+				panic!("Unrecognised extension {other:?}");
+			}
+		}
+	}
+
+	let handle = runtime.engine.create_thread(ThreadConfig {
+		name: "Hi".to_string(),
+	});
+
+	handle.run(
+		ObjectType {
+			name: "Main".to_string(),
+		},
+		MethodIdentifier {
+			name: "meth".to_string(),
+			descriptor: "()I".to_string(),
+		},
+		vec![],
+	);
+
+	handle.join();
 	// 	// bind
 	// 	{
 	// 		// bindhi(&mut runtime);
@@ -90,55 +134,30 @@ fn run() {
 	// 		fake_define(&mut runtime, "java/lang/Object", "wait", "(J)V");
 	// 	}
 
-	let runtime = runtime();
-	runtime
-		.cl
-		.load_jar(include_bytes!("../rt.zip"), |v| {
-			v == "java/lang/Object.class"
-		})
-		.unwrap();
-
-	for jar in std::env::args().skip(1) {
-		let path = Path::new(&jar);
-
-		match path.extension().and_then(|x| x.to_str()) {
-			Some("jar") | Some("zip") => {
-				runtime.cl.load_jar(&read(path).unwrap(), |_| true).unwrap();
-			}
-			Some("class") => {
-				runtime.cl.load_class(&read(path).unwrap()).unwrap();
-			}
-			other => {
-				panic!("Unrecognised extension {other:?}");
-			}
-		}
-	}
-
-
-	let id = runtime.cl.get_class_id(&Type::Object(ObjectType {
-		name: "Main".to_string(),
-	}));
-	let id_child = runtime.cl.get_class_id(&Type::Object(ObjectType {
-		name: "Child".to_string(),
-	}));
-
-	let child = Object::new(&runtime, id_child, [
-		("haha", DynValue::Int(69))
-	]);
-	let object = Object::new(&runtime, id, [
-		("thing", DynValue::Int(2)),
-		("child", DynValue::Ref(child.reference))
-	]);
-
-	println!("{:?}", object.get_dyn_field("thing"));
-	println!("{:?}", object.get_dyn_field("child"));
-	println!("{:?}", child.get_dyn_field("haha"));
-
-
-	runtime.arena.gc();
-	println!("{:?}", object.get_dyn_field("thing"));
-	println!("{:?}", object.get_dyn_field("child"));
-	println!("{:?}", child.get_dyn_field("haha"));
+	//let id = runtime.cl.get_class_id(&Type::Object(ObjectType {
+	//	name: "Main".to_string(),
+	//}));
+	//let id_child = runtime.cl.get_class_id(&Type::Object(ObjectType {
+	//	name: "Child".to_string(),
+	//}));
+	//
+	//let child = Object::new(&runtime, id_child, [
+	//	("haha", DynValue::Int(69))
+	//]);
+	//let object = Object::new(&runtime, id, [
+	//	("thing", DynValue::Int(2)),
+	//	("child", DynValue::Ref(child.reference))
+	//]);
+	//
+	//println!("{:?}", object.get_dyn_field("thing"));
+	//println!("{:?}", object.get_dyn_field("child"));
+	//println!("{:?}", child.get_dyn_field("haha"));
+	//
+	//
+	//runtime.arena.gc();
+	//println!("{:?}", object.get_dyn_field("thing"));
+	//println!("{:?}", object.get_dyn_field("child"));
+	//println!("{:?}", child.get_dyn_field("haha"));
 	//// TODO: ARRAYS PLEASE
 	//let value = unsafe { java!(compile &runtime.as_ref(), fn Main.main() -> i32)() };
 	//println!("{value}");

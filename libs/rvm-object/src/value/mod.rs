@@ -24,6 +24,37 @@ pub enum DynValue {
 	Ref(ObjectReference),
 }
 
+macro_rules! impl_from {
+    ($TY:ty, $KIND:ident) => {
+		impl From<$TY> for DynValue {
+			fn from(value: $TY) -> Self {
+				DynValue::$KIND(value)
+			}
+		}
+
+		impl TryInto<$TY> for DynValue {
+			type Error = ();
+
+			fn try_into(self) -> Result<$TY, Self::Error> {
+				match self {
+					DynValue::$KIND(v) => Ok(v),
+					_ => Err(()),
+				}
+			}
+		}
+	};
+}
+
+impl_from!(i8, Byte);
+impl_from!(i16, Short);
+impl_from!(i32, Int);
+impl_from!(i64, Long);
+impl_from!(u16, Char);
+impl_from!(f32, Float);
+impl_from!(f64, Double);
+impl_from!(bool, Bool);
+impl_from!(ObjectReference, Ref);
+
 impl DynValue  {
 	pub fn ty(&self) -> Kind {
 		match self {

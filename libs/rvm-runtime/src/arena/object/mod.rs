@@ -1,19 +1,20 @@
 use std::fmt::Debug;
 use std::hash::Hash;
+use std::sync::Arc;
 use crate::arena::Arena;
 use crate::Runtime;
 use mmtk::util::{Address, ObjectReference};
 use parking_lot::MappedRwLockReadGuard;
 use rvm_core::{FieldAccessFlags, Id, Storage, StorageValue};
-use rvm_object::{Class, ClassLoader, DynValue, Field, ObjectClass, Value};
+use rvm_object::{Class, ClassKind, ClassLoader, DynValue, Field, ObjectClass, Value};
 
-pub struct Object<'a> {
+pub struct Object {
 	pub reference: ObjectReference,
-	class: MappedRwLockReadGuard<'a, ObjectClass>,
+	class: Arc<Class>,
 }
 
-impl<'a> Object<'a> {
-	pub fn new<S: Into<String>>(runtime: &'a Runtime, class: Id<Class>, fields: impl IntoIterator<Item = (S, DynValue)>) -> Object {
+impl Object {
+	pub fn new<S: Into<String>>(runtime: &Runtime, class: Id<Class>, fields: impl IntoIterator<Item = (S, DynValue)>) -> Object {
 		let reference = runtime.arena.alloc(class, &runtime.cl);
 		let object = Object::wrap(reference, &runtime.cl);
 		for (string, value) in fields.into_iter() {
@@ -24,10 +25,10 @@ impl<'a> Object<'a> {
 		object
     }
 
-	pub fn wrap(object: ObjectReference, class_loader: &'a ClassLoader) -> Object {
-		let id: MappedRwLockReadGuard<'a, ObjectClass> = unsafe {
+	pub fn wrap(object: ObjectReference, class_loader: &ClassLoader) -> Object {
+		let id = unsafe {
 			let id: u32 = object.to_header::<Arena>().load();
-			class_loader.get_obj_class(Id::new(id as usize))
+			class_loader.get(Id::new(id as usize))
 		};
 
 		Object {
@@ -36,8 +37,18 @@ impl<'a> Object<'a> {
 		}
 	}
 
+
+	fn class(&self) -> &ObjectClass {
+		match &self.class.kind {
+			ClassKind::Object(obj) => obj,
+			_ => {
+				panic!("Invalid type")
+			}
+		}
+	}
+
 	pub fn set_dyn_field(&self, field: impl Selector<String, Field>, value: DynValue) {
-		let field = field.get(&self.class.fields);
+		let field = field.get(&self.class().fields);
 		unsafe {
 			if field.ty.kind() != value.ty() {
 				panic!("Field mismatch")
@@ -51,7 +62,7 @@ impl<'a> Object<'a> {
 	}
 
 	pub fn set_field<V: Value>(&self, field: impl Selector<String, Field>, value: V) {
-		let field = field.get(&self.class.fields);
+		let field = field.get(&self.class().fields);
 		unsafe {
 			if field.ty.kind() != V::ty() {
 				panic!("Field mismatch")
@@ -65,7 +76,7 @@ impl<'a> Object<'a> {
 	}
 
 	pub fn get_dyn_field(&self, field: impl Selector<String, Field>) -> DynValue {
-		let field = field.get(&self.class.fields);
+		let field = field.get(&self.class().fields);
 		unsafe {
 			if field.flags.contains(FieldAccessFlags::STATIC) {
 				panic!("Field is static");
@@ -76,7 +87,7 @@ impl<'a> Object<'a> {
 	}
 
 	pub fn get_field<V: Value>(&self, field: impl Selector<String, Field>) -> V {
-        let field = field.get(&self.class.fields);
+        let field = field.get(&self.class().fields);
 		unsafe {
 			if field.ty.kind() != V::ty() {
 				panic!("Field mismatch")

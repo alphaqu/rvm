@@ -63,7 +63,7 @@ pub fn yield_thread() {
 
 #[derive(Default)]
 pub struct VMThreadHandle {
-	should_stop: Atin,
+	should_stop: Mutex<bool>,
 	should_stop_cond: Condvar,
 	stopped: Mutex<bool>,
 	stopped_cond: Condvar,

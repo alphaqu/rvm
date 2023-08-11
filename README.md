@@ -1,5 +1,3 @@
-
-
 # The set of responsibilities
 Is it your responsibility
 - to check that the bytecode is safe because RVM does not respect module privacy or any kind of security standards

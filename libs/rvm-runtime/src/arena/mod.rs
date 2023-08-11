@@ -1,17 +1,17 @@
 mod active_plan;
 mod collection;
+pub mod object;
 mod object_model;
 mod reference_glue;
 mod scanning;
-pub mod object;
 
-use std::mem::size_of;
-use std::ops::Deref;
 use crate::arena::reference_glue::VMReferenceGlue;
 use mmtk::vm::edge_shape::{SimpleEdge, UnimplementedMemorySlice};
 use mmtk::vm::VMBinding;
 use std::borrow::BorrowMut;
 use std::cell::RefCell;
+use std::mem::size_of;
+use std::ops::Deref;
 
 pub const HEADER_SIZE: usize = size_of::<u32>();
 
@@ -42,7 +42,11 @@ impl Arena {
 		{
 			let mut builder = BUILDER.lock().unwrap();
 			let success = builder.options.plan.set(PlanSelector::MarkSweep);
-			assert!(success, "Failed to set plan to {:?}", PlanSelector::MarkSweep);
+			assert!(
+				success,
+				"Failed to set plan to {:?}",
+				PlanSelector::MarkSweep
+			);
 		}
 
 		// Make sure MMTk has not yet been initialized
@@ -50,14 +54,14 @@ impl Arena {
 		// Initialize MMTk here
 		lazy_static::initialize(&SINGLETON);
 		memory_manager::initialize_collection(&SINGLETON, VMThread::UNINITIALIZED);
-		Arena {
-
-		}
+		Arena {}
 	}
 
 	pub fn gc(&self) {
 		println!("{:?}", SINGLETON.get_plan().options().plan.deref());
-		SINGLETON.get_plan().handle_user_collection_request(VMMutatorThread(VMThread::UNINITIALIZED), true);
+		SINGLETON
+			.get_plan()
+			.handle_user_collection_request(VMMutatorThread(VMThread::UNINITIALIZED), true);
 	}
 
 	pub fn alloc(&self, id: Id<Class>, class_loader: &ClassLoader) -> ObjectReference {
@@ -68,7 +72,7 @@ impl Arena {
 				let semantics = AllocationSemantics::Default;
 
 				debug!("Allocating {size}");
-				return MUTATOR.with(|mutator| unsafe {
+				MUTATOR.with(|mutator| unsafe {
 					let mutator = &mut **mutator.borrow_mut();
 					let addr = memory_manager::alloc(mutator, size, 8, 0, semantics);
 
@@ -76,7 +80,7 @@ impl Arena {
 					memory_manager::post_alloc(mutator, object, size, semantics);
 					object.to_header::<Arena>().store(id.idx());
 					object
-				});
+				})
 			}
 			ClassKind::Array(_) => {
 				todo!()
@@ -85,24 +89,22 @@ impl Arena {
 				panic!("Cannot allocate primative")
 			}
 		}
-
-		todo!()
 	}
 }
 
 use crate::arena::active_plan::VMActivePlan;
 use crate::arena::collection::VMCollection;
-use crate::arena::object_model::{OBJECT_REF_OFFSET, VMObjectModel};
+use crate::arena::object_model::{VMObjectModel, OBJECT_REF_OFFSET};
 use crate::arena::scanning::VMScanning;
 use lazy_static::lazy_static;
-use mmtk::{MMTKBuilder, MMTK, memory_manager, Mutator, AllocationSemantics};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Mutex;
-use mmtk::util::{ObjectReference, VMMutatorThread, VMThread};
 use mmtk::util::options::PlanSelector;
-use tracing::debug;
+use mmtk::util::{ObjectReference, VMMutatorThread, VMThread};
+use mmtk::{memory_manager, AllocationSemantics, MMTKBuilder, Mutator, MMTK};
 use rvm_core::Id;
 use rvm_object::{Class, ClassKind, ClassLoader, ObjectClass};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
+use tracing::debug;
 
 /// This is used to ensure we initialize MMTk at a specified timing.
 pub static MMTK_INITIALIZED: AtomicBool = AtomicBool::new(false);

@@ -8,20 +8,20 @@ use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::sync::Arc;
 
-pub struct Storage<K: Hash + Eq + Debug, V: StorageValue> {
+pub struct Storage<K: Hash + Eq + Debug, V: StorageValue, O = V> {
 	lookup: HashMap<K, Id<V>>,
-	values: Vec<V>,
+	values: Vec<O>,
 }
 
-impl<K: Hash + Eq + Debug, V: StorageValue> Storage<K, V> {
-	pub fn new() -> Storage<K, V> {
+impl<K: Hash + Eq + Debug, V: StorageValue, O> Storage<K, V, O> {
+	pub fn new() -> Storage<K, V, O> {
 		Storage {
 			lookup: HashMap::new(),
 			values: vec![],
 		}
 	}
 
-	pub fn insert(&mut self, key: K, value: V) -> Id<V> {
+	pub fn insert(&mut self, key: K, value: O) -> Id<V> {
 		let mut idx = unsafe { Id::new(self.values.len() + 1) };
 		if let Err(v) = self.lookup.try_insert(key, idx) {
 			// replace value
@@ -49,7 +49,7 @@ impl<K: Hash + Eq + Debug, V: StorageValue> Storage<K, V> {
 		self.lookup.get(key).copied()
 	}
 
-	pub fn get_keyed<Q: ?Sized>(&self, key: &Q) -> Option<&V>
+	pub fn get_keyed<Q: ?Sized>(&self, key: &Q) -> Option<&O>
 	where
 		K: Borrow<Q>,
 		Q: Hash + Eq,
@@ -58,7 +58,7 @@ impl<K: Hash + Eq + Debug, V: StorageValue> Storage<K, V> {
 		Some(self.get(id))
 	}
 
-	pub fn get_mut_keyed<Q: ?Sized>(&mut self, key: &Q) -> Option<&mut V>
+	pub fn get_mut_keyed<Q: ?Sized>(&mut self, key: &Q) -> Option<&mut O>
 	where
 		K: Borrow<Q>,
 		Q: Hash + Eq,
@@ -67,15 +67,15 @@ impl<K: Hash + Eq + Debug, V: StorageValue> Storage<K, V> {
 		Some(self.get_mut(id))
 	}
 
-	pub fn get(&self, id: Id<V>) -> &V {
+	pub fn get(&self, id: Id<V>) -> &O {
 		unsafe { self.values.get_unchecked(id.0.to_usize().unwrap() - 1) }
 	}
 
-	pub fn get_mut(&mut self, id: Id<V>) -> &mut V {
+	pub fn get_mut(&mut self, id: Id<V>) -> &mut O {
 		unsafe { self.values.get_unchecked_mut(id.0.to_usize().unwrap() - 1) }
 	}
 
-	pub fn iter(&self) -> &[V] {
+	pub fn iter(&self) -> &[O] {
 		self.values.as_slice()
 	}
 }
@@ -131,7 +131,7 @@ impl<V: StorageValue> Hash for Id<V> {
 	}
 }
 
-pub trait StorageValue {
+pub trait StorageValue: Sized {
 	type Idx: PrimInt + Hash + Display;
 }
 

@@ -5,9 +5,10 @@
 
 use std::io::Result;
 use std::pin::{pin, Pin};
+use std::sync::Arc;
 use std::time::Instant;
 
-use inkwell::context::Context;
+use rvm_engine_ben::BenBinding;
 use walkdir::WalkDir;
 
 use rvm_runtime::Runtime;
@@ -17,7 +18,7 @@ mod tests;
 
 pub fn launch<F, R>(f: F) -> R
 where
-	F: FnOnce(&Pin<&Runtime>) -> R + Send + 'static,
+	F: FnOnce(Arc<Runtime>) -> R + Send + 'static,
 	R: Send + 'static,
 {
 	std::thread::Builder::new()
@@ -30,9 +31,7 @@ where
 		.stack_size(1024 * 1024 * 64)
 		.spawn(|| {
 			rvm_core::init();
-			let runtime = Runtime::new();
-			let x = f(&pin!(runtime).into_ref());
-			x
+			f(Arc::new(Runtime::new(1000, Box::new(BenBinding::new()))))
 		})
 		.unwrap()
 		.join()

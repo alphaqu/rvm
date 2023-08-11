@@ -1,5 +1,4 @@
-use rvm_runtime::java;
-
+use rvm_runtime::java_bind_method;
 use crate::{compile, launch};
 
 #[test]
@@ -36,8 +35,8 @@ fn test() -> Result<(), std::io::Error> {
 			i += 0.0 * i;
 			i
 		};
-		let java = unsafe { java!(compile runtime, fn Main.get() -> f64)() };
-		assert_eq!(rust, java);
+		let java = java_bind_method!(runtime fn Main.get() -> f64);
+		assert_eq!(rust, java());
 
 		Ok(())
 	})

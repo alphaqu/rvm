@@ -2,53 +2,31 @@
 #![feature(hash_drain_filter)]
 #![feature(drain_filter)]
 #![feature(array_try_from_fn)]
-#![feature(box_syntax)]
 #![feature(thread_local)]
 #![feature(thread_id_value)]
 
+use std::any::Any;
 use std::ffi::c_void;
 use std::pin::Pin;
 
+use crate::arena::Arena;
 use either::Either;
 use lazy_static::lazy_static;
 use mmtk::vm::VMBinding;
-use tracing::info;
 use rvm_core::{ObjectType, Type};
-use rvm_object::{ClassLoader, MethodCode, MethodIdentifier};
-use crate::arena::Arena;
+use rvm_object::{ClassKind, ClassLoader, MethodCode, MethodIdentifier};
+use tracing::info;
 
 use crate::engine::Engine;
 
 pub mod error;
 pub mod prelude;
 
+pub mod arena;
 pub mod engine;
 #[cfg(feature = "native")]
 pub mod native;
-pub mod arena;
 mod thread;
-
-static mut RUNTIME: Option<Runtime> = None;
-
-pub fn init(runtime: Runtime) {
-	unsafe {
-		if RUNTIME.is_some() {
-			panic!("Runtime already initialized");
-		}
-
-		RUNTIME = Some(runtime);
-	}
-}
-
-pub fn runtime() -> &'static Runtime {
-	unsafe {
-		if let Some(runtime) = &RUNTIME {
-			return runtime;
-		}
-
-		panic!("Runtime is not initialized")
-	}
-}
 
 /// A runtime which (almost never) conforms to [The Java Virtual Machine Specification, Java SE 19 Edition][jvms]
 ///
@@ -71,68 +49,75 @@ impl Runtime {
 		}
 	}
 
-	/// Compiles a method with a given identifier. Uses the mapping in [`java!`]
-	///
-	/// ```
-	/// use std::mem::transmute;
-	/// use std::pin::Pin;
-	/// use rvm_runtime::Runtime;
-	///
-	/// |runtime: &Pin<&Runtime>| {
-	/// 	let pointer = runtime.compile_method("Main", "update", "(I)I");
-	/// 	let function = unsafe { transmute::<_, extern "C" fn(i32) -> i32>(pointer) };
-	/// 	let out = unsafe { function(3) };
-	/// };
-	/// ```
-	pub fn compile_method(
-		self: &Pin<&Self>,
-		class_name: &str,
-		method_name: &str,
-		desc: &str,
-	) -> *const c_void {
-		info!("Resolving {class_name}:{method_name}:{desc}");
-		let class_id = self.cl.get_class_id(&Type::Object(ObjectType {
-			name: class_name.to_string(),
-		}));
-		let class = self.cl.get_obj_class(class_id);
-
-		let method_id = class
-			.methods
-			.get_id(&MethodIdentifier {
-				name: method_name.to_string(),
-				descriptor: desc.to_string(),
-			})
-			.expect("Method not found");
-
-		let method = class.methods.get(method_id);
-		return match method.compiled.get() {
-			None => {
-				if let Some(code) = &method.code {
-					match code.as_ref() {
-						MethodCode::Java(_) => {
-							let value = self.engine.compile_method(self, method, &class.cp)
-								as *const c_void;
-							method.compiled.set(Some(value));
-							value
-						}
-						MethodCode::Native(either) => {
-							let code = match &either {
-								Either::Left(source) => {
-									let code = self.cl.native_methods().get(source).unwrap();
-									// todo: save in method.code as Some(MethodCode::Native(Either::Right(*code)))
-									code
-								}
-								Either::Right(code) => code,
-							};
-
-							panic!("Native code is not supported yet");
-						}
-					}
-				} else {
-					panic!("Code is missing");
-				}
-			}
-			Some(value) => value,
-		};
-	}
+	// /// Compiles a method with a given identifier. Uses the mapping in [`java!`]
+	// 	///
+	// 	/// ```
+	// 	/// use std::mem::transmute;
+	// 	/// use std::pin::Pin;
+	// 	/// use rvm_runtime::Runtime;
+	// 	///
+	// 	/// |runtime: &Pin<&Runtime>| {
+	// 	/// 	let pointer = runtime.compile_method("Main", "update", "(I)I");
+	// 	/// 	let function = unsafe { transmute::<_, extern "C" fn(i32) -> i32>(pointer) };
+	// 	/// 	let out = unsafe { function(3) };
+	// 	/// };
+	// 	/// ```
+	// 	pub fn compile_method(
+	// 		self: &Pin<&Self>,
+	// 		class_name: &str,
+	// 		method_name: &str,
+	// 		desc: &str,
+	// 	) -> *const c_void {
+	// 		info!("Resolving {class_name}:{method_name}:{desc}");
+	// 		let class_id = self.cl.get_class_id(&Type::Object(ObjectType {
+	// 			name: class_name.to_string(),
+	// 		}));
+	//
+	// 		let class = self.cl.get(class_id);
+	// 		let class = match &class.kind {
+	// 			ClassKind::Object(obj) => obj,
+	// 			_ => {
+	// 				panic!("Invalid type")
+	// 			}
+	// 		};
+	//
+	// 		let method_id = class
+	// 			.methods
+	// 			.get_id(&MethodIdentifier {
+	// 				name: method_name.to_string(),
+	// 				descriptor: desc.to_string(),
+	// 			})
+	// 			.expect("Method not found");
+	//
+	// 		let method = class.methods.get(method_id);
+	// 		return match method.compiled.get() {
+	// 			None => {
+	// 				if let Some(code) = &method.code {
+	// 					match code.as_ref() {
+	// 						MethodCode::Java(_) => {
+	// 							let value = self.engine.compile_method(self, method, &class.cp)
+	// 								as *const c_void;
+	// 							method.compiled.set(Some(value));
+	// 							value
+	// 						}
+	// 						MethodCode::Native(either) => {
+	// 							let code = match &either {
+	// 								Either::Left(source) => {
+	// 									let code = self.cl.native_methods().get(source).unwrap();
+	// 									// todo: save in method.code as Some(MethodCode::Native(Either::Right(*code)))
+	// 									code
+	// 								}
+	// 								Either::Right(code) => code,
+	// 							};
+	//
+	// 							panic!("Native code is not supported yet");
+	// 						}
+	// 					}
+	// 				} else {
+	// 					panic!("Code is missing");
+	// 				}
+	// 			}
+	// 			Some(value) => value,
+	// 		};
+	// 	}
 }
