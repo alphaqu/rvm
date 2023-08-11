@@ -43,8 +43,10 @@ impl BenEngine {
 				drop(guard);
 
 				debug!(target: "ben", "Compiling method {key:?}");
-				let id = runtime.cl.get_class_id(&Type::Object(key.0.clone()));
-				let cl_guard = runtime.cl.get(id);
+				let id = runtime
+					.class_loader
+					.get_class_id(&Type::Object(key.0.clone()));
+				let cl_guard = runtime.class_loader.get(id);
 				let class = match &cl_guard.kind {
 					ClassKind::Object(object) => object,
 					_ => unreachable!(),

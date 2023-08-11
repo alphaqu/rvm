@@ -35,7 +35,7 @@ mod thread;
 /// [jvms]: https://docs.oracle.com/javase/specs/jvms/se19/html/index.html
 /// [llvm]: https://llvm.org/
 pub struct Runtime {
-	pub cl: ClassLoader,
+	pub class_loader: ClassLoader,
 	pub engine: Box<dyn Engine>,
 	pub arena: Arena,
 }
@@ -43,7 +43,7 @@ pub struct Runtime {
 impl Runtime {
 	pub fn new(heap_size: usize, engine: Box<dyn Engine>) -> Runtime {
 		Runtime {
-			cl: ClassLoader::new(),
+			class_loader: ClassLoader::new(),
 			engine,
 			arena: Arena::init(heap_size),
 		}

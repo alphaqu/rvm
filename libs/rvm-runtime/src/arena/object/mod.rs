@@ -1,12 +1,12 @@
-use std::fmt::Debug;
-use std::hash::Hash;
-use std::sync::Arc;
 use crate::arena::Arena;
 use crate::Runtime;
 use mmtk::util::{Address, ObjectReference};
 use parking_lot::MappedRwLockReadGuard;
 use rvm_core::{FieldAccessFlags, Id, Storage, StorageValue};
 use rvm_object::{Class, ClassKind, ClassLoader, DynValue, Field, ObjectClass, Value};
+use std::fmt::Debug;
+use std::hash::Hash;
+use std::sync::Arc;
 
 pub struct Object {
 	pub reference: ObjectReference,
@@ -14,16 +14,20 @@ pub struct Object {
 }
 
 impl Object {
-	pub fn new<S: Into<String>>(runtime: &Runtime, class: Id<Class>, fields: impl IntoIterator<Item = (S, DynValue)>) -> Object {
-		let reference = runtime.arena.alloc(class, &runtime.cl);
-		let object = Object::wrap(reference, &runtime.cl);
+	pub fn new<S: Into<String>>(
+		runtime: &Runtime,
+		class: Id<Class>,
+		fields: impl IntoIterator<Item = (S, DynValue)>,
+	) -> Object {
+		let reference = runtime.arena.alloc(class, &runtime.class_loader);
+		let object = Object::wrap(reference, &runtime.class_loader);
 		for (string, value) in fields.into_iter() {
 			let string: String = string.into();
 			let value: DynValue = value;
 			object.set_dyn_field(&string, value);
 		}
 		object
-    }
+	}
 
 	pub fn wrap(object: ObjectReference, class_loader: &ClassLoader) -> Object {
 		let id = unsafe {
@@ -36,7 +40,6 @@ impl Object {
 			class: id,
 		}
 	}
-
 
 	fn class(&self) -> &ObjectClass {
 		match &self.class.kind {
@@ -87,7 +90,7 @@ impl Object {
 	}
 
 	pub fn get_field<V: Value>(&self, field: impl Selector<String, Field>) -> V {
-        let field = field.get(&self.class().fields);
+		let field = field.get(&self.class().fields);
 		unsafe {
 			if field.ty.kind() != V::ty() {
 				panic!("Field mismatch")
@@ -111,12 +114,12 @@ pub trait Selector<K: Hash + Eq + Debug, V: StorageValue>: Copy {
 }
 
 impl<'a, K: Hash + Eq + Debug, V: StorageValue> Selector<K, V> for &'a K {
-    fn get(self, storage: &Storage<K, V>) -> &V {
-        storage.get_keyed(self).unwrap()
-    }
+	fn get(self, storage: &Storage<K, V>) -> &V {
+		storage.get_keyed(self).unwrap()
+	}
 }
 
-impl<'a,  V: StorageValue> Selector<String, V> for &'a str {
+impl<'a, V: StorageValue> Selector<String, V> for &'a str {
 	fn get(self, storage: &Storage<String, V>) -> &V {
 		storage.get_keyed(self).unwrap()
 	}

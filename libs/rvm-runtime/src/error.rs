@@ -1,10 +1,10 @@
-use crate::{Runtime};
+use crate::Runtime;
 use rvm_core::Id;
 use std::fmt::Debug;
 
 pub type JResult<V> = Result<V, JError>;
-use std::fmt::Write;
 use rvm_object::{Class, ClassKind, Method, MethodData};
+use std::fmt::Write;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct JError {
@@ -46,17 +46,17 @@ pub struct TraceEntry {
 
 impl TraceEntry {
 	fn fmt(&self, f: &mut String, runtime: &Runtime) -> std::fmt::Result {
-		let class = runtime.cl.get(self.class);
+		let class = runtime.class_loader.get(self.class);
 		match &class.kind {
 			ClassKind::Object(object) => {
 				let method = object.methods.get(self.method);
 				writeln!(
-                    f,
-                    "\tat {full_class_name}.{method_name}({class_name}.java:{line})",
-                    full_class_name = class.name,
-                    class_name = class.name,
-                    method_name = method.name,
-                    line = self.line,
+					f,
+					"\tat {full_class_name}.{method_name}({class_name}.java:{line})",
+					full_class_name = class.name,
+					class_name = class.name,
+					method_name = method.name,
+					line = self.line,
 				)
 			}
 			ClassKind::Array(_) => {

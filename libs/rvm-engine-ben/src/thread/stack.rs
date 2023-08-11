@@ -23,8 +23,8 @@ impl ThreadStack {
 			func(stacks);
 		});
 	}
-	
-	pub fn scope<'f, T>(&mut self, stack_size: u16, local_size: u16, func: impl FnOnce(&mut ThreadStack, ThreadFrame<'f>) -> T) -> T {
+
+	pub fn create<'f>(&mut self, stack_size: u16, local_size: u16) -> ThreadFrame<'f> {
 		let frame_size = Frame::get_size(stack_size, local_size);
 		trace!("Allocating ThreadFrame ({}+{frame_size})", self.data_pos);
 		if self.data_pos + frame_size >= self.data_size {
@@ -35,27 +35,26 @@ impl ThreadStack {
 			let mut ptr = (&mut self.stack as *mut [u8] as *mut Frame).byte_add(self.data_pos);
 			self.data_pos += frame_size;
 
-			// Allocate
 			let frame: &mut Frame = &mut *ptr;
 			frame.stack_size = stack_size;
 			frame.local_size = local_size;
-			let thread_frame = ThreadFrame {
+			ThreadFrame {
 				finished: false,
 				frame,
-			};
-			
-			// run
-			let output = func(self, thread_frame);
-			
-			// Clean up
-			let frame_size = frame.size();
-			self.data_pos -= frame_size;
-			trace!("Finishing ThreadFrame ({}+{frame_size})", self.data_pos);
-			frame.finished = true;
-
-			output
+			}
 		}
 	}
+
+	pub fn finish(&mut self, mut frame: ThreadFrame) {
+		if frame.finished {
+			panic!("Double finished");
+		}
+		let frame_size = frame.size();
+		self.data_pos -= frame_size;
+		trace!("Finishing ThreadFrame ({}+{frame_size})", self.data_pos);
+		frame.finished = true;
+	}
+
 	pub fn visit_frames(&self, mut func: impl FnMut(&Frame)) {
 		debug!("Visiting thread frames");
 		let mut ptr = &self.stack as *const [u8] as *const Frame;

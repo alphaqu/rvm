@@ -13,6 +13,7 @@ pub use local::{LocalTask, LocalTaskKind};
 pub use r#const::ConstTask;
 pub use r#return::ReturnTask;
 use rvm_object::ObjectClass;
+use crate::code::task::call::CallTask;
 
 pub enum Task {
 	Nop,
@@ -21,6 +22,7 @@ pub enum Task {
 	Local(LocalTask),
 	Return(ReturnTask),
 	Jump(JumpInst),
+	Call(CallTask),
 }
 
 impl Task {
@@ -44,7 +46,7 @@ impl Task {
 			Inst::Local(local @ (LocalInst::Load(_, _) | LocalInst::Store(_, _))) => {
 				Task::Local(LocalTask::new(local))
 			}
-			Inst::Invoke(inst) => inst.value.get(),
+			Inst::Invoke(inst) => Task::Call(CallTask::new(inst, class)),
 			Inst::Return(ret) => Task::Return(ReturnTask::new(ret)),
 			Inst::Jump(inst) => Task::Jump(inst.clone()),
 			_ => todo!("{inst:?}"),

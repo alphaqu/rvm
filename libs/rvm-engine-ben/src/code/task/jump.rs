@@ -3,6 +3,10 @@ pub struct JumpTask {
 	kind: JumpKind,
 }
 
+impl JumpTask {
+	
+}
+
 #[derive(Copy, Clone, Debug)]
 pub enum JumpKind {
 	IF_ACMPEQ,

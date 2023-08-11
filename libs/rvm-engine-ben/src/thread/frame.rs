@@ -17,8 +17,8 @@ impl Frame {
 	pub fn create(stack_size: u16, local_size: u16, callback: impl FnOnce(&mut Frame)) {
 		alloca_zeroed(Frame::get_size(stack_size, local_size), |v| unsafe {
 			let frame: &mut Frame = transmute(v);
-			frame.stack_size = stack_size as u16;
-			frame.local_size = local_size as u16;
+			frame.stack_size = stack_size;
+			frame.local_size = local_size;
 			callback(frame);
 		});
 	}
