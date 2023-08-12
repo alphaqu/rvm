@@ -1,7 +1,6 @@
 use rvm_core::{ObjectType, Type};
-use rvm_object::{Class, ObjectClass};
+use rvm_object::{Class, Object, ObjectClass};
 use rvm_reader::{FieldInst, FieldInstKind};
-use rvm_runtime::arena::object::Object;
 use rvm_runtime::Runtime;
 
 use crate::thread::ThreadFrame;
@@ -36,12 +35,10 @@ impl FieldTask {
 			.class_loader
 			.get_class_id(&Type::Object(self.source.clone()));
 		let arc = runtime.class_loader.get(id);
-		match &arc.kind {
+		match &*arc {
 			Class::Object(object) => {
-				let field = object
-					.fields
-					.get_keyed(&self.field_name)
-					.expect("Could not find field");
+				let id = object.fields.get_id(&self.field_name).unwrap();
+				let field = object.fields.get(id);
 				if field.is_static() {
 					if self.instance {
 						panic!("Found static field on INSTANCE field op");
@@ -56,16 +53,19 @@ impl FieldTask {
 						FieldInstKind::Get => {
 							let reference = frame.pop().to_ref();
 
-							let object = Object::wrap(reference, &runtime.class_loader);
-							let value = object.get_dyn_field(&self.field_name);
+							let ref_object = Object::new(reference);
+							let class = ref_object.as_class().unwrap();
+							let value = class.resolve(object).get_dyn(id);
+
 							frame.push(StackValue::from_dyn(value));
 						}
 						FieldInstKind::Put => {
 							let value = frame.pop();
 							let reference = frame.pop().to_ref();
 
-							let object = Object::wrap(reference, &runtime.class_loader);
-							object.set_dyn_field(&self.field_name, value.to_dyn());
+							let ref_object = Object::new(reference);
+							let class = ref_object.as_class().unwrap();
+							class.resolve(object).put_dyn(id, value.to_dyn());
 						}
 					}
 				}

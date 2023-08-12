@@ -1,5 +1,4 @@
 use crate::{compile, launch};
-use rvm_runtime::arena::object::Object;
 use rvm_runtime::java_bind_method;
 
 #[test]

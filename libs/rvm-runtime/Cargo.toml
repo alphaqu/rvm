@@ -13,8 +13,6 @@ rvm-object = { path = "../rvm-object" }
 # Compilation
 # inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "master", features = ["llvm14-0"] }
 
-mmtk = "0.18.0"
-
 crossbeam = "0.8.2"
 lazy_static = "1.4.0"
 either = "1.8.0"

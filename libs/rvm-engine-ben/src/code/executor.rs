@@ -3,10 +3,9 @@ use crate::method::CompiledMethod;
 use crate::thread::{ThreadFrame, ThreadStack};
 use crate::value::StackValue;
 use crate::BenEngine;
-use rvm_core::{Kind, ObjectType, Op, StackKind, Type};
+use rvm_core::{Kind, ObjectType, Op, Reference, StackKind, Type};
 use rvm_object::{DynValue, MethodIdentifier};
 use rvm_reader::JumpKind;
-use rvm_runtime::arena::object::Object;
 use rvm_runtime::Runtime;
 use std::sync::Arc;
 use tracing::{debug, trace};
@@ -72,9 +71,9 @@ impl<'a> Executor<'a> {
 							.class_loader
 							.get_class_id(&Type::Object(object.class_name.clone()));
 
-						Object::new()
-						let reference = self.runtime.arena.alloc(id, &self.runtime.class_loader);
-						frame.push(StackValue::Reference(reference));
+						todo!();
+						//let reference = self.runtime.arena.alloc(id, &self.runtime.class_loader);
+						//frame.push(StackValue::Reference(reference));
 					}
 					Task::Call(task) => {
 						// When we first call, the output will be None, it will push a frame onto the stack and start running that method.
@@ -168,11 +167,11 @@ impl<'a> Executor<'a> {
 							}
 							JumpKind::IFNONNULL => {
 								let value = frame.pop().to_ref();
-								value.value() != 0
+								value != Reference::NULL
 							}
 							JumpKind::IFNULL => {
 								let value = frame.pop().to_ref();
-								value.value() == 0
+								value == Reference::NULL
 							}
 							JumpKind::GOTO => true,
 						};

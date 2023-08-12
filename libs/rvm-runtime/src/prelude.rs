@@ -29,9 +29,7 @@ macro_rules! java_bind_method {
 			});
 
 			thread.run(
-				rvm_core::ObjectType {
-					name: ::core::stringify!($class).to_string(),
-				},
+				rvm_core::ObjectType(::core::stringify!($class).to_string()),
 				rvm_object::MethodIdentifier {
 					name: ::core::stringify!($method).to_string(),
 					descriptor: $crate::java_descriptor!(fn($($pty),*) $(-> $ret)?).to_string(),

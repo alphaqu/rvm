@@ -11,7 +11,6 @@ use std::pin::Pin;
 
 use either::Either;
 use lazy_static::lazy_static;
-use mmtk::vm::VMBinding;
 use rvm_core::{ObjectType, Type};
 use rvm_object::{Class, ClassLoader, MethodCode, MethodIdentifier};
 use tracing::info;

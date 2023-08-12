@@ -18,6 +18,8 @@ pub struct GarbageCollector {
 	data: *mut u8,
 }
 
+unsafe impl Sync for GarbageCollector {}
+unsafe impl Send for GarbageCollector {}
 pub trait RootProvider {
 	fn visit_roots(&mut self, visitor: impl FnMut(Reference));
 

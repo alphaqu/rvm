@@ -46,10 +46,7 @@ impl BenEngine {
 					.class_loader
 					.get_class_id(&Type::Object(key.0.clone()));
 				let cl_guard = runtime.class_loader.get(id);
-				let class = match &cl_guard.kind {
-					Class::Object(object) => object,
-					_ => unreachable!(),
-				};
+				let class = cl_guard.object().unwrap();
 
 				let raw_method = class
 					.methods
