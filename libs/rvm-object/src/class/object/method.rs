@@ -13,12 +13,16 @@ use std::cell::{Cell, RefCell};
 use std::ffi::c_void;
 use std::sync::Arc;
 
-
 pub struct ClassMethodManager {
 	storage: Storage<MethodIdentifier, Method>,
 }
 
 impl ClassMethodManager {
+	pub fn empty() -> ClassMethodManager {
+		ClassMethodManager {
+			storage: Storage::new(),
+		}
+	}
 	pub fn parse(
 		methods: Vec<MethodInfo>,
 		class_name: &str,

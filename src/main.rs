@@ -1,15 +1,16 @@
 use std::fs::read;
 use std::path::Path;
+use std::sync::Arc;
 use std::thread::Builder;
 
 use inkwell::context::Context;
 
 use rvm_core::{init, ObjectType, Type};
 use rvm_engine_ben::BenBinding;
-use rvm_object::{ClassKind, DynValue, MethodIdentifier};
+use rvm_object::{Class, DynValue, MethodIdentifier};
 use rvm_runtime::arena::object::Object;
 use rvm_runtime::engine::ThreadConfig;
-use rvm_runtime::{runtime, Runtime};
+use rvm_runtime::Runtime;
 
 fn main() {
 	Builder::new()
@@ -26,17 +27,16 @@ fn main() {
 fn run() {
 	init();
 	let engine = Box::new(BenBinding::new());
-	rvm_runtime::init(Runtime::new(1024 * 1024, engine));
 
-	let runtime = runtime();
+	let runtime = Arc::new(Runtime::new(1024 * 1024, engine));
 	runtime
-		.cl
+		.class_loader
 		.load_jar(include_bytes!("../rt.zip"), |v| {
 			v == "java/lang/Object.class"
 		})
 		.unwrap();
 	runtime
-		.cl
+		.class_loader
 		.load_jar(include_bytes!("../unnamed.jar"), |v| true)
 		.unwrap();
 	for jar in std::env::args().skip(1) {
@@ -44,10 +44,16 @@ fn run() {
 
 		match path.extension().and_then(|x| x.to_str()) {
 			Some("jar") | Some("zip") => {
-				runtime.cl.load_jar(&read(path).unwrap(), |_| true).unwrap();
+				runtime
+					.class_loader
+					.load_jar(&read(path).unwrap(), |_| true)
+					.unwrap();
 			}
 			Some("class") => {
-				runtime.cl.load_class(&read(path).unwrap()).unwrap();
+				runtime
+					.class_loader
+					.load_class(&read(path).unwrap())
+					.unwrap();
 			}
 			other => {
 				panic!("Unrecognised extension {other:?}");
@@ -55,22 +61,23 @@ fn run() {
 		}
 	}
 
-	let handle = runtime.engine.create_thread(ThreadConfig {
-		name: "Hi".to_string(),
-	});
+	let handle = runtime.engine.create_thread(
+		runtime.clone(),
+		ThreadConfig {
+			name: "Hi".to_string(),
+		},
+	);
 
 	handle.run(
-		ObjectType {
-			name: "Main".to_string(),
-		},
+		ObjectType("Main".to_string()),
 		MethodIdentifier {
-			name: "meth".to_string(),
+			name: "main".to_string(),
 			descriptor: "()I".to_string(),
 		},
 		vec![],
 	);
 
-	handle.join();
+	println!("{:?}", handle.join().unwrap());
 	// 	// bind
 	// 	{
 	// 		// bindhi(&mut runtime);

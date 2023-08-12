@@ -4,7 +4,7 @@
 #![feature(pin_macro)]
 
 use std::io::Result;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::pin::{pin, Pin};
 use std::sync::Arc;
 use std::time::Instant;
@@ -69,7 +69,13 @@ pub fn compile(runtime: &Runtime, sources: &[(&str, &str)]) -> Result<()> {
 			process.arg(name);
 		}
 
-		process.status()?.exit_ok().expect("javac not successful");
+		let status = process.status()?;
+
+		println!(
+			"ERROR: {}",
+			String::from_utf8(process.output().unwrap().stderr).unwrap()
+		);
+		status.exit_ok().expect("javac not successful");
 
 		for entry in WalkDir::new(&root) {
 			let entry = entry?;

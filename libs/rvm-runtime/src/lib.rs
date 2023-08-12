@@ -9,21 +9,22 @@ use std::any::Any;
 use std::ffi::c_void;
 use std::pin::Pin;
 
-use crate::arena::Arena;
 use either::Either;
 use lazy_static::lazy_static;
 use mmtk::vm::VMBinding;
 use rvm_core::{ObjectType, Type};
-use rvm_object::{ClassKind, ClassLoader, MethodCode, MethodIdentifier};
+use rvm_object::{Class, ClassLoader, MethodCode, MethodIdentifier};
 use tracing::info;
 
 use crate::engine::Engine;
+use crate::gc::GarbageCollector;
 
 pub mod error;
 pub mod prelude;
 
 pub mod arena;
 pub mod engine;
+mod gc;
 #[cfg(feature = "native")]
 pub mod native;
 mod thread;
@@ -37,7 +38,7 @@ mod thread;
 pub struct Runtime {
 	pub class_loader: ClassLoader,
 	pub engine: Box<dyn Engine>,
-	pub arena: Arena,
+	pub gc: GarbageCollector,
 }
 
 impl Runtime {
@@ -45,7 +46,7 @@ impl Runtime {
 		Runtime {
 			class_loader: ClassLoader::new(),
 			engine,
-			arena: Arena::init(heap_size),
+			gc: GarbageCollector::new(heap_size),
 		}
 	}
 

@@ -11,6 +11,8 @@ rvm-object = { path = "../rvm-object" }
 rvm-reader = { path = "../rvm-reader" }
 rvm-runtime = { path = "../rvm-runtime" }
 
+mmtk = "0.18.0"
+
 stackalloc = "1.2.0"
 backtrace = "0.3.67"
 crossbeam = "0.8.2"

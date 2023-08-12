@@ -1,3 +1,4 @@
+use mmtk::util::ObjectReference;
 use std::mem::transmute;
 
 use rvm_core::{Kind, StackKind};
@@ -10,7 +11,7 @@ pub enum StackValue {
 	Float(f32),
 	Long(i64),
 	Double(f64),
-	Reference(usize),
+	Reference(ObjectReference),
 }
 
 impl StackValue {
@@ -23,7 +24,7 @@ impl StackValue {
 		}
 	}
 
-	pub fn to_ref(self) -> usize {
+	pub fn to_ref(self) -> ObjectReference {
 		match self {
 			StackValue::Reference(value) => value,
 			_ => {
@@ -39,6 +40,24 @@ impl StackValue {
 			StackValue::Double(_) => StackKind::Double,
 			StackValue::Reference(_) => StackKind::Reference,
 		}
+	}
+
+	pub fn category(&self) -> u8 {
+		match self {
+			StackValue::Int(_) => 1,
+			StackValue::Float(_) => 1,
+			StackValue::Reference(_) => 1,
+			StackValue::Long(_) => 2,
+			StackValue::Double(_) => 2,
+		}
+	}
+
+	pub fn category_1(&self) -> bool {
+		self.category() == 1
+	}
+
+	pub fn category_2(&self) -> bool {
+		self.category() == 2
 	}
 
 	pub fn from_dyn(value: DynValue) -> StackValue {

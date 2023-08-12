@@ -18,9 +18,7 @@ impl CallTask {
 
 		CallTask {
 			method: MethodIdentifier::new(&name_and_type, &class.cp),
-			object: ObjectType {
-				name: name.to_string(),
-			},
+			object: ObjectType(name.to_string()),
 		}
 	}
 }

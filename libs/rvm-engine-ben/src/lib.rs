@@ -2,7 +2,7 @@
 #![feature(generic_const_exprs)]
 
 use rvm_core::{Id, ObjectType, StackKind, Storage, Type};
-use rvm_object::{ClassKind, MethodCode, MethodData, MethodIdentifier};
+use rvm_object::{Class, MethodCode, MethodData, MethodIdentifier};
 use rvm_reader::ConstantPool;
 use rvm_runtime::engine::{Engine, ThreadConfig, ThreadHandle};
 use rvm_runtime::Runtime;
@@ -41,14 +41,13 @@ impl BenEngine {
 		match guard.get_keyed(&key) {
 			None => {
 				drop(guard);
-
 				debug!(target: "ben", "Compiling method {key:?}");
 				let id = runtime
 					.class_loader
 					.get_class_id(&Type::Object(key.0.clone()));
 				let cl_guard = runtime.class_loader.get(id);
 				let class = match &cl_guard.kind {
-					ClassKind::Object(object) => object,
+					Class::Object(object) => object,
 					_ => unreachable!(),
 				};
 

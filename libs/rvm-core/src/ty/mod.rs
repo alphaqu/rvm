@@ -1,18 +1,18 @@
-use std::fmt::{Display, Formatter, Write};
-pub use kind::*;
 pub use desc::*;
 pub use flags::*;
+pub use kind::*;
 pub use op::*;
-mod kind;
+use std::fmt::{Display, Formatter, Write};
 mod desc;
-mod op;
 mod flags;
+mod kind;
+mod op;
 
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 pub enum Type {
 	Primitive(PrimitiveType),
 	Object(ObjectType),
-	Array(Box<ArrayType>),
+	Array(ArrayType),
 }
 
 impl Type {
@@ -23,7 +23,7 @@ impl Type {
 	pub fn parse_len(desc: &str) -> Option<(Type, usize)> {
 		match desc.as_bytes()[0] {
 			b'L' => ObjectType::parse_len(desc).map(|(ty, l)| (Type::Object(ty), l)),
-			b'[' => ArrayType::parse_len(desc).map(|(ty, l)| (Type::Array(Box::new(ty)), l)),
+			b'[' => ArrayType::parse_len(desc).map(|(ty, l)| (Type::Array(ty), l)),
 			_ => PrimitiveType::parse(desc).map(|v| (Type::Primitive(v), 1)),
 		}
 	}
@@ -33,6 +33,24 @@ impl Type {
 			Type::Primitive(prim) => prim.kind(),
 			Type::Array(_) | Type::Object(_) => Kind::Reference,
 		}
+	}
+}
+
+impl From<PrimitiveType> for Type {
+	fn from(value: PrimitiveType) -> Self {
+		Type::Primitive(value)
+	}
+}
+
+impl From<ObjectType> for Type {
+	fn from(value: ObjectType) -> Self {
+		Type::Object(value)
+	}
+}
+
+impl From<ArrayType> for Type {
+	fn from(value: ArrayType) -> Self {
+		Type::Array(value)
 	}
 }
 
@@ -109,23 +127,19 @@ impl Display for PrimitiveType {
 }
 
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
-pub struct ObjectType {
-	pub name: String,
-}
+pub struct ObjectType(pub String);
 
 impl ObjectType {
+	pub fn parse(string: &str) -> Option<ObjectType> {
+		Self::parse_len(string).map(|(v, _)| v)
+	}
 	pub fn parse_len(string: &str) -> Option<(ObjectType, usize)> {
 		if string.as_bytes()[0] != b'L' {
 			return None;
 		}
 
 		let end = string.find(';')?;
-		Some((
-			ObjectType {
-				name: string[1..end].to_string(),
-			},
-			end + 1,
-		))
+		Some((ObjectType(string[1..end].to_string()), end + 1))
 	}
 
 	pub fn kind(&self) -> Kind {
@@ -133,17 +147,30 @@ impl ObjectType {
 	}
 }
 
+impl From<String> for ObjectType {
+	fn from(value: String) -> Self {
+		ObjectType(value)
+	}
+}
+
+impl From<&'static str> for ObjectType {
+	fn from(value: &'static str) -> Self {
+		ObjectType(value.to_string())
+	}
+}
+
+
 impl Display for ObjectType {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		f.write_char('L')?;
-		f.write_str(&self.name)?;
+		f.write_str(&self.0)?;
 		f.write_char(';')
 	}
 }
 
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 pub struct ArrayType {
-	pub component: Type,
+	pub component: Box<Type>,
 }
 
 impl ArrayType {
@@ -154,7 +181,12 @@ impl ArrayType {
 		}
 
 		let (component, length) = Type::parse_len(&string[1..])?;
-		Some((ArrayType { component }, length + 1))
+		Some((
+			ArrayType {
+				component: Box::new(component),
+			},
+			length + 1,
+		))
 	}
 
 	pub fn kind(&self) -> Kind {

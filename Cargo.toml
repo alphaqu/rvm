@@ -23,6 +23,7 @@ members = [
     "./libs/rvm-bind",
     "./libs/rvm-core",
     "./libs/rvm-runtime",
+    "./libs/rvm-gc",
     "./libs/rvm-engine-llvm",
     "./libs/rvm-engine-ben",
     "./libs/rvm-reader",

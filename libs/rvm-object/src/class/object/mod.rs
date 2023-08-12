@@ -1,120 +1,49 @@
-use std::alloc::dealloc;
 use std::ops::Deref;
 use std::sync::Arc;
 
 use anyways::ext::AuditExt;
 use anyways::Result;
-use parking_lot::MappedRwLockReadGuard;
 
-use crate::class_loader::ClassLoader;
-use rvm_core::FieldAccessFlags;
-use rvm_core::Id;
+pub use field::*;
+pub use method::*;
+use rvm_core::ObjectType;
 use rvm_reader::{ClassInfo, ConstantPool};
+
+use crate::Class;
 
 mod field;
 mod method;
 
-use crate::{Class, ClassKind, ObjectData};
-pub use field::*;
-pub use method::*;
-
 pub struct ObjectClass {
+	pub ty: ObjectType,
 	pub cp: Arc<ConstantPool>,
-	pub fields: ClassFieldManager,
+	pub fields: ObjectFieldLayout,
+	pub static_fields: ObjectFieldLayout,
 	pub methods: ClassMethodManager,
-	pub static_object: ObjectData,
+	//pub static_object: Reference,
 }
 
 unsafe impl Send for ObjectClass {}
 unsafe impl Sync for ObjectClass {}
 impl ObjectClass {
-	pub fn parse(info: ClassInfo) -> Result<Class> {
+	pub fn parse(info: ClassInfo) -> Result<ObjectClass> {
 		let class = info.constant_pool.get(info.this_class);
 		let name = info.constant_pool.get(class.name);
 
-		let fields = ClassFieldManager::parse(info.fields, &info.constant_pool);
-		let binary_name = name.to_string().replace('/', ".");
+		let fields: Vec<FieldData> = info
+			.fields
+			.iter()
+			.map(|v| FieldData::from_info(v, &info.constant_pool).unwrap())
+			.collect();
 
-		Ok(Class {
-			kind: ClassKind::Object(ObjectClass {
-				methods: ClassMethodManager::parse(
-					info.methods,
-					name.as_str(),
-					&info.constant_pool,
-				)
+		Ok(ObjectClass {
+			ty: ObjectType(name.to_string()),
+			methods: ClassMethodManager::parse(info.methods, name.as_str(), &info.constant_pool)
 				.wrap_err_with(|| format!("in CLASS \"{}\"", name.as_str()))?,
-				static_object: unsafe { ObjectData::new(fields.size(true) as usize) },
-				cp: Arc::new(info.constant_pool),
-				fields,
-			}),
-			name: binary_name,
+			//static_object: unsafe { ObjectData::new(fields.size(true) as usize) },
+			fields: ObjectFieldLayout::new(&fields, false),
+			static_fields: ObjectFieldLayout::new(&fields, true),
+			cp: Arc::new(info.constant_pool),
 		})
-	}
-
-	//pub fn get_static(&self, field: Id<Field>) -> StackValue {
-	// 		let field = self.fields.get(field);
-	// 		unsafe {
-	// 			if !field.flags.contains(FieldAccessFlags::STATIC) {
-	// 				panic!("Field not static");
-	// 			}
-	// 			let field_ptr = self.static_object.ptr().add(field.offset as usize);
-	//
-	// 			StackValue::from_value(field.ty.read(field_ptr))
-	// 		}
-	// 	}
-	//
-	// 	pub fn set_static(&self, field: Id<Field>, value: StackValue) {
-	// 		let field = self.fields.get(field);
-	// 		unsafe {
-	// 			if !field.flags.contains(FieldAccessFlags::STATIC) {
-	// 				panic!("Field not static");
-	// 			}
-	// 			let value = field.ty.new_val(value);
-	// 			let field_ptr = self.static_object.ptr().add(field.offset as usize);
-	// 			field.ty.write(field_ptr, value);
-	// 		}
-	// 	}
-
-	pub fn size(&self) -> usize {
-		self.fields.size(false) as usize
-	}
-}
-
-// impl<'a> Runtime<'a> {
-// 	pub fn new_object(&self, class_id: Id<Class>) -> JResult<Object> {
-// 		todo!()
-// 		//let class = self.cl.get_obj_class(class_id);
-// //
-// 		//unsafe {
-// 		//	let reference = self.gc.write().unwrap().alloc(class_id, class.size(false));
-// 		//	Ok(Object { reference, class })
-// 		//}
-// 	}
-//
-// 	pub fn get_object(&self, class_id: Id<Class>, reference: Ref) -> JResult<Object> {
-// 		reference.assert_matching_class(class_id, self)?;
-// 		let class = self.cl.get_obj_class(class_id);
-// 		Ok(Object { reference, class })
-// 	}
-// }
-
-//
-// impl<'a> Deref for Object<'a> {
-// 	type Target = Ref;
-//
-// 	fn deref(&self) -> &Self::Target {
-// 		&self.reference
-// 	}
-// }
-
-impl Drop for ObjectClass {
-	fn drop(&mut self) {
-		unsafe {
-			// drop static class fields
-			dealloc(
-				self.static_object.ptr(),
-				ObjectData::layout(self.fields.size(true) as usize),
-			)
-		}
 	}
 }

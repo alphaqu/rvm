@@ -1,6 +1,5 @@
 pub use crate::value::reference::*;
-use mmtk::util::{Address, ObjectReference};
-use rvm_core::Kind;
+use rvm_core::{Kind, Reference};
 use std::ptr::{read, write};
 
 mod reference;
@@ -11,7 +10,7 @@ pub trait Value: Sized {
 	unsafe fn read(ptr: *mut u8) -> Self;
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum DynValue {
 	Byte(i8),
 	Short(i16),
@@ -21,7 +20,7 @@ pub enum DynValue {
 	Float(f32),
 	Double(f64),
 	Boolean(bool),
-	Ref(ObjectReference),
+	Ref(Reference),
 }
 
 macro_rules! impl_from {
@@ -53,7 +52,7 @@ impl_from!(u16, Char);
 impl_from!(f32, Float);
 impl_from!(f64, Double);
 impl_from!(bool, Boolean);
-impl_from!(ObjectReference, Ref);
+impl_from!(Reference, Ref);
 
 impl DynValue {
 	pub fn ty(&self) -> Kind {
@@ -66,7 +65,7 @@ impl DynValue {
 			DynValue::Float(_) => f32::ty(),
 			DynValue::Double(_) => f64::ty(),
 			DynValue::Boolean(_) => bool::ty(),
-			DynValue::Ref(_) => ObjectReference::ty(),
+			DynValue::Ref(_) => Reference::ty(),
 		}
 	}
 
@@ -80,7 +79,7 @@ impl DynValue {
 			DynValue::Float(v) => f32::write(ptr, v),
 			DynValue::Double(v) => f64::write(ptr, v),
 			DynValue::Boolean(v) => bool::write(ptr, v),
-			DynValue::Ref(v) => ObjectReference::write(ptr, v),
+			DynValue::Ref(v) => Reference::write(ptr, v),
 		}
 	}
 	pub unsafe fn read(ptr: *mut u8, kind: Kind) -> Self {
@@ -93,7 +92,7 @@ impl DynValue {
 			Kind::Float => DynValue::Float(f32::read(ptr)),
 			Kind::Double => DynValue::Double(f64::read(ptr)),
 			Kind::Boolean => DynValue::Boolean(bool::read(ptr)),
-			Kind::Reference => DynValue::Ref(ObjectReference::read(ptr)),
+			Kind::Reference => DynValue::Ref(Reference::read(ptr)),
 		}
 	}
 }
@@ -137,23 +136,21 @@ impl Value for bool {
 	}
 }
 
-impl Value for ObjectReference {
+impl Value for Reference {
 	fn ty() -> Kind {
 		Kind::Reference
 	}
 
 	unsafe fn write(ptr: *mut u8, value: Self) {
 		write_arr(ptr, {
-			let x: *mut u8 = value.to_raw_address().to_mut_ptr();
+			let x: *mut u8 = value.0;
 			let i = x as usize;
 			i.to_le_bytes()
 		})
 	}
 
 	unsafe fn read(ptr: *mut u8) -> Self {
-		ObjectReference::from_raw_address(Address::from_ptr(
-			usize::from_le_bytes(read_arr(ptr)) as *mut u8
-		))
+		Reference(usize::from_le_bytes(read_arr(ptr)) as *mut u8)
 	}
 }
 

@@ -1,8 +1,5 @@
 use rvm_core::{Id, Type};
-use std::marker::PhantomData;
 use std::mem::size_of;
-use std::ops::Deref;
-use crate::value::Ref;
 
 pub const ARRAY_BASE_OFFSET: usize = size_of::<i32>();
 

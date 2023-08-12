@@ -34,6 +34,10 @@ impl Kind {
         matches!(self, Kind::Double | Kind::Long)
     }
 
+    pub fn is_ref(&self) -> bool  {
+        matches!(self, Kind::Reference)
+    }
+
     pub fn is_floating(&self) -> bool  {
         matches!(self, Kind::Float | Kind::Double)
     }

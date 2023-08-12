@@ -1,17 +1,18 @@
-use crate::class::{Class, ClassKind, ObjectClass};
-use crate::{ArrayClass, MethodIdentifier, NativeCode};
-use ahash::AHashMap;
-use anyways::audit::Audit;
-use anyways::ext::AuditExt;
-use nom::error::{convert_error, dbg_dmp, Error, VerboseErrorKind};
-use parking_lot::lock_api::MappedRwLockReadGuard;
-use parking_lot::{RawRwLock, RwLock, RwLockReadGuard};
-use rvm_core::{Id, Kind, ObjectType, Storage, Type};
-use rvm_reader::{ClassInfo, IResult};
 use std::io::{Cursor, Read};
 use std::sync::Arc;
+
+use ahash::AHashMap;
+use anyways::ext::AuditExt;
+use nom::error::VerboseErrorKind;
+use parking_lot::lock_api::MappedRwLockReadGuard;
+use parking_lot::{RawRwLock, RwLock, RwLockReadGuard};
 use tracing::{debug, info, instrument, warn};
-use zip::result::ZipError;
+
+use rvm_core::{Id, Kind, Storage, Type};
+use rvm_reader::ClassInfo;
+
+use crate::class::{Class, ObjectClass};
+use crate::{ArrayClass, MethodIdentifier, NativeCode};
 
 pub struct ClassLoader {
 	classes: RwLock<Storage<Type, Class, Arc<Class>>>,
@@ -41,7 +42,7 @@ impl ClassLoader {
 			Some(value) => value,
 			None => {
 				info!("defining class {desc}");
-				let kind = match desc {
+				let class = match desc {
 					Type::Primitive(_) => {
 						panic!("primitive?!?!??!?!")
 					}
@@ -54,17 +55,11 @@ impl ClassLoader {
 							self.get_class_id(&value.component);
 						}
 
-						ClassKind::Array(ArrayClass::new(value.component.clone()))
+						Class::Array(ArrayClass::new((*value.component).clone()))
 					}
 				};
 
-				self.define(
-					desc.clone(),
-					Class {
-						name: desc.to_string(),
-						kind,
-					},
-				)
+				self.define(class)
 			}
 		}
 	}
@@ -111,17 +106,13 @@ impl ClassLoader {
 		};
 		let class = ObjectClass::parse(info)?;
 
-		debug!("Parsed class {}", class.name);
+		debug!("Parsed class {}", class.ty);
 
-		Ok(self.define(
-			Type::Object(ObjectType {
-				name: class.name.replace(".", "/"),
-			}),
-			class,
-		))
+		Ok(self.define(Class::Object(class)))
 	}
 
-	fn define(&self, ty: Type, class: Class) -> Id<Class> {
+	pub fn define(&self, class: Class) -> Id<Class> {
+		let ty = class.cloned_ty();
 		debug!("Inject and defining new class {ty:?}");
 		if self.classes.is_locked() {
 			warn!("Classes are locked");

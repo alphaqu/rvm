@@ -3,7 +3,7 @@ use rvm_core::Id;
 use std::fmt::Debug;
 
 pub type JResult<V> = Result<V, JError>;
-use rvm_object::{Class, ClassKind, Method, MethodData};
+use rvm_object::{Class, Method, MethodData};
 use std::fmt::Write;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -47,22 +47,23 @@ pub struct TraceEntry {
 impl TraceEntry {
 	fn fmt(&self, f: &mut String, runtime: &Runtime) -> std::fmt::Result {
 		let class = runtime.class_loader.get(self.class);
-		match &class.kind {
-			ClassKind::Object(object) => {
+
+		match &*class {
+			Class::Object(object) => {
 				let method = object.methods.get(self.method);
 				writeln!(
 					f,
 					"\tat {full_class_name}.{method_name}({class_name}.java:{line})",
-					full_class_name = class.name,
-					class_name = class.name,
+					full_class_name = object.ty,
+					class_name = object.ty,
 					method_name = method.name,
 					line = self.line,
 				)
 			}
-			ClassKind::Array(_) => {
+			Class::Array(_) => {
 				writeln!(f, "\tat array garbage")
 			}
-			ClassKind::Primitive(_) => {
+			Class::Primitive(_) => {
 				writeln!(f, "\tits executing inside a primitive lmao")
 			}
 		}

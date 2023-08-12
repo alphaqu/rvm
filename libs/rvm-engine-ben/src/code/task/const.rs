@@ -1,5 +1,6 @@
 use crate::thread::ThreadFrame;
 use crate::value::StackValue;
+use mmtk::util::ObjectReference;
 use rvm_object::ObjectClass;
 use rvm_reader::{ConstInst, ConstantInfo};
 #[derive(Debug)]
@@ -38,7 +39,7 @@ impl ConstTask {
 	pub fn exec(&self, frame: &mut ThreadFrame) {
 		match self {
 			ConstTask::Null => {
-				frame.push(StackValue::Reference(0));
+				frame.push(StackValue::Reference(ObjectReference::NULL));
 			}
 			ConstTask::Int(v) => frame.push(StackValue::Int(*v)),
 			ConstTask::Long(v) => frame.push(StackValue::Long(*v)),
