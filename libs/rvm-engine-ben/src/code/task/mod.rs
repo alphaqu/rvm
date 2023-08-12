@@ -1,4 +1,16 @@
+use std::fmt::{Display, Formatter};
+
+pub use combine::{CombineTask, CombineTaskOperation, CombineTaskType};
+pub use local::{LocalTask, LocalTaskKind};
+pub use r#const::ConstTask;
+pub use r#return::ReturnTask;
+use rvm_object::ObjectClass;
 use rvm_reader::{Inst, JumpInst, LocalInst, MathInst};
+
+use crate::code::task::call::CallTask;
+use crate::code::task::field::FieldTask;
+use crate::code::task::object::NewTask;
+use crate::code::task::stack::StackTask;
 
 mod call;
 mod combine;
@@ -9,16 +21,6 @@ mod local;
 mod object;
 mod r#return;
 mod stack;
-
-use crate::code::task::call::CallTask;
-use crate::code::task::field::FieldTask;
-use crate::code::task::object::NewTask;
-use crate::code::task::stack::StackTask;
-pub use combine::{CombineTask, CombineTaskOperation, CombineTaskType};
-pub use local::{LocalTask, LocalTaskKind};
-pub use r#const::ConstTask;
-pub use r#return::ReturnTask;
-use rvm_object::ObjectClass;
 
 #[derive(Debug)]
 pub enum Task {
@@ -34,6 +36,22 @@ pub enum Task {
 	Field(FieldTask),
 }
 
+impl Display for Task {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Task::Nop => write!(f, "NOP"),
+			Task::Const(v) => v.fmt(f),
+			Task::Combine(v) => v.fmt(f),
+			Task::Local(v) => v.fmt(f),
+			Task::Return(v) => v.fmt(f),
+			Task::Jump(v) => v.fmt(f),
+			Task::Call(v) => v.fmt(f),
+			Task::Stack(v) => v.fmt(f),
+			Task::New(v) => v.fmt(f),
+			Task::Field(v) => v.fmt(f),
+		}
+	}
+}
 impl Task {
 	pub fn new(inst: &Inst, class: &ObjectClass) -> Task {
 		match inst {

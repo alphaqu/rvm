@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use rvm_reader::StackInst;
 
 use crate::thread::ThreadFrame;
@@ -13,6 +14,12 @@ pub enum StackTask {
 	POP,
 	POP2,
 	SWAP,
+}
+
+impl Display for StackTask {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		write!(f, "{:?}", self)
+	}
 }
 
 impl StackTask {

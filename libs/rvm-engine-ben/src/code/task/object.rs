@@ -1,10 +1,17 @@
 use rvm_core::ObjectType;
 use rvm_object::ObjectClass;
 use rvm_reader::NewInst;
+use std::fmt::{Display, Formatter};
 
 #[derive(Debug)]
 pub struct NewTask {
 	pub class_name: ObjectType,
+}
+
+impl Display for NewTask {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		write!(f, "NEW {}", self.class_name)
+	}
 }
 
 impl NewTask {

@@ -2,6 +2,7 @@ use rvm_core::{ObjectType, Type};
 use rvm_object::{Class, Object, ObjectClass};
 use rvm_reader::{FieldInst, FieldInstKind};
 use rvm_runtime::Runtime;
+use std::fmt::{Display, Formatter};
 
 use crate::thread::ThreadFrame;
 use crate::value::StackValue;
@@ -12,6 +13,19 @@ pub struct FieldTask {
 	pub field_name: String,
 	pub instance: bool,
 	pub kind: FieldInstKind,
+}
+
+impl Display for FieldTask {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		match (self.kind, self.instance) {
+			(FieldInstKind::Get, true) => f.write_str("GETFIELD "),
+			(FieldInstKind::Get, false) => f.write_str("GETSTATIC "),
+			(FieldInstKind::Put, true) => f.write_str("PUTFIELD "),
+			(FieldInstKind::Put, false) => f.write_str("PUTSTATIC "),
+		}?;
+
+		write!(f, "{}.{}", self.source, self.field_name)
+	}
 }
 
 impl FieldTask {

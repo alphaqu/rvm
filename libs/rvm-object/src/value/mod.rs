@@ -20,7 +20,7 @@ pub enum DynValue {
 	Float(f32),
 	Double(f64),
 	Boolean(bool),
-	Ref(Reference),
+	Reference(Reference),
 }
 
 macro_rules! impl_from {
@@ -52,7 +52,7 @@ impl_from!(u16, Char);
 impl_from!(f32, Float);
 impl_from!(f64, Double);
 impl_from!(bool, Boolean);
-impl_from!(Reference, Ref);
+impl_from!(Reference, Reference);
 
 impl DynValue {
 	pub fn ty(&self) -> Kind {
@@ -65,7 +65,7 @@ impl DynValue {
 			DynValue::Float(_) => f32::ty(),
 			DynValue::Double(_) => f64::ty(),
 			DynValue::Boolean(_) => bool::ty(),
-			DynValue::Ref(_) => Reference::ty(),
+			DynValue::Reference(_) => Reference::ty(),
 		}
 	}
 
@@ -79,7 +79,7 @@ impl DynValue {
 			DynValue::Float(v) => f32::write(ptr, v),
 			DynValue::Double(v) => f64::write(ptr, v),
 			DynValue::Boolean(v) => bool::write(ptr, v),
-			DynValue::Ref(v) => Reference::write(ptr, v),
+			DynValue::Reference(v) => Reference::write(ptr, v),
 		}
 	}
 	pub unsafe fn read(ptr: *mut u8, kind: Kind) -> Self {
@@ -92,7 +92,7 @@ impl DynValue {
 			Kind::Float => DynValue::Float(f32::read(ptr)),
 			Kind::Double => DynValue::Double(f64::read(ptr)),
 			Kind::Boolean => DynValue::Boolean(bool::read(ptr)),
-			Kind::Reference => DynValue::Ref(Reference::read(ptr)),
+			Kind::Reference => DynValue::Reference(Reference::read(ptr)),
 		}
 	}
 }

@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use std::mem::transmute;
 
 use rvm_core::{Kind, Reference, StackKind};
@@ -11,6 +12,18 @@ pub enum StackValue {
 	Long(i64),
 	Double(f64),
 	Reference(Reference),
+}
+
+impl Display for StackValue {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		match self {
+			StackValue::Int(v) => write!(f, "i{v}"),
+			StackValue::Float(v) => write!(f, "f{v}"),
+			StackValue::Long(v) => write!(f, "l{v}"),
+			StackValue::Double(v) => write!(f, "d{v}"),
+			StackValue::Reference(v) => write!(f, "{v:?}"),
+		}
+	}
 }
 
 impl StackValue {
@@ -68,6 +81,7 @@ impl StackValue {
 			DynValue::Float(value) => StackValue::Float(value),
 			DynValue::Double(value) => StackValue::Double(value),
 			DynValue::Boolean(value) => StackValue::Int(value as u8 as i32),
+			DynValue::Reference(value) => StackValue::Reference(value),
 			_ => todo!(),
 		}
 	}
@@ -124,9 +138,7 @@ impl StackValue {
 			StackValue::Float(value) => DynValue::Float(value),
 			StackValue::Long(value) => DynValue::Long(value),
 			StackValue::Double(value) => DynValue::Double(value),
-			StackValue::Reference(value) => {
-				panic!()
-			}
+			StackValue::Reference(value) => DynValue::Reference(value),
 		}
 	}
 }
@@ -161,6 +173,21 @@ transmute_impl!(i16, u16);
 transmute_impl!(i32, u32);
 transmute_impl!(u16, u16);
 transmute_impl!(f32, u32);
+impl Local for Reference {
+	const V: usize = 2;
+
+	fn to_raw(self) -> [RawLocal; 2] {
+		let v: u64 = self.0 as usize as u64;
+		[RawLocal((v >> 32) as u32), RawLocal(v as u32)]
+	}
+
+	fn from_raw([v0, v1]: [RawLocal; 2]) -> Self {
+		unsafe {
+			let value = ((v0.0 as u64) << 32) | (v1.0 as u64);
+			Reference(value as usize as *mut u8)
+		}
+	}
+}
 
 impl Local for bool {
 	const V: usize = 1;

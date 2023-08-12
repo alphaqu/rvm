@@ -482,7 +482,7 @@ mod tests {
 			roots.roots.push(*parent);
 
 			let parent = parent.resolve(parent_class);
-			parent.put_dyn(parent_child, DynValue::Ref(*child));
+			parent.put_dyn(parent_child, DynValue::Reference(*child));
 			parent.put_dyn(parent_intimacy, DynValue::Int(6969));
 
 			let child = child.resolve(child_class);
@@ -502,7 +502,7 @@ mod tests {
 		assert_eq!(parent.get_dyn(parent_intimacy), DynValue::Int(6969));
 		let value = parent.get_dyn(parent_child);
 		let child_ref = match value {
-			DynValue::Ref(point) => point,
+			DynValue::Reference(point) => point,
 			_ => panic!("wrong type"),
 		};
 		let child_obj = Object::new(child_ref);
@@ -510,7 +510,7 @@ mod tests {
 		let child = child.resolve(child_class);
 		assert_eq!(child.get_dyn(child_iq), DynValue::Float(420.0));
 
-		parent.put_dyn(parent_child, DynValue::Ref(Reference::NULL));
+		parent.put_dyn(parent_child, DynValue::Reference(Reference::NULL));
 
 		let stats = gc.gc(&mut roots);
 		assert_eq!(stats.objects_remaining, 1);

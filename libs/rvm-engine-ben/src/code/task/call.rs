@@ -1,6 +1,7 @@
 use rvm_core::ObjectType;
 use rvm_object::{MethodIdentifier, ObjectClass};
 use rvm_reader::InvokeInst;
+use std::fmt::{Display, Formatter};
 
 #[derive(Debug)]
 
@@ -9,6 +10,11 @@ pub struct CallTask {
 	pub object: ObjectType,
 }
 
+impl Display for CallTask {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		write!(f, "call {:?}.{:?}()", self.object, self.method)
+	}
+}
 impl CallTask {
 	pub fn new(inst: &InvokeInst, class: &ObjectClass) -> CallTask {
 		let method = inst.value.get(&class.cp);

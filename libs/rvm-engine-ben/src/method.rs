@@ -1,11 +1,12 @@
 use crate::code::Task;
-use rvm_core::{Kind, StorageValue, Type};
+use rvm_core::{Kind, MethodAccessFlags, StorageValue, Type};
 use rvm_object::{Method, ObjectClass};
 use rvm_reader::Code;
 
 pub struct CompiledMethod {
 	pub max_locals: u16,
 	pub max_stack: u16,
+	pub flags: MethodAccessFlags,
 	pub tasks: Vec<Task>,
 	pub parameters: Vec<Type>,
 	pub returns: Option<Kind>,
@@ -16,6 +17,7 @@ impl CompiledMethod {
 		CompiledMethod {
 			max_locals: code.max_locals as u16,
 			max_stack: code.max_stack as u16,
+			flags: method.flags,
 			tasks: code
 				.instructions
 				.iter()

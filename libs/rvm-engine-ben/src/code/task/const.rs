@@ -3,6 +3,7 @@ use crate::value::StackValue;
 use rvm_core::Reference;
 use rvm_object::ObjectClass;
 use rvm_reader::{ConstInst, ConstantInfo};
+use std::fmt::{Display, Formatter};
 #[derive(Debug)]
 
 pub enum ConstTask {
@@ -11,6 +12,18 @@ pub enum ConstTask {
 	Long(i64),
 	Float(f32),
 	Double(f64),
+}
+
+impl Display for ConstTask {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		write!(f, "CONST {}", match self {
+			ConstTask::Null => "null".to_string(),
+			ConstTask::Int(v) => v.to_string(),
+			ConstTask::Long(v) => v.to_string(),
+			ConstTask::Float(v) => v.to_string(),
+			ConstTask::Double(v) => v.to_string(),
+		})
+	}
 }
 
 impl ConstTask {

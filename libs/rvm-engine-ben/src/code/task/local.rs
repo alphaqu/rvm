@@ -1,5 +1,6 @@
 use rvm_core::StackKind;
 use rvm_reader::LocalInst;
+use std::fmt::{Debug, Display, Formatter, Write};
 
 use crate::thread::ThreadFrame;
 use crate::value::StackValue;
@@ -10,8 +11,20 @@ pub struct LocalTask {
 	pub ty: StackKind,
 	pub idx: u16,
 }
-#[derive(Debug)]
 
+impl Display for LocalTask {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		match self.kind {
+			LocalTaskKind::Load => f.write_str("LOAD "),
+			LocalTaskKind::Store => f.write_str("STORE "),
+		}?;
+
+		write!(f, "{}", self.idx)?;
+		f.write_str(": ")?;
+		write!(f, "{}", self.ty)
+	}
+}
+#[derive(Debug)]
 pub enum LocalTaskKind {
 	Load,
 	Store,
@@ -38,8 +51,15 @@ impl LocalTask {
 
 		match self.kind {
 			LocalTaskKind::Load => {
-				let value = frame.load_dyn(idx, self.ty);
-				frame.push(value);
+				let stack_value = frame.load(idx);
+				if stack_value.kind() != self.ty {
+					panic!(
+						"Expected stack value {:?} but got {:?}",
+						self.ty,
+						stack_value.kind()
+					)
+				}
+				frame.push(stack_value);
 			}
 			LocalTaskKind::Store => {
 				let value = frame.pop();
@@ -51,7 +71,7 @@ impl LocalTask {
 					)
 				}
 
-				frame.store_dyn(idx, value);
+				frame.store(idx, value);
 			}
 		}
 	}

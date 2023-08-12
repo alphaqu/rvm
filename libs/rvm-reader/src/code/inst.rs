@@ -1,6 +1,7 @@
 use nom::combinator::map;
 use nom::number::complete::{be_i16, be_i32, be_i8, be_u16, be_u8};
 use nom::sequence::tuple;
+use std::fmt::{Display, Formatter};
 use tracing::trace;
 
 use rvm_core::{Kind, Op, PrimitiveType, StackKind};
@@ -15,10 +16,7 @@ pub enum ConstInst {
 	Long(i64),
 	Float(f32),
 	Double(f64),
-	Ldc {
-		id: u16,
-		cat2: bool,
-	},
+	Ldc { id: u16, cat2: bool },
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -96,6 +94,11 @@ pub struct JumpInst {
 	pub offset: i32,
 	pub kind: JumpKind,
 }
+impl Display for JumpInst {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		write!(f, "{:?} -> {}", self.kind, self.offset)
+	}
+}
 
 #[derive(Copy, Clone, Debug)]
 pub enum JumpKind {
@@ -121,23 +124,23 @@ pub enum JumpKind {
 impl JumpKind {
 	pub fn args(&self) -> u32 {
 		match self {
-			JumpKind::IF_ACMPEQ |
-			JumpKind::IF_ACMPNE |
-			JumpKind::IF_ICMPEQ |
-			JumpKind::IF_ICMPNE |
-			JumpKind::IF_ICMPLT |
-			JumpKind::IF_ICMPGE |
-			JumpKind::IF_ICMPGT |
-			JumpKind::IF_ICMPLE => 2,
-			JumpKind::IFEQ |
-			JumpKind::IFNE |
-			JumpKind::IFLT |
-			JumpKind::IFGE |
-			JumpKind::IFGT |
-			JumpKind::IFLE |
-			JumpKind::IFNONNULL |
-			JumpKind::IFNULL => 1,
-			JumpKind::GOTO => 0 ,
+			JumpKind::IF_ACMPEQ
+			| JumpKind::IF_ACMPNE
+			| JumpKind::IF_ICMPEQ
+			| JumpKind::IF_ICMPNE
+			| JumpKind::IF_ICMPLT
+			| JumpKind::IF_ICMPGE
+			| JumpKind::IF_ICMPGT
+			| JumpKind::IF_ICMPLE => 2,
+			JumpKind::IFEQ
+			| JumpKind::IFNE
+			| JumpKind::IFLT
+			| JumpKind::IFGE
+			| JumpKind::IFGT
+			| JumpKind::IFLE
+			| JumpKind::IFNONNULL
+			| JumpKind::IFNULL => 1,
+			JumpKind::GOTO => 0,
 		}
 	}
 	pub fn is_conditional(&self) -> bool {
@@ -717,18 +720,24 @@ impl Inst {
 				Inst::Local(LocalInst::Increment(v1 as i16, v0 as u16))
 			})(input)?,
 			// ConstantPool Loading
-			Op::LDC => map(be_u8, |v| Inst::Const(ConstInst::Ldc {
-				id: v as u16,
-				cat2: false
-			}))(input)?,
-			Op::LDC_W => map(be_u16, |v| Inst::Const(ConstInst::Ldc {
-				id: v as u16,
-				cat2: false
-			}))(input)?,
-			Op::LDC2_W => map(be_u16, |v| Inst::Const(ConstInst::Ldc {
-				id: v as u16,
-				cat2: true
-			}))(input)?,
+			Op::LDC => map(be_u8, |v| {
+				Inst::Const(ConstInst::Ldc {
+					id: v as u16,
+					cat2: false,
+				})
+			})(input)?,
+			Op::LDC_W => map(be_u16, |v| {
+				Inst::Const(ConstInst::Ldc {
+					id: v as u16,
+					cat2: false,
+				})
+			})(input)?,
+			Op::LDC2_W => map(be_u16, |v| {
+				Inst::Const(ConstInst::Ldc {
+					id: v as u16,
+					cat2: true,
+				})
+			})(input)?,
 			// Misc
 			Op::NEW => map(be_cp, |v| Inst::New(NewInst { class: v }))(input)?,
 			Op::ATHROW => (input, Inst::Throw(ThrowInst {})),

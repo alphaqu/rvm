@@ -3,7 +3,7 @@ use crate::method::CompiledMethod;
 use crate::thread::{ThreadFrame, ThreadStack};
 use crate::value::StackValue;
 use crate::BenEngine;
-use rvm_core::{Kind, ObjectType, Op, Reference, StackKind, Type};
+use rvm_core::{Kind, MethodAccessFlags, ObjectType, Op, Reference, StackKind, Type};
 use rvm_object::{DynValue, MethodIdentifier};
 use rvm_reader::JumpKind;
 use rvm_runtime::Runtime;
@@ -34,10 +34,19 @@ impl<'a> Executor<'a> {
 			.engine
 			.get_compiled_method(self.runtime, ty.clone(), method.clone());
 
-		let mut frame = self.stack.create(method.max_stack, method.max_locals);
+		let is_static = method.flags.contains(MethodAccessFlags::STATIC);
+		let mut frame = self.stack.create(method.max_stack, method.max_locals * 2);
+
 		for (i, ty) in method.parameters.iter().enumerate().rev() {
 			let value = parameter_getter();
-			frame.store_dyn(i as u16, StackValue::from_dyn(value));
+			frame.store(
+				if is_static { i } else { i + 1 } as u16,
+				StackValue::from_dyn(value),
+			);
+		}
+
+		if !is_static {
+			frame.store(0, StackValue::from_dyn(parameter_getter()));
 		}
 
 		ExecutorFrame {
@@ -61,8 +70,16 @@ impl<'a> Executor<'a> {
 			let method = &exec_frame.method;
 			let frame = &mut exec_frame.frame;
 			loop {
+				let mut stack_values = Vec::new();
+				let mut local_values = Vec::new();
+				for i in 0..frame.stack_pos {
+					stack_values.push(format!("{}", frame.get_stack_value(i)));
+				}
+				for i in 0..frame.local_size {
+					local_values.push(format!("{}", frame.load(i)));
+				}
 				let task = &method.tasks[exec_frame.cursor];
-				trace!("{task:?}");
+				trace!(target: "exe", "s[{}] l[{}] {task}", stack_values.join(","), local_values.join(","));
 
 				match task {
 					Task::New(object) => {
@@ -71,9 +88,13 @@ impl<'a> Executor<'a> {
 							.class_loader
 							.get_class_id(&Type::Object(object.class_name.clone()));
 
-						todo!();
-						//let reference = self.runtime.arena.alloc(id, &self.runtime.class_loader);
-						//frame.push(StackValue::Reference(reference));
+						let class = self.runtime.class_loader.get(id);
+						let object = class.object().unwrap();
+						unsafe {
+							let object =
+								self.runtime.gc.lock().allocate_object(id, object).unwrap();
+							frame.push(StackValue::Reference(*object));
+						}
 					}
 					Task::Call(task) => {
 						// When we first call, the output will be None, it will push a frame onto the stack and start running that method.

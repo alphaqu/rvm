@@ -1,5 +1,5 @@
 use crate::value::{Local, RawLocal, StackValue};
-use rvm_core::{Kind, StackKind};
+use rvm_core::{Kind, Reference, StackKind};
 use rvm_object::DynValue;
 use stackalloc::alloca_zeroed;
 use std::mem::{size_of, transmute};
@@ -11,7 +11,7 @@ pub const FRAME_HEADER_SIZE: usize = size_of::<u16>() + size_of::<u16>() + size_
 pub struct Frame {
 	pub(crate) stack_size: u16,
 	pub(crate) local_size: u16,
-	stack_pos: u16,
+	pub(crate) stack_pos: u16,
 	data: [u8],
 }
 
@@ -28,33 +28,40 @@ impl Frame {
 	pub const fn get_size(stack_size: u16, local_size: u16) -> usize {
 		FRAME_HEADER_SIZE
 			+ (stack_size as usize * size_of::<StackValue>())
-			+ (local_size as usize * size_of::<RawLocal>())
+			+ (local_size as usize * size_of::<StackValue>())
 	}
 
 	pub fn size(&self) -> usize {
 		Self::get_size(self.stack_size, self.local_size)
 	}
 
-	pub fn get_stack(&mut self) -> *mut StackValue {
+	pub fn get_stack_mut(&mut self) -> *mut StackValue {
 		unsafe {
 			let ptr = (&mut self.data) as *mut [u8] as *mut u8;
-			transmute(ptr.add(self.local_size as usize * size_of::<RawLocal>()))
+			transmute(ptr.add(self.local_size as usize * size_of::<StackValue>()))
+		}
+	}
+
+	pub fn get_stack(&self) -> *const StackValue {
+		unsafe {
+			let ptr = (&self.data) as *const [u8] as *const u8;
+			transmute(ptr.add(self.local_size as usize * size_of::<StackValue>()))
 		}
 	}
 
 	// Locals
-	pub fn get_local_table(&mut self) -> *mut RawLocal {
+	pub fn get_local_table(&mut self) -> *mut StackValue {
 		unsafe { transmute((&mut self.data) as *mut [u8] as *mut u8) }
 	}
 
-	pub fn store_raw(&mut self, idx: u16, value: RawLocal) {
+	pub fn store_raw(&mut self, idx: u16, value: StackValue) {
 		if idx >= self.local_size {
 			panic!("Local out of bounds {idx} >= {}", self.local_size)
 		}
 		unsafe { self.get_local_table().add(idx as usize).write(value) }
 	}
 
-	pub fn load_raw(&mut self, idx: u16) -> RawLocal {
+	pub fn load_raw(&mut self, idx: u16) -> StackValue {
 		if idx >= self.local_size {
 			panic!("Local out of bounds {idx} >= {}", self.local_size)
 		}
@@ -62,54 +69,40 @@ impl Frame {
 		unsafe { self.get_local_table().add(idx as usize).read() }
 	}
 
-	pub fn store_dyn(&mut self, idx: u16, value: StackValue) {
-		match value {
-			StackValue::Int(v) => self.store(idx, v),
-			StackValue::Long(v) => self.store(idx, v),
-			StackValue::Float(v) => self.store(idx, v),
-			StackValue::Double(v) => self.store(idx, v),
-			//DynValue::Ref(v) => self.store(idx, v),
-			_ => todo!(),
+	pub fn store(&mut self, idx: u16, value: StackValue) {
+		if idx >= self.local_size {
+			panic!("Local {} out of bounds > {}", idx, self.local_size);
+		}
+		unsafe {
+			self.get_local_table().add(idx as usize).write(value);
 		}
 	}
 
-	pub fn load_dyn(&mut self, idx: u16, kind: StackKind) -> StackValue {
-		match kind {
-			StackKind::Int => StackValue::Int(self.load::<i32>(idx)),
-			StackKind::Long => StackValue::Long(self.load::<i64>(idx)),
-			StackKind::Float => StackValue::Float(self.load::<f32>(idx)),
-			StackKind::Double => StackValue::Double(self.load::<f64>(idx)),
-			_ => todo!(),
+	pub fn load(&mut self, idx: u16) -> StackValue {
+		if idx >= self.local_size {
+			panic!("Local {} out of bounds > {}", idx, self.local_size);
 		}
-	}
-
-	pub fn store<L: Local>(&mut self, idx: u16, value: L)
-	where
-		[RawLocal; L::V]: Sized,
-	{
-		let data = value.to_raw();
-		for i in 0..L::V {
-			self.store_raw(i as u16 + idx, data[i])
-		}
-	}
-
-	pub fn load<L: Local>(&mut self, idx: u16) -> L
-	where
-		[RawLocal; L::V]: Sized,
-	{
-		L::from_raw(std::array::from_fn::<RawLocal, { L::V }, _>(|i| {
-			self.load_raw(i as u16 + idx)
-		}))
+		unsafe { self.get_local_table().add(idx as usize).read() }
 	}
 
 	// Stack
+	pub fn get_stack_value(&self, index: u16) -> StackValue {
+		if index >= self.stack_size {
+			panic!("Stack overflow {} >= {}", index, self.stack_size)
+		}
+
+		unsafe { self.get_stack().add(index as usize).read() }
+	}
+
 	pub fn push(&mut self, value: StackValue) {
 		if self.stack_pos >= self.stack_size {
 			panic!("Stack overflow {} >= {}", self.stack_pos, self.stack_size)
 		}
 
 		unsafe {
-			self.get_stack().add(self.stack_pos as usize).write(value);
+			self.get_stack_mut()
+				.add(self.stack_pos as usize)
+				.write(value);
 		}
 
 		self.stack_pos += 1;
@@ -121,6 +114,6 @@ impl Frame {
 		}
 		self.stack_pos -= 1;
 
-		unsafe { self.get_stack().add(self.stack_pos as usize).read() }
+		unsafe { self.get_stack_mut().add(self.stack_pos as usize).read() }
 	}
 }

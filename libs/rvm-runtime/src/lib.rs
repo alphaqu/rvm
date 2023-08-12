@@ -11,6 +11,7 @@ use std::pin::Pin;
 
 use either::Either;
 use lazy_static::lazy_static;
+use parking_lot::Mutex;
 use rvm_core::{ObjectType, Type};
 use rvm_object::{Class, ClassLoader, MethodCode, MethodIdentifier};
 use tracing::info;
@@ -37,7 +38,7 @@ mod thread;
 pub struct Runtime {
 	pub class_loader: ClassLoader,
 	pub engine: Box<dyn Engine>,
-	pub gc: GarbageCollector,
+	pub gc: Mutex<GarbageCollector>,
 }
 
 impl Runtime {
@@ -45,7 +46,7 @@ impl Runtime {
 		Runtime {
 			class_loader: ClassLoader::new(),
 			engine,
-			gc: GarbageCollector::new(heap_size),
+			gc: Mutex::new(GarbageCollector::new(heap_size)),
 		}
 	}
 

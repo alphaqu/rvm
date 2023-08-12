@@ -10,11 +10,11 @@ public class ObjectTest {
 	}
 
 	public static int simpleTest(int value) {
-		ObjectTest objectTest = new ObjectTest(value);
-		return objectTest.value;
+		return ObjectTest.simpleTestObject(value);
 	}
 
-	public static ObjectTest simpleTestObject(int value) {
-		return new ObjectTest(value);
+	public static int simpleTestObject(int value) {
+	    ObjectTest object =  new ObjectTest(value);
+		return object.value;
 	}
 }
