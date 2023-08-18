@@ -21,6 +21,12 @@ public class ObjectTest {
 	}
 
 	public static int gcTest(int value) {
+		for (int i = 0; i < 2; i++) {
+			if (i == 1) {
+				return value;
+			}
+		}
+
 		ObjectTest objectTest1 = new ObjectTest(value, null);
 
 		for (int i = 0; i < value; i = i + 1) {

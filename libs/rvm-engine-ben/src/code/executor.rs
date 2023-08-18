@@ -232,6 +232,13 @@ impl<'a> Executor<'a> {
 					}
 					Task::Stack(task) => task.exec(frame),
 					Task::Field(task) => task.exec(&self.runtime, frame),
+					Task::Increment(task) => {
+						let value = frame.load(task.local);
+						frame.store(
+							task.local,
+							StackValue::Int(value.to_int() + task.increment as i32),
+						);
+					}
 				};
 
 				gc_attempts = 0;

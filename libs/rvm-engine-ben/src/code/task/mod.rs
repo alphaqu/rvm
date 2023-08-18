@@ -9,6 +9,7 @@ use rvm_reader::{Inst, JumpInst, LocalInst, MathInst};
 
 use crate::code::task::call::CallTask;
 use crate::code::task::field::FieldTask;
+use crate::code::task::increment::IncrementTask;
 use crate::code::task::object::NewTask;
 use crate::code::task::stack::StackTask;
 
@@ -21,6 +22,7 @@ mod local;
 mod object;
 mod r#return;
 mod stack;
+mod increment;
 
 #[derive(Debug)]
 pub enum Task {
@@ -28,6 +30,7 @@ pub enum Task {
 	Const(ConstTask),
 	Combine(CombineTask),
 	Local(LocalTask),
+	Increment(IncrementTask),
 	Return(ReturnTask),
 	Jump(JumpInst),
 	Call(CallTask),
@@ -49,6 +52,7 @@ impl Display for Task {
 			Task::Stack(v) => v.fmt(f),
 			Task::New(v) => v.fmt(f),
 			Task::Field(v) => v.fmt(f),
+			Task::Increment(v) => v.fmt(f)
 		}
 	}
 }
@@ -72,6 +76,12 @@ impl Task {
 			) => Task::Combine(CombineTask::new(math)),
 			Inst::Local(local @ (LocalInst::Load(_, _) | LocalInst::Store(_, _))) => {
 				Task::Local(LocalTask::new(local))
+			}
+			Inst::Local(LocalInst::Increment(amount, local)) => {
+				Task::Increment(IncrementTask {
+					local: *local,
+					increment: *amount,
+				})
 			}
 			Inst::Invoke(inst) => Task::Call(CallTask::new(inst, class)),
 			Inst::Return(ret) => Task::Return(ReturnTask::new(ret)),
