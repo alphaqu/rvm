@@ -4,16 +4,19 @@ use crate::thread::{ThreadFrame, ThreadStack};
 use crate::value::StackValue;
 use crate::BenEngine;
 use rvm_core::{Kind, MethodAccessFlags, ObjectType, Op, Reference, StackKind, Type};
-use rvm_object::{DynValue, MethodIdentifier};
+use rvm_object::{AnyClassObject, DynValue, MethodIdentifier};
 use rvm_reader::JumpKind;
+use rvm_runtime::engine::Thread;
+use rvm_runtime::gc::{AllocationError, GcMarker, GcSweeper, RootProvider};
 use rvm_runtime::Runtime;
 use std::sync::Arc;
-use tracing::{debug, trace};
+use tracing::{debug, info, trace};
 
 pub struct Executor<'a> {
+	pub thread: Thread,
 	pub stack: &'a mut ThreadStack,
 	pub engine: Arc<BenEngine>,
-	pub runtime: &'a Runtime,
+	pub runtime: Arc<Runtime>,
 }
 
 pub struct ExecutorFrame<'a> {
@@ -32,10 +35,10 @@ impl<'a> Executor<'a> {
 		debug!("Creating frame for {ty:?} {method:?}");
 		let method = self
 			.engine
-			.get_compiled_method(self.runtime, ty.clone(), method.clone());
+			.get_compiled_method(&self.runtime, ty.clone(), method.clone());
 
 		let is_static = method.flags.contains(MethodAccessFlags::STATIC);
-		let mut frame = self.stack.create(method.max_stack, method.max_locals * 2);
+		let mut frame = self.stack.create(method.max_stack, method.max_locals);
 
 		for (i, ty) in method.parameters.iter().enumerate().rev() {
 			let value = parameter_getter();
@@ -65,11 +68,15 @@ impl<'a> Executor<'a> {
 			parameters.pop().expect("Not enough parameters")
 		})];
 		let mut output: Option<Option<(StackValue, Kind)>> = None;
+
+		let mut gc_attempts = 0;
 		// We look at the last frame which is the currently running one.
 		while let Some(exec_frame) = frames.last_mut() {
 			let method = &exec_frame.method;
 			let frame = &mut exec_frame.frame;
 			loop {
+				GcSweeper::yield_gc(&mut self);
+
 				let mut stack_values = Vec::new();
 				let mut local_values = Vec::new();
 				for i in 0..frame.stack_pos {
@@ -91,9 +98,27 @@ impl<'a> Executor<'a> {
 						let class = self.runtime.class_loader.get(id);
 						let object = class.object().unwrap();
 						unsafe {
-							let object =
-								self.runtime.gc.lock().allocate_object(id, object).unwrap();
-							frame.push(StackValue::Reference(*object));
+							let result = self.runtime.gc.lock().allocate_object(id, object);
+
+							match result {
+								Ok(object) => {
+									frame.push(StackValue::Reference(*object));
+								}
+								Err(AllocationError::OutOfHeap) => {
+									gc_attempts += 1;
+									if gc_attempts > 5 {
+										panic!("No more memory");
+									}
+									Runtime::gc(self.runtime.clone());
+									GcSweeper::wait_until_gc(&mut self);
+									trace!("Forcing gc, and trying again.");
+									// try this instruction again, if we fail 5 time, we blow up.
+									continue;
+								}
+								value => {
+									value.unwrap();
+								}
+							}
 						}
 					}
 					Task::Call(task) => {
@@ -206,9 +231,10 @@ impl<'a> Executor<'a> {
 						}
 					}
 					Task::Stack(task) => task.exec(frame),
-					Task::Field(task) => task.exec(self.runtime, frame),
+					Task::Field(task) => task.exec(&self.runtime, frame),
 				};
 
+				gc_attempts = 0;
 				exec_frame.cursor += 1;
 			}
 		}
@@ -217,5 +243,43 @@ impl<'a> Executor<'a> {
 			Some((value, kind)) => value.convert(kind),
 			None => None,
 		}
+	}
+}
+
+impl<'a> RootProvider for Executor<'a> {
+	fn mark_roots(&mut self, mut visitor: GcMarker) {
+		self.stack.visit_frames_mut(|frame| {
+			for i in 0..frame.stack_pos {
+				if let StackValue::Reference(reference) = frame.get_stack_value(i) {
+					visitor.mark(reference);
+				}
+			}
+
+			for i in 0..frame.local_size {
+				if let StackValue::Reference(reference) = frame.load(i) {
+					visitor.mark(reference);
+				}
+			}
+		});
+	}
+
+	fn remap_roots(&mut self, mut mapper: impl FnMut(Reference) -> Reference) {
+		self.stack.visit_frames_mut(|frame| {
+			for i in 0..frame.stack_pos {
+				if let StackValue::Reference(reference) = frame.get_stack_value(i) {
+					frame.set_stack_value(i, StackValue::Reference(mapper(reference)));
+				}
+			}
+
+			for i in 0..frame.local_size {
+				if let StackValue::Reference(reference) = frame.load(i) {
+					frame.store(i, StackValue::Reference(reference));
+				}
+			}
+		});
+	}
+
+	fn sweeper(&mut self) -> &mut GcSweeper {
+		&mut self.thread.gc
 	}
 }

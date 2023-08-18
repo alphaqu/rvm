@@ -3,7 +3,7 @@ use rvm_runtime::java_bind_method;
 
 #[test]
 fn new_test() {
-	launch(|runtime| {
+	launch(32 * 1024 * 1024, |runtime| {
 		compile(
 			&runtime,
 			&[("ObjectTest.java", include_str!("ObjectTest.java"))],
@@ -20,5 +20,27 @@ fn new_test() {
 		let java = java_bind_method!(runtime fn ObjectTest.simpleTest(value: i32) -> i32);
 		let i = java(69);
 		assert_eq!(i, 69)
+	})
+}
+
+#[test]
+fn gc_test() {
+	launch(1024 * 4, |runtime| {
+		compile(
+			&runtime,
+			&[("ObjectTest.java", include_str!("ObjectTest.java"))],
+		)
+		.unwrap();
+
+		runtime
+			.class_loader
+			.load_jar(include_bytes!("../../../../../rt.zip"), |v| {
+				v == "java/lang/Object.class"
+			})
+			.unwrap();
+
+		let java = java_bind_method!(runtime fn ObjectTest.gcTest(value: i32) -> i32);
+		let i = java(64);
+		assert_eq!(i, 64)
 	})
 }

@@ -1,3 +1,5 @@
+use crossbeam::channel::Receiver;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
 use rvm_core::ObjectType;
@@ -17,56 +19,50 @@ use crate::BenEngine;
 mod frame;
 mod stack;
 
-pub struct Thread<'r> {
-	config: Arc<ThreadConfig>,
+pub fn spawn(
+	runtime: Arc<Runtime>,
+	config: ThreadConfig,
+	size: usize,
 	engine: Arc<BenEngine>,
-	runtime: &'r Runtime,
-}
+) -> ThreadHandle {
+	ThreadHandle::new(runtime.clone(), config, move |thread| {
+		let mut out = None;
 
-impl<'r> Thread<'r> {
-	pub fn spawn(
-		runtime: Arc<Runtime>,
-		config: ThreadConfig,
-		size: usize,
-		engine: Arc<BenEngine>,
-	) -> ThreadHandle {
-		ThreadHandle::new(config, move |config, receiver| {
-			let mut out = None;
+		let config = thread.config.clone();
+		ThreadStack::new(size, |stack| {
+			let span = span!(Level::DEBUG, "vm-thread");
+			let _enter = span.enter();
 
-			ThreadStack::new(size, |stack| {
-				let span = span!(Level::DEBUG, "vm-thread");
-				let _enter = span.enter();
+			loop {
+				if let Ok(command) = thread.receiver.recv() {
+					match command {
+						ThreadCommand::Run {
+							ty,
+							method,
+							parameters,
+						} => {
+							debug!("Running {ty:?} {method:?}");
 
-				loop {
-					if let Ok(command) = receiver.recv() {
-						match command {
-							ThreadCommand::Run {
-								ty,
-								method,
-								parameters,
-							} => {
-								debug!("Running {ty:?} {method:?}");
+							let executor = Executor {
+								thread,
+								stack,
+								engine,
+								runtime: runtime,
+							};
 
-								let executor = Executor {
-									stack,
-									engine,
-									runtime: &runtime,
-								};
-
-								out = executor.execute(&ty, &method, parameters);
-								return;
-							}
-							ThreadCommand::Exit => {
-								return;
-							}
+							out = executor.execute(&ty, &method, parameters);
+							return;
+						}
+						ThreadCommand::Exit => {
+							return;
 						}
 					}
 				}
+			}
 
-				debug!("{:?}: Finished", config.name);
-			});
+			debug!("{:?}: Finished", config.name);
+		});
 
-			out
-		})
-	}
+		out
+	})
 }

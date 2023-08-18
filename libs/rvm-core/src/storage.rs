@@ -1,8 +1,8 @@
-use ahash::{HashMap, HashMapExt};
 use num_traits::ToPrimitive;
 use num_traits::{NumCast, PrimInt};
 use std::borrow::Borrow;
 use std::cmp::Ordering;
+use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
@@ -68,11 +68,13 @@ impl<K: Hash + Eq + Debug, V: StorageValue, O> Storage<K, V, O> {
 	}
 
 	pub fn get(&self, id: Id<V>) -> &O {
-		unsafe { self.values.get_unchecked(id.0.to_usize().unwrap() - 1) }
+		&self.values[id.0.to_usize().unwrap() - 1]
+		//unsafe { self.values.get_unchecked(id.0.to_usize().unwrap() - 1) }
 	}
 
 	pub fn get_mut(&mut self, id: Id<V>) -> &mut O {
-		unsafe { self.values.get_unchecked_mut(id.0.to_usize().unwrap() - 1) }
+		&mut self.values[id.0.to_usize().unwrap() - 1]
+		//unsafe { self.values.get_unchecked_mut(id.0.to_usize().unwrap() - 1) }
 	}
 
 	pub fn iter(&self) -> &[O] {

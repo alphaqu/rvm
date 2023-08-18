@@ -8,6 +8,8 @@
 use std::any::Any;
 use std::ffi::c_void;
 use std::pin::Pin;
+use std::sync::Arc;
+use std::thread::spawn;
 
 use either::Either;
 use lazy_static::lazy_static;
@@ -24,7 +26,7 @@ pub mod prelude;
 
 pub mod arena;
 pub mod engine;
-mod gc;
+pub mod gc;
 #[cfg(feature = "native")]
 pub mod native;
 mod thread;
@@ -48,6 +50,13 @@ impl Runtime {
 			engine,
 			gc: Mutex::new(GarbageCollector::new(heap_size)),
 		}
+	}
+	
+	pub fn gc(runtime: Arc<Runtime>) {
+		spawn(move || {
+			let mut gc = runtime.gc.lock();
+			gc.gc();
+		});
 	}
 
 	// /// Compiles a method with a given identifier. Uses the mapping in [`java!`]

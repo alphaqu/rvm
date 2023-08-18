@@ -1,16 +1,23 @@
 use std::alloc::{alloc_zeroed, Layout};
+use std::cell::UnsafeCell;
+use std::fs::write;
 use std::ptr::copy;
+use std::thread::spawn;
 
 use tracing::{debug, trace};
 
+use crate::gc::sweep::{new_sweeper, GcSweeperHandle};
+pub use crate::gc::sweep::{GcMarker, GcSweeper};
 pub use object::{GcHeader, ObjectFlags, ObjectSize, OBJECT_HEADER};
 use rvm_core::{Id, Reference, ReferenceKind};
 use rvm_object::{AnyClassObject, Class, Object, ObjectClass};
 
 mod object;
+mod sweep;
 
-pub const OBJECT_ALIGNMENT: usize = 32;
+pub const OBJECT_ALIGNMENT: usize = 8;
 pub struct GarbageCollector {
+	handles: Vec<GcSweeperHandle>,
 	mark: bool,
 	size: usize,
 	objects: usize,
@@ -21,9 +28,11 @@ pub struct GarbageCollector {
 unsafe impl Sync for GarbageCollector {}
 unsafe impl Send for GarbageCollector {}
 pub trait RootProvider {
-	fn visit_roots(&mut self, visitor: impl FnMut(Reference));
+	fn mark_roots(&mut self, marker: GcMarker);
 
 	fn remap_roots(&mut self, mapper: impl FnMut(Reference) -> Reference);
+
+	fn sweeper(&mut self) -> &mut GcSweeper;
 }
 
 impl GarbageCollector {
@@ -32,28 +41,65 @@ impl GarbageCollector {
 		let data = unsafe { alloc_zeroed(layout) };
 
 		GarbageCollector {
+			handles: vec![],
 			mark: false,
-			size: size * 8,
+			size,
 			objects: 0,
 			free: data,
 			data,
 		}
 	}
 
-	pub fn gc(&mut self, roots: &mut impl RootProvider) -> GCStatistics {
+	pub fn new_sweeper(&mut self) -> GcSweeper {
+		let (handle, sweeper) = new_sweeper();
+		self.handles.push(handle);
+		sweeper
+	}
+
+	pub(super) fn gc(&mut self) -> GCStatistics {
 		debug!("Starting garbage collection");
+
+		// Stops all threads
+		debug!("Stopping threads");
+		for handle in &self.handles {
+			handle.start(!self.mark);
+		}
+
 		self.mark = !self.mark;
 
-		// Visit all of the objects, and mark them as visitable.
-		roots.visit_roots(|pointer| {
-			self.visit_pointer(pointer);
+		// Makes all threads start marking
+		debug!("Marking threads");
+		for handle in &self.handles {
+			handle.start_marking();
+		}
+
+		use std::fmt::Write;
+		let mut build = String::new();
+		let mut gc_mark = self.mark;
+		self.walk(|mark, reference| {
+			if mark == gc_mark {
+				writeln!(&mut build, "x{} [color=green]", reference.0 as usize,).unwrap();
+			} else {
+				writeln!(&mut build, "x{} [color=gray]", reference.0 as usize,).unwrap();
+			}
+			Object::new(reference).visit_refs(|r| {
+				if r.is_null() {
+					return;
+				}
+				writeln!(&mut build, "x{} -> x{}", reference.0 as usize, r.0 as usize).unwrap();
+			});
 		});
 
+		//// Visit all of the objects, and mark them as visitable.
+		//roots.mark_roots(GcMarker { mark: self.mark });
+
+		debug!("Calculating targets");
 		// Go through all objects, and find the location where the object will soon be moved to,
 		// we store this in the forward field in the object so we can move references in step 3.
 		let mut new_free = self.data;
 		let mut alive_objects = 0;
 		self.walk_alive(|pointer| unsafe {
+			writeln!(&mut build, "root -> x{}", pointer.0 as usize).unwrap();
 			alive_objects += 1;
 
 			// Set the forward field to the soon to be the new object location.
@@ -66,25 +112,24 @@ impl GarbageCollector {
 			let object_size = (*obj).size as usize + OBJECT_HEADER;
 			new_free = new_free.add(align_size(object_size));
 		});
+		write(format!("./out{}.txt", self.objects), build).unwrap();
 
+		debug!("Moving roots");
 		// Update all of the object edges to the new object locations.
-		let ref_remapper = |reference: Reference| unsafe {
-			if reference.is_null() {
-				return Reference::NULL;
-			}
-
-			let obj = ref_to_header(reference);
-			let new = (*obj).forward;
-			trace!("Moving {:?} to {:?}", obj as *mut u8, new as *mut u8);
-			header_to_ref(new as *mut GcHeader)
-		};
-		roots.remap_roots(ref_remapper);
-		self.walk_alive(|pointer| unsafe {
+		// Moves all of the roots to their soon to be new location
+		for handle in &self.handles {
+			handle.move_roots();
+		}
+		//roots.remap_roots(|r| unsafe { move_reference(r) });
+		// Move all of the objects children to their new location
+		debug!("Moving references");
+		self.walk_alive(|pointer| {
 			trace!("Updating {pointer:?}");
-			// Go through all of the objects edges, and move them to the new child object location.
-			Object::new(pointer).map_refs(ref_remapper);
+			//// Go through all of the objects edges, and move them to the new child object location.
+			Object::new(pointer).map_refs(|r| unsafe { move_reference(r) });
 		});
 
+		debug!("Moving data");
 		// Go through the live objects, and move them to their new locations.
 		self.walk_alive(|pointer| unsafe {
 			let obj = ref_to_header(pointer);
@@ -93,39 +138,21 @@ impl GarbageCollector {
 			copy(obj as *mut u8, new_location as *mut u8, size);
 		});
 
+		debug!("Finalizing");
 		// Set the free pointer to the new limit.
 		self.free = new_free;
-
 		let statistics = GCStatistics {
 			objects_cleared: self.objects - alive_objects,
 			objects_remaining: alive_objects,
 		};
 		self.objects = alive_objects;
+
+		// Release all threads
+		for handle in &self.handles {
+			handle.continue_execution();
+		}
+
 		statistics
-	}
-
-	fn visit_pointer(&self, pointer: Reference) {
-		if pointer.is_null() {
-			return;
-		}
-		unsafe {
-			println!("{:?}", pointer.kind());
-
-			let obj = ref_to_header(pointer);
-			let object_mark = (*obj).flags.contains(ObjectFlags::MARK);
-			if object_mark == self.mark {
-				// We have already visited this object so we return here.
-				return;
-			}
-
-			trace!("Visiting {:?}", obj);
-			// we toggle the mark to say that we have visited/visiting this object.
-			(*obj).flags.set(ObjectFlags::MARK, self.mark);
-
-			Object::new(pointer).visit_refs(|value| {
-				self.visit_pointer(value);
-			});
-		}
 	}
 
 	pub unsafe fn allocate_object(
@@ -146,13 +173,17 @@ impl GarbageCollector {
 		// in bits
 		let object_bytes = align_size(size + OBJECT_HEADER);
 		let used = unsafe { self.free.sub(self.data as usize) } as usize;
-		if used + (object_bytes * 8) > self.size {
+		let after_bits = used + object_bytes;
+
+		if after_bits >= self.size {
 			return Err(AllocationError::OutOfHeap);
 		}
 
 		self.objects += 1;
 		trace!(
-			"Allocating {}+{} at {} {:?}.",
+			"Allocating {}/{} {}+{} at {} {:?}.",
+			after_bits,
+			self.size,
 			size * 8,
 			OBJECT_HEADER * 8,
 			used,
@@ -177,7 +208,20 @@ impl GarbageCollector {
 			Ok(header_to_ref(value))
 		}
 	}
+	pub fn walk(&self, mut visitor: impl FnMut(bool, Reference)) {
+		let mark = self.mark;
+		unsafe {
+			let mut current = self.data;
+			while (current as usize) < (self.free as usize) {
+				let object = current as *mut GcHeader;
+				let object_mark = (*object).flags.contains(ObjectFlags::MARK);
 
+				visitor(object_mark, header_to_ref(object));
+				// Increment by this objects size
+				current = current.add(align_size((*object).size as usize + OBJECT_HEADER));
+			}
+		}
+	}
 	pub fn walk_alive(&self, mut visitor: impl FnMut(Reference)) {
 		let mark = self.mark;
 		unsafe {
@@ -196,6 +240,16 @@ impl GarbageCollector {
 	}
 }
 
+unsafe fn move_reference(reference: Reference) -> Reference {
+	if reference.is_null() {
+		return Reference::NULL;
+	}
+
+	let obj = ref_to_header(reference);
+	let new = (*obj).forward;
+	trace!("Moving {:?} to {:?}", obj as *mut u8, new as *mut u8);
+	header_to_ref(new as *mut GcHeader)
+}
 unsafe fn ref_to_header(reference: Reference) -> *mut GcHeader {
 	let data = reference.0.sub(OBJECT_HEADER);
 	data as *mut GcHeader
@@ -238,6 +292,16 @@ mod tests {
 	use std::sync::Arc;
 
 	use super::*;
+
+	#[test]
+	fn asfd() {
+		assert_eq!(align_size(0), 0);
+		assert_eq!(align_size(1), 4);
+		assert_eq!(align_size(2), 4);
+		assert_eq!(align_size(3), 4);
+		assert_eq!(align_size(4), 4);
+		assert_eq!(align_size(5), 8);
+	}
 
 	//	pub struct TestClient {
 	// 		roots: Vec<Reference>,
@@ -327,9 +391,9 @@ mod tests {
 	}
 
 	impl RootProvider for TestRoots {
-		fn visit_roots(&mut self, mut visitor: impl FnMut(Reference)) {
+		fn mark_roots(&mut self, mut marker: GcMarker) {
 			for x in &self.roots {
-				visitor(*x);
+				marker.mark(*x);
 			}
 		}
 
@@ -337,6 +401,10 @@ mod tests {
 			for x in &mut self.roots {
 				*x = mapper(*x);
 			}
+		}
+
+		fn sweeper(&mut self) -> &mut GcSweeper {
+			todo!()
 		}
 	}
 
@@ -412,7 +480,7 @@ mod tests {
 			)
 		});
 
-		gc.gc(&mut roots);
+		gc.gc();
 		assert_eq!(gc.objects, 2);
 		assert_eq!(gc.free, unsafe {
 			gc.data.add(
@@ -430,7 +498,7 @@ mod tests {
 
 		roots.roots.pop();
 
-		gc.gc(&mut roots);
+		gc.gc();
 		assert_eq!(gc.objects, 1);
 		assert_eq!(gc.free, unsafe {
 			gc.data.add(align_size(
@@ -447,7 +515,7 @@ mod tests {
 		}
 		roots.roots.pop();
 
-		gc.gc(&mut roots);
+		gc.gc();
 		assert_eq!(gc.objects, 0);
 		assert_eq!(gc.free, gc.data);
 	}
@@ -489,7 +557,7 @@ mod tests {
 			child.put_dyn(child_iq, DynValue::Float(420.0));
 		}
 
-		let stats = gc.gc(&mut roots);
+		let stats = gc.gc();
 		assert_eq!(stats.objects_cleared, 0);
 		assert_eq!(stats.objects_remaining, 2);
 		assert_ne!(gc.free, gc.data);
@@ -512,7 +580,7 @@ mod tests {
 
 		parent.put_dyn(parent_child, DynValue::Reference(Reference::NULL));
 
-		let stats = gc.gc(&mut roots);
+		let stats = gc.gc();
 		assert_eq!(stats.objects_remaining, 1);
 		assert_eq!(stats.objects_cleared, 1);
 		assert_ne!(gc.free, gc.data);

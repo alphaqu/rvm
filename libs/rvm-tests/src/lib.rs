@@ -17,7 +17,7 @@ use rvm_runtime::Runtime;
 #[cfg(test)]
 mod tests;
 
-pub fn launch<F, R>(f: F) -> R
+pub fn launch<F, R>(heap_size: usize, f: F) -> R
 where
 	F: FnOnce(Arc<Runtime>) -> R + Send + 'static,
 	R: Send + 'static,
@@ -30,10 +30,10 @@ where
 				.to_string(),
 		)
 		.stack_size(1024 * 1024 * 64)
-		.spawn(|| {
+		.spawn(move || {
 			rvm_core::init();
 			f(Arc::new(Runtime::new(
-				1024 * 1024 * 32,
+				heap_size,
 				Box::new(BenBinding::new()),
 			)))
 		})

@@ -20,7 +20,7 @@ fn ack(m: i32, n: i32) -> i32 {
 
 #[test]
 fn test() -> Result<(), std::io::Error> {
-	launch(|runtime| {
+	launch(32 * 1024 * 1024, |runtime| {
 		compile(
 			&*runtime,
 			&[(

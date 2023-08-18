@@ -31,22 +31,22 @@ impl ClassLoader {
 		self.classes.read().get(id).clone()
 	}
 
-	pub fn classes(&self) -> MappedRwLockReadGuard<'_, RawRwLock, [Arc<Class>]> {
-		RwLockReadGuard::map(self.classes.read(), |v| v.iter())
-	}
-
 	pub fn get_class_id(&self, desc: &Type) -> Id<Class> {
+		info!("getting class {desc:?}");
 		// if its in the match the lock wont get dropped
 		let option = self.classes.read().get_id(desc);
 		match option {
 			Some(value) => value,
 			None => {
-				info!("defining class {desc}");
+				info!("defining class {desc:?}");
 				let class = match desc {
 					Type::Primitive(_) => {
 						panic!("primitive?!?!??!?!")
 					}
 					Type::Object(object) => {
+						for x in self.classes.read().iter() {
+							info!("{:?}", x.cloned_ty());
+						}
 						panic!("CLASS NOT LOADED {object:?}, Cannot load classes while running... yet.");
 					}
 					Type::Array(value) => {
@@ -117,7 +117,9 @@ impl ClassLoader {
 		if self.classes.is_locked() {
 			warn!("Classes are locked");
 		}
-		self.classes.write().insert(ty, Arc::new(class))
+		let id = self.classes.write().insert(ty.clone(), Arc::new(class));
+		info!("Loaded class {ty:?} at {id:?}");
+		id
 	}
 
 	pub fn register_native(

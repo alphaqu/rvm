@@ -1,9 +1,9 @@
-use rvm_runtime::java_bind_method;
 use crate::{compile, launch};
+use rvm_runtime::java_bind_method;
 
 #[test]
 fn test() -> Result<(), std::io::Error> {
-	launch(|runtime| {
+	launch(32 * 1024 * 1024, |runtime| {
 		compile(
 			&*runtime,
 			&[(

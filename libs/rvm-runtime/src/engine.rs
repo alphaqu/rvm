@@ -1,14 +1,18 @@
-use crate::Runtime;
-use crossbeam::channel::{unbounded, Receiver, Sender};
-use rvm_core::ObjectType;
-use rvm_object::{DynValue, MethodData, MethodIdentifier};
-use rvm_reader::ConstantPool;
-use std::any::Any;
 use std::ffi::c_void;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::thread;
-use std::thread::{scope, spawn, JoinHandle};
+use std::thread::{spawn, JoinHandle};
+
+use crossbeam::channel::{unbounded, Receiver, Sender};
+use crossbeam::sync::{Parker, Unparker};
+
+use rvm_core::ObjectType;
+use rvm_object::{DynValue, MethodData, MethodIdentifier};
+use rvm_reader::ConstantPool;
+use crate::gc::GcSweeper;
+
+use crate::Runtime;
 
 pub trait Engine: Send + Sync {
 	fn create_thread(&self, runtime: Arc<Runtime>, config: ThreadConfig) -> ThreadHandle;
@@ -21,6 +25,12 @@ pub trait Engine: Send + Sync {
 	) -> *const c_void;
 }
 
+pub struct Thread {
+	pub gc: GcSweeper,
+	pub config: Arc<ThreadConfig>,
+	pub receiver: Receiver<ThreadCommand>,
+}
+
 pub struct ThreadHandle {
 	data: Arc<ThreadConfig>,
 	handle: JoinHandle<Option<DynValue>>,
@@ -29,16 +39,22 @@ pub struct ThreadHandle {
 
 impl ThreadHandle {
 	pub fn new(
+		runtime: Arc<Runtime>,
 		config: ThreadConfig,
-		func: impl FnOnce(Arc<ThreadConfig>, Receiver<ThreadCommand>) -> Option<DynValue>
-			+ Send
-			+ 'static,
+		func: impl FnOnce(Thread) -> Option<DynValue> + Send + 'static,
 	) -> ThreadHandle {
 		let data = Arc::new(config);
 		let (sender, receiver) = unbounded();
 		let data2 = data.clone();
 
-		let handle = spawn(|| func(data2, receiver));
+		let sweeper = runtime.gc.lock().new_sweeper();
+		let handle = spawn(|| {
+			func(Thread {
+				gc: sweeper,
+				config: data2,
+				receiver,
+			})
+		});
 
 		ThreadHandle {
 			data,
@@ -64,7 +80,9 @@ impl ThreadHandle {
 			})
 			.unwrap();
 	}
+	
 }
+
 
 pub enum ThreadCommand {
 	Run {

@@ -1,23 +1,20 @@
 #![feature(pointer_byte_offsets)]
 #![feature(generic_const_exprs)]
 
-use rvm_core::{Id, ObjectType, StackKind, Storage, Type};
-use rvm_object::{Class, MethodCode, MethodData, MethodIdentifier};
+use std::ffi::c_void;
+use std::pin::Pin;
+use std::sync::{Arc, RwLock};
+
+use tracing::debug;
+
+use rvm_core::{ObjectType, Storage, Type};
+use rvm_object::{MethodCode, MethodData, MethodIdentifier};
 use rvm_reader::ConstantPool;
 use rvm_runtime::engine::{Engine, ThreadConfig, ThreadHandle};
 use rvm_runtime::Runtime;
-use std::ffi::c_void;
-use std::mem::forget;
-use std::pin::Pin;
-use std::sync::{Arc, RwLock};
-use tracing::debug;
 
-use crate::code::{
-	CombineTask, CombineTaskOperation, CombineTaskType, ConstTask, LocalTask, LocalTaskKind,
-	ReturnTask, Task,
-};
 use crate::method::CompiledMethod;
-use crate::thread::{Thread, ThreadStack};
+use crate::thread::spawn;
 
 mod code;
 mod method;
@@ -88,7 +85,7 @@ impl BenBinding {
 
 impl Engine for BenBinding {
 	fn create_thread(&self, runtime: Arc<Runtime>, config: ThreadConfig) -> ThreadHandle {
-		Thread::spawn(runtime, config, 1024 * 8, self.engine.clone())
+		spawn(runtime, config, 1024 * 8, self.engine.clone())
 	}
 
 	fn compile_method(

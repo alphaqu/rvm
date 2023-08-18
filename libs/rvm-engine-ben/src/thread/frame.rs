@@ -50,23 +50,11 @@ impl Frame {
 	}
 
 	// Locals
-	pub fn get_local_table(&mut self) -> *mut StackValue {
+	pub fn get_local_table_mut(&mut self) -> *mut StackValue {
 		unsafe { transmute((&mut self.data) as *mut [u8] as *mut u8) }
 	}
-
-	pub fn store_raw(&mut self, idx: u16, value: StackValue) {
-		if idx >= self.local_size {
-			panic!("Local out of bounds {idx} >= {}", self.local_size)
-		}
-		unsafe { self.get_local_table().add(idx as usize).write(value) }
-	}
-
-	pub fn load_raw(&mut self, idx: u16) -> StackValue {
-		if idx >= self.local_size {
-			panic!("Local out of bounds {idx} >= {}", self.local_size)
-		}
-
-		unsafe { self.get_local_table().add(idx as usize).read() }
+	pub fn get_local_table(&self) -> *const StackValue {
+		unsafe { transmute((&self.data) as *const [u8] as *const u8) }
 	}
 
 	pub fn store(&mut self, idx: u16, value: StackValue) {
@@ -74,11 +62,11 @@ impl Frame {
 			panic!("Local {} out of bounds > {}", idx, self.local_size);
 		}
 		unsafe {
-			self.get_local_table().add(idx as usize).write(value);
+			self.get_local_table_mut().add(idx as usize).write(value);
 		}
 	}
 
-	pub fn load(&mut self, idx: u16) -> StackValue {
+	pub fn load(&self, idx: u16) -> StackValue {
 		if idx >= self.local_size {
 			panic!("Local {} out of bounds > {}", idx, self.local_size);
 		}
@@ -94,9 +82,9 @@ impl Frame {
 		unsafe { self.get_stack().add(index as usize).read() }
 	}
 
-	pub fn push(&mut self, value: StackValue) {
-		if self.stack_pos >= self.stack_size {
-			panic!("Stack overflow {} >= {}", self.stack_pos, self.stack_size)
+	pub fn set_stack_value(&mut self, index: u16, value: StackValue) {
+		if index >= self.stack_size {
+			panic!("Stack overflow {} >= {}", index, self.stack_size)
 		}
 
 		unsafe {
@@ -104,7 +92,10 @@ impl Frame {
 				.add(self.stack_pos as usize)
 				.write(value);
 		}
+	}
 
+	pub fn push(&mut self, value: StackValue) {
+		self.set_stack_value(self.stack_pos, value);
 		self.stack_pos += 1;
 	}
 

@@ -55,13 +55,13 @@ impl ThreadStack {
 		frame.finished = true;
 	}
 
-	pub fn visit_frames(&self, mut func: impl FnMut(&Frame)) {
+	pub fn visit_frames_mut(&mut self, mut func: impl FnMut(&mut Frame)) {
 		debug!("Visiting thread frames");
-		let mut ptr = &self.stack as *const [u8] as *const Frame;
+		let mut ptr = &mut self.stack as *mut [u8] as *mut Frame;
 		let mut pos = 0;
 		loop {
 			unsafe {
-				let frame: &Frame = &*ptr.byte_add(pos);
+				let frame: &mut Frame = &mut *ptr.byte_add(pos);
 				func(frame);
 				pos += frame.size();
 				if pos == self.data_pos {
