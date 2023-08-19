@@ -31,7 +31,7 @@ fn test() -> Result<(), std::io::Error> {
 
 		for i in 0..8i32 {
 			for j in 0..8i32 {
-				let pow = java_bind_method!(runtime fn Main.pow(base: i32, power: i32) -> i32);
+				let pow = java_bind_method!(runtime fn Main:pow(base: i32, power: i32) -> i32);
 				assert_eq!(pow(i, j), i.pow(j as u32));
 			}
 		}

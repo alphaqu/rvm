@@ -1,3 +1,5 @@
+package tests.object;
+
 public class ObjectTest {
 	public int value;
 	public ObjectTest child;
@@ -5,6 +7,10 @@ public class ObjectTest {
 	public ObjectTest(int value, ObjectTest child) {
 		this.value = value;
 		this.child = child;
+	}
+
+	public int value() {
+		return value;
 	}
 
 	public static Object newTest() {

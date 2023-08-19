@@ -8,7 +8,7 @@ use std::sync::{Arc, RwLock};
 use tracing::debug;
 
 use rvm_core::{ObjectType, Storage, Type};
-use rvm_object::{MethodCode, MethodData, MethodIdentifier};
+use rvm_object::{Method, MethodCode, MethodData, MethodIdentifier};
 use rvm_reader::ConstantPool;
 use rvm_runtime::engine::{Engine, ThreadConfig, ThreadHandle};
 use rvm_runtime::Runtime;
@@ -33,28 +33,32 @@ impl BenEngine {
 		ty: ObjectType,
 		method: MethodIdentifier,
 	) -> Arc<CompiledMethod> {
+		let mut id = runtime.class_loader.get_class_id(&Type::Object(ty.clone()));
+		let mut cl_guard = runtime.class_loader.get(id);
+		let mut class = cl_guard.object().unwrap();
+
+		let mut method_value: Option<&Method> = class.methods.get_keyed(&method);
+		while method_value.is_none() {
+			cl_guard = runtime.class_loader.get(id);
+			class = cl_guard.object().unwrap();
+			method_value = class.methods.get_keyed(&method);
+			id = class.super_id.expect("Could not resolve method");
+		}
+
+		let method_value = method_value.unwrap();
+		let method_code = method_value
+			.code
+			.clone()
+			.expect("Method does not contain code");
+
 		let key = (ty, method);
 		let guard = self.methods.read().unwrap();
 		match guard.get_keyed(&key) {
 			None => {
 				drop(guard);
 				debug!(target: "ben", "Compiling method {key:?}");
-				let id = runtime
-					.class_loader
-					.get_class_id(&Type::Object(key.0.clone()));
-				let cl_guard = runtime.class_loader.get(id);
-				let class = cl_guard.object().unwrap();
-
-				let raw_method = class
-					.methods
-					.get_keyed(&key.1)
-					.expect("Could not find method");
-				let method = raw_method
-					.code
-					.clone()
-					.expect("Method does not contain code");
-				let compiled_method = Arc::new(match &(*method) {
-					MethodCode::Java(code) => CompiledMethod::new(code, class, raw_method),
+				let compiled_method = Arc::new(match &(*method_code) {
+					MethodCode::Java(code) => CompiledMethod::new(code, class, method_value),
 					MethodCode::Native(_) => {
 						todo!()
 					}

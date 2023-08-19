@@ -21,18 +21,17 @@ macro_rules! java_descriptor {
 
 #[macro_export]
 macro_rules! java_bind_method {
-    ($runtime:ident fn $class:ident.$method:ident($($name:ident: $pty:ty),*) $(-> $ret:ty)?) => {
+    ($runtime:ident fn $class:path:$method:ident($($name:ident: $pty:ty),*) $(-> $ret:ty)?) => {
 		 {
 			 let value = |$($name: $pty),*| $(-> $ret)? {
 			// just so jetbrains ides have colors
-			struct $class {}
 			fn $method() {}
 			let thread = $runtime.engine.create_thread($runtime.clone(), rvm_runtime::engine::ThreadConfig {
 				name: "run".to_string(),
 			});
 
 			thread.run(
-				rvm_core::ObjectType(::core::stringify!($class).to_string()),
+				rvm_core::ObjectType(::core::stringify!($class).to_string().replace("::", "/")),
 				rvm_object::MethodIdentifier {
 					name: ::core::stringify!($method).to_string(),
 					descriptor: rvm_macro::java_desc!(fn($($pty),*) $(-> $ret)?).to_string(),

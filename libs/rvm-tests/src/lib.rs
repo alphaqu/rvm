@@ -10,6 +10,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use rvm_engine_ben::BenBinding;
+use rvm_object::{MethodIdentifier, NativeCode};
 use walkdir::WalkDir;
 
 use rvm_runtime::Runtime;
@@ -32,15 +33,16 @@ where
 		.stack_size(1024 * 1024 * 64)
 		.spawn(move || {
 			rvm_core::init();
-			f(Arc::new(Runtime::new(
-				heap_size,
-				Box::new(BenBinding::new()),
-			)))
+			let runtime = Arc::new(Runtime::new(heap_size, Box::new(BenBinding::new())));
+
+			f(runtime)
 		})
 		.unwrap()
 		.join()
 		.unwrap()
 }
+
+unsafe extern "C" fn blow_up() {}
 
 pub fn compile(runtime: &Runtime, sources: &[(&str, &str)]) -> Result<()> {
 	let mut root = std::env::current_dir().unwrap();

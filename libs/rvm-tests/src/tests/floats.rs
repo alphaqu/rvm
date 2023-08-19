@@ -61,7 +61,7 @@ fn test() -> Result<(), std::io::Error> {
 			i += 0.0 / i;
 			i
 		};
-		let java = java_bind_method!(runtime fn Main.get() -> f64);
+		let java = java_bind_method!(runtime fn Main:get() -> f64);
 		assert_eq!(rust, java());
 
 		Ok(())

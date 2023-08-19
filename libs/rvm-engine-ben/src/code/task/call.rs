@@ -17,10 +17,10 @@ impl Display for CallTask {
 }
 impl CallTask {
 	pub fn new(inst: &InvokeInst, class: &ObjectClass) -> CallTask {
-		let method = inst.value.get(&class.cp);
-		let name_and_type = method.name_and_type.get(&class.cp);
-		let target = method.class.get(&class.cp);
-		let name = target.name.get(&class.cp);
+		let method = inst.value.get(&class.cp).unwrap();
+		let name_and_type = method.name_and_type.get(&class.cp).unwrap();
+		let target = method.class.get(&class.cp).unwrap();
+		let name = target.name.get(&class.cp).unwrap();
 
 		CallTask {
 			method: MethodIdentifier::new(&name_and_type, &class.cp),

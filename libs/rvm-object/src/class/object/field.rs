@@ -1,6 +1,7 @@
 use std::ops::Deref;
 
 use ahash::{HashMap, HashMapExt};
+use nom::ToUsize;
 
 use rvm_core::{FieldAccessFlags, Type};
 use rvm_core::{Id, Storage, StorageValue};
@@ -16,8 +17,8 @@ pub struct FieldData {
 
 impl FieldData {
 	pub fn from_info(info: &FieldInfo, cp: &ConstantPool) -> Option<FieldData> {
-		let name = info.name_index.get(cp).to_string();
-		let desc = info.descriptor_index.get(cp).as_str();
+		let name = info.name_index.get(cp).unwrap().to_string();
+		let desc = info.descriptor_index.get(cp).unwrap().as_str();
 		let field_type = Type::parse(desc)?;
 
 		Some(FieldData {
@@ -29,22 +30,41 @@ impl FieldData {
 }
 
 pub struct ObjectFieldLayout {
-	pub size: u32,
+	pub fields_size: u32,
 	pub ref_fields: u16,
 	fields: Storage<String, Field>,
 }
 
 impl ObjectFieldLayout {
-	pub fn new(fields: &[FieldData], static_layout: bool) -> ObjectFieldLayout {
-		let mut output = vec![];
+	pub fn new(
+		fields: &[FieldData],
+		super_fields: Option<&ObjectFieldLayout>,
+		static_layout: bool,
+	) -> ObjectFieldLayout {
+		let mut output: Vec<(usize, Field, String)> = vec![];
+		if let Some(fields) = super_fields {
+			for (id, name, field) in fields.fields.iter_keys_unordered() {
+				output.push((
+					id.idx().to_usize(),
+					Field {
+						offset: 0,
+						flags: field.flags,
+						ty: field.ty.clone(),
+					},
+					name.clone(),
+				));
+			}
+		}
+
 		for field in fields {
 			let static_field = field.flags.contains(FieldAccessFlags::STATIC);
-
 			if static_field != static_layout {
 				continue;
 			}
 
+			let i = output.len();
 			output.push((
+				i + 1,
 				Field {
 					offset: 0,
 					flags: field.flags,
@@ -54,23 +74,34 @@ impl ObjectFieldLayout {
 			));
 		}
 
-		// Sort fields so that reference fields are first.
-		output.sort_by(|(v0, _), (v1, _)| v1.ty.kind().is_ref().cmp(&v0.ty.kind().is_ref()));
+		// Sort it so that it follows the order of super field ids
+		output.sort_by(|(v0, _, _), (v1, _, _)| v0.cmp(v1));
 
-		let mut size = 0;
+		// Create offsets, ensure that all reference fields are first.
 		let mut ref_fields = 0;
-		let mut storage = Storage::new();
-		for (mut field, name) in output.into_iter() {
-			field.offset = size;
-			if field.ty.kind().is_ref() {
-				ref_fields += 1;
+		let mut fields_size = 0;
+		{
+			let mut fields: Vec<&mut Field> = output.iter_mut().map(|(_, f, _)| f).collect();
+			fields.sort_by(|v0, v1| v1.ty.kind().is_ref().cmp(&v0.ty.kind().is_ref()));
+
+			for field in fields {
+				field.offset = fields_size;
+
+				let kind = field.ty.kind();
+				if kind.is_ref() {
+					ref_fields += 1;
+				}
+				fields_size += kind.size() as u32;
 			}
-			size += field.ty.kind().size() as u32;
+		}
+
+		let mut storage = Storage::new();
+		for (_, field, name) in output.into_iter() {
 			storage.insert(name, field);
 		}
 
 		ObjectFieldLayout {
-			size: size,
+			fields_size,
 			ref_fields: ref_fields as u16,
 			fields: storage,
 		}

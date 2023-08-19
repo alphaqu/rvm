@@ -30,13 +30,16 @@ impl ClassMethodManager {
 	) -> Result<ClassMethodManager> {
 		let mut storage = Storage::new();
 		for method in methods {
-			let name = method.name_index.get(cp).as_str();
+			let name = method.name_index.get(cp).unwrap().as_str();
 			let (name, method) = MethodData::parse(method, class_name, cp)
 				.wrap_err_with(|| format!("in METHOD \"{}\"", name))?;
-			storage.insert(name, Method {
-				data: method,
-				compiled: Cell::new(None),
-			});
+			storage.insert(
+				name,
+				Method {
+					data: method,
+					compiled: Cell::new(None),
+				},
+			);
 		}
 		Ok(ClassMethodManager { storage })
 	}
@@ -52,7 +55,7 @@ impl Deref for ClassMethodManager {
 
 pub struct Method {
 	data: MethodData,
-	pub compiled: Cell<Option<*const c_void>>
+	pub compiled: Cell<Option<*const c_void>>,
 }
 
 impl Deref for Method {
@@ -97,12 +100,12 @@ impl MethodData {
 		class_name: &str,
 		consts: &ConstantPool,
 	) -> Result<(MethodIdentifier, MethodData)> {
-		let desc_str = consts.get(info.descriptor_index);
+		let desc_str = consts.get(info.descriptor_index).unwrap();
 		let desc = MethodDesc::parse(desc_str).unwrap();
 
 		let mut code = None;
 		let ident = MethodIdentifier {
-			name: consts.get(info.name_index).to_string(),
+			name: consts.get(info.name_index).unwrap().to_string(),
 			descriptor: desc_str.to_string(),
 		};
 
@@ -154,8 +157,8 @@ pub struct MethodIdentifier {
 impl MethodIdentifier {
 	pub fn new(nat: &NameAndTypeConst, cp: &ConstantPool) -> MethodIdentifier {
 		MethodIdentifier {
-			name: nat.name.get(cp).to_string(),
-			descriptor: nat.descriptor.get(cp).to_string(),
+			name: nat.name.get(cp).unwrap().to_string(),
+			descriptor: nat.descriptor.get(cp).unwrap().to_string(),
 		}
 	}
 }

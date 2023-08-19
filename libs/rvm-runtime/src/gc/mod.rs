@@ -157,8 +157,8 @@ impl GarbageCollector {
 		id: Id<Class>,
 		class: &ObjectClass,
 	) -> Result<AnyClassObject, AllocationError> {
-		let reference =
-			self.allocate_raw((class.fields.size as usize) + AnyClassObject::FULL_HEADER_SIZE)?;
+		let reference = self
+			.allocate_raw((class.fields.fields_size as usize) + AnyClassObject::FULL_HEADER_SIZE)?;
 		Ok(unsafe { AnyClassObject::allocate(reference, id, class) })
 	}
 

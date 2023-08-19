@@ -6,16 +6,20 @@ use anyways::Result;
 
 pub use field::*;
 pub use method::*;
-use rvm_core::ObjectType;
+use rvm_core::{Id, ObjectType, Type};
 use rvm_reader::{ClassInfo, ConstantPool};
 
-use crate::Class;
+use crate::{Class, ClassLoader};
 
 mod field;
 mod method;
 
 pub struct ObjectClass {
 	pub ty: ObjectType,
+
+	pub super_class: Option<ObjectType>,
+	pub super_id: Option<Id<Class>>,
+
 	pub cp: Arc<ConstantPool>,
 	pub fields: ObjectFieldLayout,
 	pub static_fields: ObjectFieldLayout,
@@ -26,9 +30,23 @@ pub struct ObjectClass {
 unsafe impl Send for ObjectClass {}
 unsafe impl Sync for ObjectClass {}
 impl ObjectClass {
-	pub fn parse(info: ClassInfo) -> Result<ObjectClass> {
-		let class = info.constant_pool.get(info.this_class);
-		let name = info.constant_pool.get(class.name);
+	pub fn parse(info: ClassInfo, cl: &ClassLoader) -> Result<ObjectClass> {
+		let super_class = info
+			.constant_pool
+			.get(info.super_class)
+			.and_then(|v| info.constant_pool.get(v.name))
+			.map(|v| ObjectType(v.to_string()));
+		let super_id = super_class
+			.as_ref()
+			.map(|v| cl.get_class_id(&Type::Object(v.clone())));
+
+		let super_object = super_id.map(|super_id| cl.get(super_id));
+		let super_fields = super_object
+			.as_ref()
+			.map(|v| &v.object().as_ref().unwrap().fields);
+
+		let class = info.constant_pool.get(info.this_class).unwrap();
+		let name = info.constant_pool.get(class.name).unwrap();
 
 		let fields: Vec<FieldData> = info
 			.fields
@@ -38,11 +56,13 @@ impl ObjectClass {
 
 		Ok(ObjectClass {
 			ty: ObjectType(name.to_string()),
+			super_class,
+			super_id,
 			methods: ClassMethodManager::parse(info.methods, name.as_str(), &info.constant_pool)
 				.wrap_err_with(|| format!("in CLASS \"{}\"", name.as_str()))?,
 			//static_object: unsafe { ObjectData::new(fields.size(true) as usize) },
-			fields: ObjectFieldLayout::new(&fields, false),
-			static_fields: ObjectFieldLayout::new(&fields, true),
+			fields: ObjectFieldLayout::new(&fields, super_fields, false),
+			static_fields: ObjectFieldLayout::new(&fields, None, true),
 			cp: Arc::new(info.constant_pool),
 		})
 	}

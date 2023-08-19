@@ -45,7 +45,7 @@ fn creation() {
 			.unwrap();
 
 		let java_set =
-			java_bind_method!(runtime fn ArrayTest.singleArray(value: i32) -> Array<i32>);
+			java_bind_method!(runtime fn ArrayTest:singleArray(value: i32) -> Array<i32>);
 
 		let array = java_set(420);
 		assert_eq!(array.length(), 1);
@@ -69,9 +69,9 @@ fn setter() {
 			})
 			.unwrap();
 
-		let java_set = java_bind_method!(runtime fn ArrayTest.setValue(array: Array<i32>, index: i32, value: i32));
+		let java_set = java_bind_method!(runtime fn ArrayTest:setValue(array: Array<i32>, index: i32, value: i32));
 		let java_get =
-			java_bind_method!(runtime fn ArrayTest.getValue(array: Array<i32>, index: i32) -> i32);
+			java_bind_method!(runtime fn ArrayTest:getValue(array: Array<i32>, index: i32) -> i32);
 
 		let short = runtime
 			.gc
@@ -110,7 +110,7 @@ fn getter() {
 			.unwrap();
 
 		let java_get =
-			java_bind_method!(runtime fn ArrayTest.getValue(array: Array<i32>, index: i32) -> i32);
+			java_bind_method!(runtime fn ArrayTest:getValue(array: Array<i32>, index: i32) -> i32);
 
 		let short = runtime
 			.gc
@@ -144,10 +144,10 @@ fn refArrays() {
 			.unwrap();
 
 		let java_create =
-			java_bind_method!(runtime fn ArrayTest.singleRefArray() -> Array<Reference>);
+			java_bind_method!(runtime fn ArrayTest:singleRefArray() -> Array<Reference>);
 
-		let java_get = java_bind_method!(runtime fn ArrayTest.getValueRef(array: Array<Reference>, index: i32) -> Reference);
-		let java_set = java_bind_method!(runtime fn ArrayTest.setValueRef(array: Array<Reference>, index: i32, value: Reference));
+		let java_get = java_bind_method!(runtime fn ArrayTest:getValueRef(array: Array<Reference>, index: i32) -> Reference);
+		let java_set = java_bind_method!(runtime fn ArrayTest:setValueRef(array: Array<Reference>, index: i32, value: Reference));
 		let array = java_create();
 
 		let reference = **array;

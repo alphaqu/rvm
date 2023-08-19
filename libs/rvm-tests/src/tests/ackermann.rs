@@ -50,7 +50,7 @@ fn test() -> Result<(), std::io::Error> {
 			)
 			.to_string()
 		);
-		let java_ack = java_bind_method!(runtime fn Main.ack(m: i32, n: i32) -> i32);
+		let java_ack = java_bind_method!(runtime fn Main:ack(m: i32, n: i32) -> i32);
 		let rust = sample("Rust ackermann", SAMPLES, |i| ack(i as i32, 10));
 		let java = sample("Java ackermann", SAMPLES, |i| java_ack(i as i32, 10));
 

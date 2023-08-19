@@ -1,9 +1,9 @@
 use crate::compiler::BlockCompiler;
 use inkwell::values::BasicValue;
+use rvm_core::Kind;
+use rvm_reader::{ConstInst, ConstantInfo};
 use std::fmt::{Display, Formatter};
 use std::mem::transmute;
-use rvm_core::Kind;
-use rvm_reader::{ConstantInfo, ConstInst};
 
 use crate::resolver::BlockResolver;
 
@@ -24,7 +24,7 @@ pub enum ConstTask {
 impl ConstTask {
 	pub fn resolve(inst: &ConstInst, resolver: &mut BlockResolver) -> ConstTask {
 		let ldc = |value: u16| -> ConstTask {
-			let constant = resolver.cp().get_raw(value).unwrap();
+			let constant = resolver.cp().raw_get(value).unwrap();
 			match constant {
 				ConstantInfo::Integer(int) => ConstTask::I32(int.bytes),
 				ConstantInfo::Float(float) => ConstTask::F32(float.bytes),
@@ -53,10 +53,10 @@ impl ConstTask {
 			ConstInst::Null => ConstTask::Null,
 			ConstInst::Int(v) => ConstTask::I32(*v),
 			ConstInst::Long(v) => ConstTask::I64(*v),
-			ConstInst::Float(v) =>  ConstTask::F32(*v),
+			ConstInst::Float(v) => ConstTask::F32(*v),
 			ConstInst::Double(v) => ConstTask::F64(*v),
 			ConstInst::Ldc { id, cat2 } => {
-				let constant = resolver.cp().get_raw(*id).unwrap();
+				let constant = resolver.cp().raw_get(*id).unwrap();
 				match constant {
 					ConstantInfo::Integer(v) => ConstTask::I32(v.bytes),
 					ConstantInfo::Float(v) => ConstTask::F32(v.bytes),

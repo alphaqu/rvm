@@ -16,13 +16,17 @@ pub enum ConstTask {
 
 impl Display for ConstTask {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-		write!(f, "CONST {}", match self {
-			ConstTask::Null => "null".to_string(),
-			ConstTask::Int(v) => v.to_string(),
-			ConstTask::Long(v) => v.to_string(),
-			ConstTask::Float(v) => v.to_string(),
-			ConstTask::Double(v) => v.to_string(),
-		})
+		write!(
+			f,
+			"CONST {}",
+			match self {
+				ConstTask::Null => "null".to_string(),
+				ConstTask::Int(v) => v.to_string(),
+				ConstTask::Long(v) => v.to_string(),
+				ConstTask::Float(v) => v.to_string(),
+				ConstTask::Double(v) => v.to_string(),
+			}
+		)
 	}
 }
 
@@ -35,7 +39,7 @@ impl ConstTask {
 			ConstInst::Float(v) => ConstTask::Float(*v),
 			ConstInst::Double(v) => ConstTask::Double(*v),
 			ConstInst::Ldc { id, cat2 } => {
-				let info = class.cp.get_raw(*id).unwrap();
+				let info = class.cp.raw_get(*id).unwrap();
 				match info {
 					ConstantInfo::Integer(value) => ConstTask::Int(value.bytes),
 					ConstantInfo::Float(value) => ConstTask::Float(value.bytes),

@@ -38,7 +38,7 @@ fn test() -> Result<(), std::io::Error> {
 
 		unsafe {
 			// v == 0
-			let func = java_bind_method!(runtime fn Main.testZeroEq(v: i32) -> bool);
+			let func = java_bind_method!(runtime fn Main:testZeroEq(v: i32) -> bool);
 			assert!(func(0));
 			assert!(!func(1));
 			assert!(!func(-1));
@@ -46,7 +46,7 @@ fn test() -> Result<(), std::io::Error> {
 			assert!(!func(i32::MAX));
 
 			// v != 0
-			let func = java_bind_method!(runtime fn Main.testZeroNeq(v: i32) -> bool);
+			let func = java_bind_method!(runtime fn Main:testZeroNeq(v: i32) -> bool);
 			assert!(!func(0));
 			assert!(func(1));
 			assert!(func(-1));
@@ -54,7 +54,7 @@ fn test() -> Result<(), std::io::Error> {
 			assert!(func(i32::MAX));
 
 			// v > 0
-			let func = java_bind_method!(runtime fn Main.testZeroGt(v: i32) -> bool);
+			let func = java_bind_method!(runtime fn Main:testZeroGt(v: i32) -> bool);
 			assert!(!func(0));
 			assert!(!func(-1));
 			assert!(!func(i32::MIN));
@@ -62,7 +62,7 @@ fn test() -> Result<(), std::io::Error> {
 			assert!(func(i32::MAX));
 
 			// v >= 0
-			let func = java_bind_method!(runtime fn Main.testZeroGe(v: i32) -> bool);
+			let func = java_bind_method!(runtime fn Main:testZeroGe(v: i32) -> bool);
 			assert!(!func(-1));
 			assert!(!func(i32::MIN));
 			assert!(func(0));
@@ -70,7 +70,7 @@ fn test() -> Result<(), std::io::Error> {
 			assert!(func(i32::MAX));
 
 			// v < 0
-			let func = java_bind_method!(runtime fn Main.testZeroLt(v: i32) -> bool);
+			let func = java_bind_method!(runtime fn Main:testZeroLt(v: i32) -> bool);
 			assert!(!func(0));
 			assert!(!func(1));
 			assert!(!func(i32::MAX));
@@ -78,7 +78,7 @@ fn test() -> Result<(), std::io::Error> {
 			assert!(func(i32::MIN));
 
 			// v <= 0
-			let func = java_bind_method!(runtime fn Main.testZeroLe(v: i32) -> bool);
+			let func = java_bind_method!(runtime fn Main:testZeroLe(v: i32) -> bool);
 			assert!(!func(1));
 			assert!(!func(i32::MAX));
 			assert!(func(0));

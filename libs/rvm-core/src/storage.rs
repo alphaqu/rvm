@@ -33,6 +33,16 @@ impl<K: Hash + Eq + Debug, V: StorageValue, O> Storage<K, V, O> {
 		idx
 	}
 
+	pub fn push(&mut self, key: K, value: O) -> Id<V> {
+		let idx = unsafe { Id::new(self.values.len() + 1) };
+		if let Err(mut v) = self.lookup.try_insert(key, idx) {
+			// replace value
+			v.entry.insert(idx);
+		}
+		self.values.push(value);
+		idx
+	}
+
 	pub fn contains(&self, key: &K) -> bool {
 		self.lookup.contains_key(key)
 	}
@@ -79,6 +89,12 @@ impl<K: Hash + Eq + Debug, V: StorageValue, O> Storage<K, V, O> {
 
 	pub fn iter(&self) -> &[O] {
 		self.values.as_slice()
+	}
+
+	pub fn iter_keys_unordered(&self) -> impl Iterator<Item = (Id<V>, &K, &O)> {
+		self.lookup
+			.iter()
+			.map(|(k, i)| (*i, k, &self.values[i.0.to_usize().unwrap() - 1]))
 	}
 }
 

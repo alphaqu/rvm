@@ -61,7 +61,7 @@ impl<V: Constant> ConstPtr<V> {
 		ConstPtr(id, PhantomData::default())
 	}
 
-	pub fn get<'a>(&self, cp: &'a ConstantPool) -> &'a V {
+	pub fn get<'a>(&self, cp: &'a ConstantPool) -> Option<&'a V> {
 		cp.get(*self)
 	}
 }
@@ -91,16 +91,18 @@ impl ConstantPool {
 		ConstantPool(values)
 	}
 
-	pub fn get_raw(&self, index: u16) -> Option<&ConstantInfo> {
+	pub fn raw_get(&self, index: u16) -> Option<&ConstantInfo> {
 		assert!(index >= 1);
-
 		self.0.get(index as usize - 1)
 	}
 
-	pub fn get<V: Constant>(&self, ptr: ConstPtr<V>) -> &V {
-		assert!(ptr.0 >= 1);
-		let info = &self.0[ptr.0 as usize - 1];
-		V::get(info)
+	pub fn get<V: Constant>(&self, ptr: ConstPtr<V>) -> Option<&V> {
+		if ptr.0 >= 1 {
+			let info = &self.0[ptr.0 as usize - 1];
+			Some(V::get(info))
+		} else {
+			None
+		}
 	}
 }
 

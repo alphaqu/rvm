@@ -26,8 +26,8 @@ impl Display for ArrayCreateTask {
 pub struct ArrayCreateRefTask(ObjectType);
 impl ArrayCreateRefTask {
 	pub fn new(ptr: &ConstPtr<ClassConst>, obj: &ObjectClass) -> ArrayCreateRefTask {
-		let class = ptr.get(&obj.cp);
-		let name = class.name.get(&obj.cp);
+		let class = ptr.get(&obj.cp).unwrap();
+		let name = class.name.get(&obj.cp).unwrap();
 		ArrayCreateRefTask(ObjectType(name.to_string()))
 	}
 

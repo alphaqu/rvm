@@ -16,14 +16,12 @@ use crate::{ArrayClass, MethodIdentifier, NativeCode};
 
 pub struct ClassLoader {
 	classes: RwLock<Storage<Type, Class, Arc<Class>>>,
-	native_methods: AHashMap<(String, MethodIdentifier), NativeCode>,
 }
 
 impl ClassLoader {
 	pub fn new() -> ClassLoader {
 		ClassLoader {
 			classes: RwLock::new(Storage::new()),
-			native_methods: AHashMap::new(),
 		}
 	}
 
@@ -104,7 +102,7 @@ impl ClassLoader {
 				panic!();
 			}
 		};
-		let class = ObjectClass::parse(info)?;
+		let class = ObjectClass::parse(info, self)?;
 
 		debug!("Parsed class {}", class.ty);
 
@@ -120,18 +118,5 @@ impl ClassLoader {
 		let id = self.classes.write().insert(ty.clone(), Arc::new(class));
 		info!("Loaded class {ty:?} at {id:?}");
 		id
-	}
-
-	pub fn register_native(
-		&mut self,
-		class_name: String,
-		method: MethodIdentifier,
-		code: NativeCode,
-	) {
-		self.native_methods.insert((class_name, method), code);
-	}
-
-	pub fn native_methods(&self) -> &AHashMap<(String, MethodIdentifier), NativeCode> {
-		&self.native_methods
 	}
 }

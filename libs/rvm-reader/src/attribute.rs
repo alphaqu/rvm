@@ -117,7 +117,7 @@ pub enum AttributeInfo {
 
 impl AttributeInfo {
 	pub fn parse<'a>(input: &'a [u8], constant_pool: &ConstantPool) -> IResult<'a, Self> {
-		let (input, info) = map_opt(be_u16, |index| constant_pool.get_raw(index))(input)?;
+		let (input, info) = map_opt(be_u16, |index| constant_pool.raw_get(index))(input)?;
 		let (input, length) = be_u32(input)?;
 
 		match info {
