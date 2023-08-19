@@ -7,8 +7,8 @@ pub use combine::{CombineTask, CombineTaskOperation, CombineTaskType};
 pub use local::{LocalTask, LocalTaskKind};
 pub use r#const::ConstTask;
 pub use r#return::ReturnTask;
-use rvm_object::ObjectClass;
 use rvm_reader::{ArrayInst, Inst, JumpInst, LocalInst, MathInst};
+use rvm_runtime::InstanceClass;
 
 pub use crate::code::task::call::*;
 use crate::code::task::field::FieldTask;
@@ -73,7 +73,7 @@ impl Display for Task {
 }
 
 impl Task {
-	pub fn new(inst: &Inst, class: &ObjectClass) -> Task {
+	pub fn new(inst: &Inst, class: &InstanceClass) -> Task {
 		match inst {
 			Inst::Nop => Task::Nop,
 			Inst::Const(inst) => Task::Const(ConstTask::new(inst, class)),

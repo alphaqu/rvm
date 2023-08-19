@@ -1,9 +1,8 @@
 use crate::thread::ThreadFrame;
 use crate::value::StackValue;
 use rvm_core::{Kind, ObjectType, PrimitiveType, Type};
-use rvm_object::{Object, ObjectClass};
 use rvm_reader::{ClassConst, ConstPtr};
-use rvm_runtime::Runtime;
+use rvm_runtime::{InstanceClass, Runtime};
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug)]
@@ -25,7 +24,7 @@ impl Display for ArrayCreateTask {
 #[derive(Debug)]
 pub struct ArrayCreateRefTask(ObjectType);
 impl ArrayCreateRefTask {
-	pub fn new(ptr: &ConstPtr<ClassConst>, obj: &ObjectClass) -> ArrayCreateRefTask {
+	pub fn new(ptr: &ConstPtr<ClassConst>, obj: &InstanceClass) -> ArrayCreateRefTask {
 		let class = ptr.get(&obj.cp).unwrap();
 		let name = class.name.get(&obj.cp).unwrap();
 		ArrayCreateRefTask(ObjectType(name.to_string()))
@@ -55,8 +54,7 @@ pub struct ArrayLengthTask;
 impl ArrayLengthTask {
 	pub fn exec(&self, frame: &mut ThreadFrame) {
 		let reference = frame.pop().to_ref();
-		let object = Object::new(reference);
-		let option = object.as_array();
+		let option = reference.to_array();
 		let array = option.unwrap();
 		let length = array.length();
 		frame.push(StackValue::Int(length));
@@ -76,8 +74,7 @@ impl ArrayLoadTask {
 		let index = frame.pop().to_int();
 
 		let reference = frame.pop().to_ref();
-		let object = Object::new(reference);
-		let array = object.as_array().unwrap();
+		let array = reference.to_array().unwrap();
 		if array.kind() != self.0 {
 			panic!("Array type does not match");
 		}
@@ -103,8 +100,7 @@ impl ArrayStoreTask {
 		let index = frame.pop().to_int();
 
 		let reference = frame.pop().to_ref();
-		let object = Object::new(reference);
-		let array = object.as_array().unwrap();
+		let array = reference.to_array().unwrap();
 		if array.kind() != self.0 {
 			panic!("Array type does not match");
 		}

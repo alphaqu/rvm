@@ -5,9 +5,10 @@ use tracing::{debug, trace};
 
 use crate::gc::sweep::{new_sweeper, GcSweeperHandle};
 pub use crate::gc::sweep::{GcMarker, GcSweeper};
+use crate::object::{AnyArray, AnyInstance, Class, InstanceClass, Reference};
+use crate::ReferenceKind;
 pub use object::{GcHeader, ObjectFlags, ObjectSize, OBJECT_HEADER};
-use rvm_core::{Id, Kind, PrimitiveType, Reference};
-use rvm_object::{AnyArrayObject, AnyClassObject, Class, Object, ObjectClass};
+use rvm_core::{Id, Kind, PrimitiveType};
 
 mod object;
 mod sweep;
@@ -70,22 +71,22 @@ impl GarbageCollector {
 			handle.start_marking();
 		}
 
-		use std::fmt::Write;
-		let mut build = String::new();
-		let mut gc_mark = self.mark;
-		self.walk(|mark, reference| {
-			if mark == gc_mark {
-				writeln!(&mut build, "x{} [color=green]", reference.0 as usize,).unwrap();
-			} else {
-				writeln!(&mut build, "x{} [color=gray]", reference.0 as usize,).unwrap();
-			}
-			Object::new(reference).visit_refs(|r| {
-				if r.is_null() {
-					return;
-				}
-				writeln!(&mut build, "x{} -> x{}", reference.0 as usize, r.0 as usize).unwrap();
-			});
-		});
+		//use std::fmt::Write;
+		//let mut build = String::new();
+		//let mut gc_mark = self.mark;
+		//self.walk(|mark, reference| {
+		//	if mark == gc_mark {
+		//		writeln!(&mut build, "x{} [color=green]", reference.0 as usize,).unwrap();
+		//	} else {
+		//		writeln!(&mut build, "x{} [color=gray]", reference.0 as usize,).unwrap();
+		//	}
+		//	reference.visit_refs(|r| {
+		//		if r.is_null() {
+		//			return;
+		//		}
+		//		writeln!(&mut build, "x{} -> x{}", reference.0 as usize, r.0 as usize).unwrap();
+		//	});
+		//});
 
 		//// Visit all of the objects, and mark them as visitable.
 		//roots.mark_roots(GcMarker { mark: self.mark });
@@ -96,7 +97,7 @@ impl GarbageCollector {
 		let mut new_free = self.data;
 		let mut alive_objects = 0;
 		self.walk_alive(|pointer| unsafe {
-			writeln!(&mut build, "root -> x{}", pointer.0 as usize).unwrap();
+			//writeln!(&mut build, "root -> x{}", pointer.0 as usize).unwrap();
 			alive_objects += 1;
 
 			// Set the forward field to the soon to be the new object location.
@@ -109,7 +110,7 @@ impl GarbageCollector {
 			let object_size = (*obj).size as usize + OBJECT_HEADER;
 			new_free = new_free.add(align_size(object_size));
 		});
-		write(format!("./out{}.txt", self.objects), build).unwrap();
+		//write(format!("./out{}.txt", self.objects), build).unwrap();
 
 		debug!("Moving roots");
 		// Update all of the object edges to the new object locations.
@@ -123,7 +124,7 @@ impl GarbageCollector {
 		self.walk_alive(|pointer| {
 			trace!("Updating {pointer:?}");
 			//// Go through all of the objects edges, and move them to the new child object location.
-			Object::new(pointer).map_refs(|r| unsafe { move_reference(r) });
+			pointer.map_refs(|r| unsafe { move_reference(r) });
 		});
 
 		debug!("Moving data");
@@ -152,37 +153,45 @@ impl GarbageCollector {
 		statistics
 	}
 
-	pub fn allocate_object(
+	pub fn allocate_instance(
 		&mut self,
 		id: Id<Class>,
-		class: &ObjectClass,
-	) -> Result<AnyClassObject, AllocationError> {
-		let reference = self
-			.allocate_raw((class.fields.fields_size as usize) + AnyClassObject::FULL_HEADER_SIZE)?;
-		Ok(unsafe { AnyClassObject::allocate(reference, id, class) })
+		class: &InstanceClass,
+	) -> Result<AnyInstance, AllocationError> {
+		unsafe {
+			let reference =
+				self.allocate((class.fields.fields_size as usize) + AnyInstance::FULL_HEADER_SIZE)?;
+			Ok(AnyInstance::allocate(reference, id, class))
+		}
 	}
 
 	pub fn allocate_ref_array(
 		&mut self,
 		component: Id<Class>,
 		length: i32,
-	) -> Result<AnyArrayObject, AllocationError> {
-		let size = AnyArrayObject::size(Kind::Reference, length);
-		let reference = self.allocate_raw(size)?;
-		Ok(unsafe { AnyArrayObject::allocate_ref(reference, component, length) })
+	) -> Result<AnyArray, AllocationError> {
+		let size = AnyArray::size(Kind::Reference, length);
+		unsafe {
+			let reference = self.allocate(size)?;
+			Ok(AnyArray::allocate_ref(reference, component, length))
+		}
 	}
 
 	pub fn allocate_array(
 		&mut self,
 		kind: PrimitiveType,
 		length: i32,
-	) -> Result<AnyArrayObject, AllocationError> {
-		let size = AnyArrayObject::size(kind.kind(), length);
-		let reference = self.allocate_raw(size)?;
-		Ok(unsafe { AnyArrayObject::allocate_primitive(reference, kind, length) })
+	) -> Result<AnyArray, AllocationError> {
+		let size = AnyArray::size(kind.kind(), length);
+		unsafe {
+			let reference = self.allocate(size)?;
+			Ok(AnyArray::allocate_primitive(reference, kind, length))
+		}
 	}
 
-	pub fn allocate_raw(&mut self, size: usize) -> Result<Reference, AllocationError> {
+	/// # Safety
+	/// The caller must set the reference kind mark to the type of reference it is.
+	pub unsafe fn allocate(&mut self, size: usize) -> Result<Reference, AllocationError> {
 		if size > ObjectSize::MAX as usize {
 			return Err(AllocationError::ObjectTooBig);
 		}
@@ -294,6 +303,7 @@ pub enum AllocationError {
 
 #[cfg(test)]
 mod tests {
+	use crate::{AnyValue, ClassLoader};
 	use rvm_core::{FieldAccessFlags, Kind, ObjectType, PrimitiveType};
 	use rvm_object::{
 		Class, ClassLoader, ClassMethodManager, DynValue, FieldData, ObjectFieldLayout,
@@ -441,7 +451,7 @@ mod tests {
 
 		let layout = ObjectFieldLayout::new(&fields, false);
 
-		loader.define(Class::Object(ObjectClass {
+		loader.define(Class::Object(InstanceClass {
 			ty: name.to_string().into(),
 			fields: layout,
 			cp: Arc::new(ConstantPool::new(vec![])),
@@ -472,13 +482,13 @@ mod tests {
 		let mut roots = TestRoots::default();
 		unsafe {
 			for i in 0..2 {
-				let object = gc.allocate_object(id, object_class).unwrap();
+				let object = gc.allocate_instance(id, object_class).unwrap();
 				roots.roots.push(*object);
 
 				let resolved_object = object.resolve(object_class);
-				assert_eq!(resolved_object.get_dyn(field_id), DynValue::Int(0));
-				resolved_object.put_dyn(field_id, DynValue::Int(69));
-				assert_eq!(resolved_object.get_dyn(field_id), DynValue::Int(69));
+				assert_eq!(resolved_object.get_dyn(field_id), AnyValue::Int(0));
+				resolved_object.put_dyn(field_id, AnyValue::Int(69));
+				assert_eq!(resolved_object.get_dyn(field_id), AnyValue::Int(69));
 
 				assert_eq!(object.class(), id);
 			}
@@ -487,7 +497,7 @@ mod tests {
 		assert_eq!(gc.objects, 2);
 		assert_eq!(gc.free, unsafe {
 			gc.data.add(
-				align_size(OBJECT_HEADER + AnyClassObject::FULL_HEADER_SIZE + size_of::<u32>()) * 2,
+				align_size(OBJECT_HEADER + AnyInstance::FULL_HEADER_SIZE + size_of::<u32>()) * 2,
 			)
 		});
 
@@ -495,7 +505,7 @@ mod tests {
 		assert_eq!(gc.objects, 2);
 		assert_eq!(gc.free, unsafe {
 			gc.data.add(
-				align_size(OBJECT_HEADER + AnyClassObject::FULL_HEADER_SIZE + size_of::<u32>()) * 2,
+				align_size(OBJECT_HEADER + AnyInstance::FULL_HEADER_SIZE + size_of::<u32>()) * 2,
 			)
 		});
 
@@ -504,7 +514,7 @@ mod tests {
 			let class = object.as_class().unwrap();
 			assert_eq!(class.class(), id);
 			let class = class.resolve(object_class);
-			assert_eq!(class.get_dyn(field_id), DynValue::Int(69));
+			assert_eq!(class.get_dyn(field_id), AnyValue::Int(69));
 		}
 
 		roots.roots.pop();
@@ -513,7 +523,7 @@ mod tests {
 		assert_eq!(gc.objects, 1);
 		assert_eq!(gc.free, unsafe {
 			gc.data.add(align_size(
-				OBJECT_HEADER + AnyClassObject::FULL_HEADER_SIZE + size_of::<u32>(),
+				OBJECT_HEADER + AnyInstance::FULL_HEADER_SIZE + size_of::<u32>(),
 			))
 		});
 
@@ -522,7 +532,7 @@ mod tests {
 			let class = object.as_class().unwrap();
 			assert_eq!(class.class(), id);
 			let class = class.resolve(object_class);
-			assert_eq!(class.get_dyn(field_id), DynValue::Int(69));
+			assert_eq!(class.get_dyn(field_id), AnyValue::Int(69));
 		}
 		roots.roots.pop();
 
@@ -555,17 +565,17 @@ mod tests {
 		let child_iq = child_class.fields.get_id("iq").unwrap();
 
 		unsafe {
-			let parent = gc.allocate_object(parent_id, parent_class).unwrap();
-			let child = gc.allocate_object(child_id, child_class).unwrap();
+			let parent = gc.allocate_instance(parent_id, parent_class).unwrap();
+			let child = gc.allocate_instance(child_id, child_class).unwrap();
 
 			roots.roots.push(*parent);
 
 			let parent = parent.resolve(parent_class);
-			parent.put_dyn(parent_child, DynValue::Reference(*child));
-			parent.put_dyn(parent_intimacy, DynValue::Int(6969));
+			parent.put_dyn(parent_child, AnyValue::Reference(*child));
+			parent.put_dyn(parent_intimacy, AnyValue::Int(6969));
 
 			let child = child.resolve(child_class);
-			child.put_dyn(child_iq, DynValue::Float(420.0));
+			child.put_dyn(child_iq, AnyValue::Float(420.0));
 		}
 
 		let stats = gc.gc();
@@ -578,18 +588,18 @@ mod tests {
 		let parent = parent_obj.as_class().unwrap();
 		let parent = parent.resolve(parent_class);
 
-		assert_eq!(parent.get_dyn(parent_intimacy), DynValue::Int(6969));
+		assert_eq!(parent.get_dyn(parent_intimacy), AnyValue::Int(6969));
 		let value = parent.get_dyn(parent_child);
 		let child_ref = match value {
-			DynValue::Reference(point) => point,
+			AnyValue::Reference(point) => point,
 			_ => panic!("wrong type"),
 		};
 		let child_obj = Object::new(child_ref);
 		let child = child_obj.as_class().unwrap();
 		let child = child.resolve(child_class);
-		assert_eq!(child.get_dyn(child_iq), DynValue::Float(420.0));
+		assert_eq!(child.get_dyn(child_iq), AnyValue::Float(420.0));
 
-		parent.put_dyn(parent_child, DynValue::Reference(Reference::NULL));
+		parent.put_dyn(parent_child, AnyValue::Reference(Reference::NULL));
 
 		let stats = gc.gc();
 		assert_eq!(stats.objects_remaining, 1);

@@ -3,7 +3,7 @@ use rvm_core::Id;
 use std::fmt::Debug;
 
 pub type JResult<V> = Result<V, JError>;
-use rvm_object::{Class, Method, MethodData};
+use crate::object::{Class, Method};
 use std::fmt::Write;
 
 #[derive(Clone, Debug, PartialEq, Eq)]

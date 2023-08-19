@@ -10,7 +10,6 @@ inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "master", feat
 
 rvm-core = { path = "./libs/rvm-core" }
 rvm-runtime = { path = "./libs/rvm-runtime" }
-rvm-object = { path = "./libs/rvm-object" }
 rvm-bind = { path = "./libs/rvm-bind" }
 rvm-engine-ben = { path = "./libs/rvm-engine-ben" }
 
@@ -23,11 +22,9 @@ members = [
     "./libs/rvm-bind",
     "./libs/rvm-core",
     "./libs/rvm-runtime",
-    "./libs/rvm-gc",
     "./libs/rvm-engine-llvm",
     "./libs/rvm-engine-ben",
     "./libs/rvm-reader",
-    "./libs/rvm-object",
     "./libs/rvm-macro",
     "./libs/rvm-tests",
 ]

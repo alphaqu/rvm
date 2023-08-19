@@ -1,8 +1,7 @@
+use rvm_core::{Kind, StackKind};
+use rvm_runtime::{AnyValue, Reference};
 use std::fmt::{Display, Formatter};
 use std::mem::transmute;
-
-use rvm_core::{Kind, Reference, StackKind};
-use rvm_object::DynValue;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -72,61 +71,61 @@ impl StackValue {
 		self.category() == 2
 	}
 
-	pub fn from_dyn(value: DynValue) -> StackValue {
+	pub fn from_dyn(value: AnyValue) -> StackValue {
 		match value {
-			DynValue::Byte(value) => StackValue::Int(value as i32),
-			DynValue::Short(value) => StackValue::Int(value as i32),
-			DynValue::Int(value) => StackValue::Int(value),
-			DynValue::Long(value) => StackValue::Long(value),
-			DynValue::Float(value) => StackValue::Float(value),
-			DynValue::Double(value) => StackValue::Double(value),
-			DynValue::Boolean(value) => StackValue::Int(value as u8 as i32),
-			DynValue::Reference(value) => StackValue::Reference(value),
+			AnyValue::Byte(value) => StackValue::Int(value as i32),
+			AnyValue::Short(value) => StackValue::Int(value as i32),
+			AnyValue::Int(value) => StackValue::Int(value),
+			AnyValue::Long(value) => StackValue::Long(value),
+			AnyValue::Float(value) => StackValue::Float(value),
+			AnyValue::Double(value) => StackValue::Double(value),
+			AnyValue::Boolean(value) => StackValue::Int(value as u8 as i32),
+			AnyValue::Reference(value) => StackValue::Reference(value),
 			_ => todo!(),
 		}
 	}
 
-	pub fn convert(self, kind: Kind) -> Option<DynValue> {
+	pub fn convert(self, kind: Kind) -> Option<AnyValue> {
 		match kind {
 			Kind::Boolean => {
 				if let StackValue::Int(value) = self {
-					return Some(DynValue::Boolean(value != 0));
+					return Some(AnyValue::Boolean(value != 0));
 				}
 			}
 			Kind::Byte => {
 				if let StackValue::Int(value) = self {
-					return Some(DynValue::Byte(value as i8));
+					return Some(AnyValue::Byte(value as i8));
 				}
 			}
 			Kind::Short => {
 				if let StackValue::Int(value) = self {
-					return Some(DynValue::Short(value as i16));
+					return Some(AnyValue::Short(value as i16));
 				}
 			}
 			Kind::Int => {
 				if let StackValue::Int(value) = self {
-					return Some(DynValue::Int(value));
+					return Some(AnyValue::Int(value));
 				}
 			}
 			Kind::Long => {
 				if let StackValue::Long(value) = self {
-					return Some(DynValue::Long(value));
+					return Some(AnyValue::Long(value));
 				}
 			}
 
 			Kind::Float => {
 				if let StackValue::Float(value) = self {
-					return Some(DynValue::Float(value));
+					return Some(AnyValue::Float(value));
 				}
 			}
 			Kind::Double => {
 				if let StackValue::Double(value) = self {
-					return Some(DynValue::Double(value));
+					return Some(AnyValue::Double(value));
 				}
 			}
 			Kind::Reference => {
 				if let StackValue::Reference(value) = self {
-					return Some(DynValue::Reference(value));
+					return Some(AnyValue::Reference(value));
 				}
 			}
 			_ => {
@@ -137,13 +136,13 @@ impl StackValue {
 		None
 	}
 
-	pub fn to_dyn(self) -> DynValue {
+	pub fn to_dyn(self) -> AnyValue {
 		match self {
-			StackValue::Int(value) => DynValue::Int(value),
-			StackValue::Float(value) => DynValue::Float(value),
-			StackValue::Long(value) => DynValue::Long(value),
-			StackValue::Double(value) => DynValue::Double(value),
-			StackValue::Reference(value) => DynValue::Reference(value),
+			StackValue::Int(value) => AnyValue::Int(value),
+			StackValue::Float(value) => AnyValue::Float(value),
+			StackValue::Long(value) => AnyValue::Long(value),
+			StackValue::Double(value) => AnyValue::Double(value),
+			StackValue::Reference(value) => AnyValue::Reference(value),
 		}
 	}
 }

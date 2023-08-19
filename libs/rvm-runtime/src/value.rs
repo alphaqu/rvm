@@ -1,4 +1,5 @@
-use rvm_core::{Kind, Reference};
+use crate::object::Reference;
+use rvm_core::Kind;
 use std::ptr::{read, write};
 
 pub trait Value: Sized + Copy {
@@ -8,7 +9,7 @@ pub trait Value: Sized + Copy {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub enum DynValue {
+pub enum AnyValue {
 	Byte(i8),
 	Short(i16),
 	Int(i32),
@@ -22,18 +23,18 @@ pub enum DynValue {
 
 macro_rules! impl_from {
 	($TY:ty, $KIND:ident) => {
-		impl From<$TY> for DynValue {
+		impl From<$TY> for AnyValue {
 			fn from(value: $TY) -> Self {
-				DynValue::$KIND(value)
+				AnyValue::$KIND(value)
 			}
 		}
 
-		impl TryInto<$TY> for DynValue {
-			type Error = DynValue;
+		impl TryInto<$TY> for AnyValue {
+			type Error = AnyValue;
 
 			fn try_into(self) -> Result<$TY, Self::Error> {
 				match self {
-					DynValue::$KIND(v) => Ok(v),
+					AnyValue::$KIND(v) => Ok(v),
 					_ => Err(self),
 				}
 			}
@@ -51,45 +52,45 @@ impl_from!(f64, Double);
 impl_from!(bool, Boolean);
 impl_from!(Reference, Reference);
 
-impl DynValue {
+impl AnyValue {
 	pub fn kind(&self) -> Kind {
 		match self {
-			DynValue::Byte(_) => i8::ty(),
-			DynValue::Short(_) => i16::ty(),
-			DynValue::Int(_) => i32::ty(),
-			DynValue::Long(_) => i64::ty(),
-			DynValue::Char(_) => u16::ty(),
-			DynValue::Float(_) => f32::ty(),
-			DynValue::Double(_) => f64::ty(),
-			DynValue::Boolean(_) => bool::ty(),
-			DynValue::Reference(_) => Reference::ty(),
+			AnyValue::Byte(_) => i8::ty(),
+			AnyValue::Short(_) => i16::ty(),
+			AnyValue::Int(_) => i32::ty(),
+			AnyValue::Long(_) => i64::ty(),
+			AnyValue::Char(_) => u16::ty(),
+			AnyValue::Float(_) => f32::ty(),
+			AnyValue::Double(_) => f64::ty(),
+			AnyValue::Boolean(_) => bool::ty(),
+			AnyValue::Reference(_) => Reference::ty(),
 		}
 	}
 
 	pub unsafe fn write(self, ptr: *mut u8) {
 		match self {
-			DynValue::Byte(v) => i8::write(ptr, v),
-			DynValue::Short(v) => i16::write(ptr, v),
-			DynValue::Int(v) => i32::write(ptr, v),
-			DynValue::Long(v) => i64::write(ptr, v),
-			DynValue::Char(v) => u16::write(ptr, v),
-			DynValue::Float(v) => f32::write(ptr, v),
-			DynValue::Double(v) => f64::write(ptr, v),
-			DynValue::Boolean(v) => bool::write(ptr, v),
-			DynValue::Reference(v) => Reference::write(ptr, v),
+			AnyValue::Byte(v) => i8::write(ptr, v),
+			AnyValue::Short(v) => i16::write(ptr, v),
+			AnyValue::Int(v) => i32::write(ptr, v),
+			AnyValue::Long(v) => i64::write(ptr, v),
+			AnyValue::Char(v) => u16::write(ptr, v),
+			AnyValue::Float(v) => f32::write(ptr, v),
+			AnyValue::Double(v) => f64::write(ptr, v),
+			AnyValue::Boolean(v) => bool::write(ptr, v),
+			AnyValue::Reference(v) => Reference::write(ptr, v),
 		}
 	}
 	pub unsafe fn read(ptr: *mut u8, kind: Kind) -> Self {
 		match kind {
-			Kind::Byte => DynValue::Byte(i8::read(ptr)),
-			Kind::Short => DynValue::Short(i16::read(ptr)),
-			Kind::Int => DynValue::Int(i32::read(ptr)),
-			Kind::Long => DynValue::Long(i64::read(ptr)),
-			Kind::Char => DynValue::Char(u16::read(ptr)),
-			Kind::Float => DynValue::Float(f32::read(ptr)),
-			Kind::Double => DynValue::Double(f64::read(ptr)),
-			Kind::Boolean => DynValue::Boolean(bool::read(ptr)),
-			Kind::Reference => DynValue::Reference(Reference::read(ptr)),
+			Kind::Byte => AnyValue::Byte(i8::read(ptr)),
+			Kind::Short => AnyValue::Short(i16::read(ptr)),
+			Kind::Int => AnyValue::Int(i32::read(ptr)),
+			Kind::Long => AnyValue::Long(i64::read(ptr)),
+			Kind::Char => AnyValue::Char(u16::read(ptr)),
+			Kind::Float => AnyValue::Float(f32::read(ptr)),
+			Kind::Double => AnyValue::Double(f64::read(ptr)),
+			Kind::Boolean => AnyValue::Boolean(bool::read(ptr)),
+			Kind::Reference => AnyValue::Reference(Reference::read(ptr)),
 		}
 	}
 }

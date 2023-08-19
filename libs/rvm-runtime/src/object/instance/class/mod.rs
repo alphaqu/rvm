@@ -4,17 +4,16 @@ use std::sync::Arc;
 use anyways::ext::AuditExt;
 use anyways::Result;
 
+use crate::object::{Class, ClassLoader};
 pub use field::*;
 pub use method::*;
 use rvm_core::{Id, ObjectType, Type};
 use rvm_reader::{ClassInfo, ConstantPool};
 
-use crate::{Class, ClassLoader};
-
 mod field;
 mod method;
 
-pub struct ObjectClass {
+pub struct InstanceClass {
 	pub ty: ObjectType,
 
 	pub super_class: Option<ObjectType>,
@@ -27,10 +26,10 @@ pub struct ObjectClass {
 	//pub static_object: Reference,
 }
 
-unsafe impl Send for ObjectClass {}
-unsafe impl Sync for ObjectClass {}
-impl ObjectClass {
-	pub fn parse(info: ClassInfo, cl: &ClassLoader) -> Result<ObjectClass> {
+unsafe impl Send for InstanceClass {}
+unsafe impl Sync for InstanceClass {}
+impl InstanceClass {
+	pub fn parse(info: ClassInfo, cl: &ClassLoader) -> Result<InstanceClass> {
 		let super_class = info
 			.constant_pool
 			.get(info.super_class)
@@ -54,7 +53,7 @@ impl ObjectClass {
 			.map(|v| FieldData::from_info(v, &info.constant_pool).unwrap())
 			.collect();
 
-		Ok(ObjectClass {
+		Ok(InstanceClass {
 			ty: ObjectType(name.to_string()),
 			super_class,
 			super_id,

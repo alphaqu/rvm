@@ -1,6 +1,6 @@
 use rvm_core::ObjectType;
-use rvm_object::ObjectClass;
 use rvm_reader::NewInst;
+use rvm_runtime::InstanceClass;
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug)]
@@ -15,7 +15,7 @@ impl Display for NewTask {
 }
 
 impl NewTask {
-	pub fn new(inst: &NewInst, class: &ObjectClass) -> NewTask {
+	pub fn new(inst: &NewInst, class: &InstanceClass) -> NewTask {
 		let class_data = inst.class.get(&class.cp).unwrap();
 		let name = class_data.name.get(&class.cp).unwrap();
 		NewTask {

@@ -1,4 +1,3 @@
-use rvm_object::{MethodIdentifier, NativeCode};
 use rvm_runtime::java_bind_method;
 
 use crate::{compile, launch};

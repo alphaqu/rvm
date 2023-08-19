@@ -1,35 +1,28 @@
-#![feature(generic_const_exprs)]
 #![feature(hash_drain_filter)]
 #![feature(drain_filter)]
 #![feature(array_try_from_fn)]
 #![feature(thread_local)]
 #![feature(thread_id_value)]
 
-use std::any::Any;
-use std::ffi::c_void;
-use std::pin::Pin;
 use std::sync::Arc;
 use std::thread::spawn;
 
-use either::Either;
-use lazy_static::lazy_static;
 use parking_lot::Mutex;
-use rvm_core::{ObjectType, Type};
-use rvm_object::{Class, ClassLoader, MethodCode, MethodIdentifier};
-use tracing::info;
 
 use crate::engine::Engine;
 use crate::gc::GarbageCollector;
 
-pub mod error;
-pub mod prelude;
-
-pub mod arena;
+pub use object::*;
+pub use value::*;
 pub mod engine;
+pub mod error;
 pub mod gc;
 #[cfg(feature = "native")]
 pub mod native;
+mod object;
+pub mod prelude;
 mod thread;
+mod value;
 
 /// A runtime which (almost never) conforms to [The Java Virtual Machine Specification, Java SE 19 Edition][jvms]
 ///
@@ -51,7 +44,7 @@ impl Runtime {
 			gc: Mutex::new(GarbageCollector::new(heap_size)),
 		}
 	}
-	
+
 	pub fn gc(runtime: Arc<Runtime>) {
 		spawn(move || {
 			let mut gc = runtime.gc.lock();

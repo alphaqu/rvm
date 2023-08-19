@@ -1,9 +1,9 @@
 use crate::thread::ThreadFrame;
 use crate::value::StackValue;
-use rvm_core::Reference;
-use rvm_object::ObjectClass;
 use rvm_reader::{ConstInst, ConstantInfo};
+use rvm_runtime::{InstanceClass, Reference};
 use std::fmt::{Display, Formatter};
+
 #[derive(Debug)]
 
 pub enum ConstTask {
@@ -31,7 +31,7 @@ impl Display for ConstTask {
 }
 
 impl ConstTask {
-	pub fn new(inst: &ConstInst, class: &ObjectClass) -> ConstTask {
+	pub fn new(inst: &ConstInst, class: &InstanceClass) -> ConstTask {
 		match inst {
 			ConstInst::Null => ConstTask::Null,
 			ConstInst::Int(v) => ConstTask::Int(*v),

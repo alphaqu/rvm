@@ -7,11 +7,12 @@ use std::thread::{spawn, JoinHandle};
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use crossbeam::sync::{Parker, Unparker};
 
-use rvm_core::ObjectType;
-use rvm_object::{DynValue, MethodData, MethodIdentifier};
-use rvm_reader::ConstantPool;
 use crate::gc::GcSweeper;
+use crate::object::{MethodData, MethodIdentifier};
+use rvm_core::ObjectType;
+use rvm_reader::ConstantPool;
 
+use crate::value::AnyValue;
 use crate::Runtime;
 
 pub trait Engine: Send + Sync {
@@ -33,7 +34,7 @@ pub struct Thread {
 
 pub struct ThreadHandle {
 	data: Arc<ThreadConfig>,
-	handle: JoinHandle<Option<DynValue>>,
+	handle: JoinHandle<Option<AnyValue>>,
 	sender: Sender<ThreadCommand>,
 }
 
@@ -41,7 +42,7 @@ impl ThreadHandle {
 	pub fn new(
 		runtime: Arc<Runtime>,
 		config: ThreadConfig,
-		func: impl FnOnce(Thread) -> Option<DynValue> + Send + 'static,
+		func: impl FnOnce(Thread) -> Option<AnyValue> + Send + 'static,
 	) -> ThreadHandle {
 		let data = Arc::new(config);
 		let (sender, receiver) = unbounded();
@@ -63,7 +64,7 @@ impl ThreadHandle {
 		}
 	}
 
-	pub fn join(self) -> thread::Result<Option<DynValue>> {
+	pub fn join(self) -> thread::Result<Option<AnyValue>> {
 		self.handle.join()
 	}
 
@@ -71,7 +72,7 @@ impl ThreadHandle {
 		self.data.name.as_str()
 	}
 
-	pub fn run(&self, ty: ObjectType, method: MethodIdentifier, parameters: Vec<DynValue>) {
+	pub fn run(&self, ty: ObjectType, method: MethodIdentifier, parameters: Vec<AnyValue>) {
 		self.sender
 			.send(ThreadCommand::Run {
 				ty: ty,
@@ -80,15 +81,13 @@ impl ThreadHandle {
 			})
 			.unwrap();
 	}
-	
 }
-
 
 pub enum ThreadCommand {
 	Run {
 		ty: ObjectType,
 		method: MethodIdentifier,
-		parameters: Vec<DynValue>,
+		parameters: Vec<AnyValue>,
 	},
 	Exit,
 }

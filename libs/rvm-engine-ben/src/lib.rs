@@ -8,10 +8,9 @@ use std::sync::{Arc, RwLock};
 use tracing::debug;
 
 use rvm_core::{Id, ObjectType, Storage, Type};
-use rvm_object::{Class, Method, MethodCode, MethodData, MethodIdentifier};
 use rvm_reader::ConstantPool;
 use rvm_runtime::engine::{Engine, ThreadConfig, ThreadHandle};
-use rvm_runtime::Runtime;
+use rvm_runtime::{Class, Method, MethodCode, MethodData, MethodIdentifier, Runtime};
 
 use crate::method::CompiledMethod;
 use crate::thread::spawn;

@@ -1,11 +1,11 @@
-#![feature(const_trait_impl)]
-
+mod array;
 mod class;
 mod class_loader;
+mod instance;
 mod reference;
-mod value;
 
+pub use array::*;
 pub use class::*;
 pub use class_loader::*;
+pub use instance::*;
 pub use reference::*;
-pub use value::*;

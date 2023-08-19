@@ -1,7 +1,7 @@
 use crate::code::Task;
 use rvm_core::{Kind, MethodAccessFlags, StorageValue, Type};
-use rvm_object::{Method, ObjectClass};
 use rvm_reader::Code;
+use rvm_runtime::{InstanceClass, Method};
 
 pub struct CompiledMethod {
 	pub max_locals: u16,
@@ -13,7 +13,7 @@ pub struct CompiledMethod {
 }
 
 impl CompiledMethod {
-	pub fn new(code: &Code, class: &ObjectClass, method: &Method) -> CompiledMethod {
+	pub fn new(code: &Code, class: &InstanceClass, method: &Method) -> CompiledMethod {
 		CompiledMethod {
 			max_locals: code.max_locals as u16,
 			max_stack: code.max_stack as u16,

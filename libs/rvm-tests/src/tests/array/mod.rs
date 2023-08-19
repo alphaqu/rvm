@@ -1,7 +1,6 @@
 use crate::{compile, launch};
-use rvm_core::{Kind, PrimitiveType, Reference};
-use rvm_object::{Array, Object};
-use rvm_runtime::java_bind_method;
+use rvm_core::PrimitiveType;
+use rvm_runtime::{java_bind_method, Array, Reference};
 
 #[test]
 fn primitive() {
@@ -159,7 +158,7 @@ fn refArrays() {
 		assert_eq!(java_get(array, 1), Reference::NULL);
 
 		let mut visited_0 = false;
-		Object::new(reference).visit_refs(|v| {
+		reference.visit_refs(|v| {
 			if !visited_0 {
 				visited_0 = true;
 				assert_eq!(v, v0);

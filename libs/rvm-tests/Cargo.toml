@@ -5,7 +5,6 @@ edition = "2021"
 
 [dependencies]
 rvm-core = { path = "../rvm-core" }
-rvm-object = { path = "../rvm-object" }
 rvm-runtime = { path = "../rvm-runtime" }
 rvm-macro = { path = "../rvm-macro" }
 rvm-engine-ben = { path = "../rvm-engine-ben" }

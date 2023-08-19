@@ -1,4 +1,3 @@
-use crate::Reference;
 use std::fmt::{Display, Formatter};
 use std::mem::size_of;
 
@@ -20,7 +19,7 @@ pub enum Kind {
 impl Kind {
 	pub fn size(&self) -> usize {
 		match self {
-			Kind::Reference => size_of::<Reference>(),
+			Kind::Reference => size_of::<*mut u8>(),
 			Kind::Boolean => size_of::<bool>(),
 			Kind::Char => size_of::<u16>(),
 			Kind::Float => size_of::<f32>(),

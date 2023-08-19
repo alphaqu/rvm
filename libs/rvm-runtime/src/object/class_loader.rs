@@ -1,18 +1,15 @@
 use std::io::{Cursor, Read};
 use std::sync::Arc;
 
-use ahash::AHashMap;
 use anyways::ext::AuditExt;
 use nom::error::VerboseErrorKind;
-use parking_lot::lock_api::MappedRwLockReadGuard;
-use parking_lot::{RawRwLock, RwLock, RwLockReadGuard};
+use parking_lot::RwLock;
 use tracing::{debug, info, instrument, warn};
 
+use crate::object::class::Class;
+use crate::{ArrayClass, InstanceClass};
 use rvm_core::{Id, Kind, Storage, Type};
 use rvm_reader::ClassInfo;
-
-use crate::class::{Class, ObjectClass};
-use crate::{ArrayClass, MethodIdentifier, NativeCode};
 
 pub struct ClassLoader {
 	classes: RwLock<Storage<Type, Class, Arc<Class>>>,
@@ -102,7 +99,7 @@ impl ClassLoader {
 				panic!();
 			}
 		};
-		let class = ObjectClass::parse(info, self)?;
+		let class = InstanceClass::parse(info, self)?;
 
 		debug!("Parsed class {}", class.ty);
 

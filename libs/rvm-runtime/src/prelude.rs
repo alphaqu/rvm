@@ -32,13 +32,13 @@ macro_rules! java_bind_method {
 
 			thread.run(
 				rvm_core::ObjectType(::core::stringify!($class).to_string().replace("::", "/")),
-				rvm_object::MethodIdentifier {
+				rvm_runtime::MethodIdentifier {
 					name: ::core::stringify!($method).to_string(),
 					descriptor: rvm_macro::java_desc!(fn($($pty),*) $(-> $ret)?).to_string(),
 				},
 				vec![
 					$(
-						<rvm_object::DynValue as TryFrom<$pty>>::try_from($name).unwrap()
+						<rvm_runtime::AnyValue as TryFrom<$pty>>::try_from($name).unwrap()
 					),*
 				]
 			);
@@ -46,7 +46,7 @@ macro_rules! java_bind_method {
 			let dyn_value = value.expect("Thread failed to run");
 			$(
 				let dyn_value = dyn_value.expect("Void return");
-				<rvm_object::DynValue as TryInto<$ret>>::try_into(dyn_value).expect("failed to convert")
+				<rvm_runtime::AnyValue as TryInto<$ret>>::try_into(dyn_value).expect("failed to convert")
 			)?
 		};
 			 value

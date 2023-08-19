@@ -3,12 +3,11 @@ use crate::method::CompiledMethod;
 use crate::thread::{ThreadFrame, ThreadStack};
 use crate::value::StackValue;
 use crate::BenEngine;
-use rvm_core::{Kind, MethodAccessFlags, MethodDesc, ObjectType, Reference, Type};
-use rvm_object::{DynValue, MethodIdentifier, Object};
+use rvm_core::{Kind, MethodAccessFlags, MethodDesc, ObjectType, Type};
 use rvm_reader::JumpKind;
 use rvm_runtime::engine::Thread;
 use rvm_runtime::gc::{AllocationError, GcMarker, GcSweeper, RootProvider};
-use rvm_runtime::Runtime;
+use rvm_runtime::{AnyValue, MethodIdentifier, Reference, Runtime};
 use std::sync::Arc;
 use tracing::{debug, trace};
 
@@ -31,7 +30,7 @@ impl<'a> Executor<'a> {
 		ty: &ObjectType,
 		method: &MethodIdentifier,
 		call_ty: CallType,
-		mut parameter_getter: impl FnMut() -> DynValue,
+		mut parameter_getter: impl FnMut() -> AnyValue,
 	) -> ExecutorFrame<'f> {
 		debug!("Creating frame for {ty:?} {method:?}");
 
@@ -50,8 +49,7 @@ impl<'a> Executor<'a> {
 		let class_id = if call_ty == CallType::Interface {
 			let value1 = instance.unwrap();
 			let reference = value1.to_ref();
-			let object = Object::new(reference);
-			let class_object = object.as_class().unwrap();
+			let class_object = reference.to_class().unwrap();
 			class_object.class()
 		} else {
 			self.runtime
@@ -82,8 +80,8 @@ impl<'a> Executor<'a> {
 		mut self,
 		ty: &ObjectType,
 		method: &MethodIdentifier,
-		mut parameters: Vec<DynValue>,
-	) -> Option<DynValue> {
+		mut parameters: Vec<AnyValue>,
+	) -> Option<AnyValue> {
 		let mut frames = vec![self.create_frame(ty, method, CallType::Static, || {
 			parameters.pop().expect("Not enough parameters")
 		})];
@@ -118,7 +116,7 @@ impl<'a> Executor<'a> {
 						let class = self.runtime.class_loader.get(id);
 						let object = class.object().unwrap();
 						unsafe {
-							let result = self.runtime.gc.lock().allocate_object(id, object);
+							let result = self.runtime.gc.lock().allocate_instance(id, object);
 
 							match result {
 								Ok(object) => {

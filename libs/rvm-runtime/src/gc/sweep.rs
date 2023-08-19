@@ -1,8 +1,7 @@
 use crate::gc::{move_reference, ref_to_header, ObjectFlags, RootProvider};
+use crate::object::Reference;
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use crossbeam::sync::{Parker, Unparker};
-use rvm_core::Reference;
-use rvm_object::Object;
 use std::time::Duration;
 use tracing::trace;
 
@@ -119,7 +118,7 @@ impl GcMarker {
 			// we toggle the mark to say that we have visited/visiting this object.
 			(*obj).flags.set(ObjectFlags::MARK, self.mark);
 
-			Object::new(reference).visit_refs(|value| {
+			reference.visit_refs(|value| {
 				self.mark(value);
 			});
 		}

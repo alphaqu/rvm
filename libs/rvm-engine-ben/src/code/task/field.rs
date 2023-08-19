@@ -1,7 +1,6 @@
 use rvm_core::{ObjectType, Type};
-use rvm_object::{Class, Object, ObjectClass};
 use rvm_reader::{FieldInst, FieldInstKind};
-use rvm_runtime::Runtime;
+use rvm_runtime::{Class, InstanceClass, Runtime};
 use std::fmt::{Display, Formatter};
 
 use crate::thread::ThreadFrame;
@@ -29,7 +28,7 @@ impl Display for FieldTask {
 }
 
 impl FieldTask {
-	pub fn new(inst: &FieldInst, class: &ObjectClass) -> FieldTask {
+	pub fn new(inst: &FieldInst, class: &InstanceClass) -> FieldTask {
 		let field = inst.value.get(&class.cp).unwrap();
 		let source = field.class.get(&class.cp).unwrap();
 		let source = source.name.get(&class.cp).unwrap();
@@ -67,8 +66,7 @@ impl FieldTask {
 						FieldInstKind::Get => {
 							let reference = frame.pop().to_ref();
 
-							let ref_object = Object::new(reference);
-							let class = ref_object.as_class().unwrap();
+							let class = reference.to_class().unwrap();
 							let value = class.resolve(object).get_dyn(id);
 
 							frame.push(StackValue::from_dyn(value));
@@ -76,9 +74,7 @@ impl FieldTask {
 						FieldInstKind::Put => {
 							let value = frame.pop();
 							let reference = frame.pop().to_ref();
-
-							let ref_object = Object::new(reference);
-							let class = ref_object.as_class().unwrap();
+							let class = reference.to_class().unwrap();
 							class.resolve(object).put_dyn(id, value.to_dyn());
 						}
 					}

@@ -10,7 +10,6 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use rvm_engine_ben::BenBinding;
-use rvm_object::{MethodIdentifier, NativeCode};
 use walkdir::WalkDir;
 
 use rvm_runtime::Runtime;
