@@ -6,7 +6,7 @@ use tracing::{debug, trace};
 use crate::gc::sweep::{new_sweeper, GcSweeperHandle};
 pub use crate::gc::sweep::{GcMarker, GcSweeper};
 pub use object::{GcHeader, ObjectFlags, ObjectSize, OBJECT_HEADER};
-use rvm_core::{Id, Kind, Reference};
+use rvm_core::{Id, Kind, PrimitiveType, Reference};
 use rvm_object::{AnyArrayObject, AnyClassObject, Class, Object, ObjectClass};
 
 mod object;
@@ -174,22 +174,15 @@ impl GarbageCollector {
 
 	pub fn allocate_array(
 		&mut self,
-		kind: Kind,
+		kind: PrimitiveType,
 		length: i32,
 	) -> Result<AnyArrayObject, AllocationError> {
-		if kind == Kind::Reference {
-			panic!("Cannot allocate reference array with primitive construct.");
-		}
-		let size = AnyArrayObject::size(kind, length);
+		let size = AnyArrayObject::size(kind.kind(), length);
 		let reference = self.allocate_raw(size)?;
 		Ok(unsafe { AnyArrayObject::allocate_primitive(reference, kind, length) })
 	}
 
 	pub fn allocate_raw(&mut self, size: usize) -> Result<Reference, AllocationError> {
-		if size < 0 {
-			return Err(AllocationError::NegativeSize);
-		}
-
 		if size > ObjectSize::MAX as usize {
 			return Err(AllocationError::ObjectTooBig);
 		}
@@ -295,7 +288,6 @@ pub struct GCStatistics {
 
 #[derive(Debug, Clone)]
 pub enum AllocationError {
-	NegativeSize,
 	OutOfHeap,
 	ObjectTooBig,
 }

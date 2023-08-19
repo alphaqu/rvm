@@ -124,6 +124,11 @@ impl StackValue {
 					return Some(DynValue::Double(value));
 				}
 			}
+			Kind::Reference => {
+				if let StackValue::Reference(value) = self {
+					return Some(DynValue::Reference(value));
+				}
+			}
 			_ => {
 				todo!("todo")
 			}

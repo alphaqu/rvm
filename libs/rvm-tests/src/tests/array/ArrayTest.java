@@ -18,4 +18,12 @@ public class ArrayTest {
 	public static int getValue(int[] array, int index) {
 		return array[index];
 	}
+
+	public static void setValueRef(Object[] array, int index, Object value) {
+		array[index] = value;
+	}
+
+	public static Object getValueRef(Object[] array, int index) {
+		return array[index];
+	}
 }

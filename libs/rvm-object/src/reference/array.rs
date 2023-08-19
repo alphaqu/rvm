@@ -1,7 +1,7 @@
 use crate::reference::Object;
 use crate::value::{read_arr, write_arr};
 use crate::{Class, DynValue, Value};
-use rvm_core::{Id, Kind, Reference, StorageValue};
+use rvm_core::{Id, Kind, PrimitiveType, Reference, StorageValue};
 use std::intrinsics::transmute;
 use std::marker::PhantomData;
 use std::mem::size_of;
@@ -39,13 +39,10 @@ impl AnyArrayObject {
 	/// Allocates a new array
 	pub unsafe fn allocate_primitive(
 		reference: Reference,
-		kind: Kind,
+		kind: PrimitiveType,
 		length: i32,
 	) -> AnyArrayObject {
-		if kind == Kind::Reference {
-			panic!();
-		}
-		Self::allocate(reference, kind, length);
+		Self::allocate(reference, kind.kind(), length);
 		AnyArrayObject { reference }
 	}
 

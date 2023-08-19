@@ -1,9 +1,25 @@
 use crate::thread::ThreadFrame;
 use crate::value::StackValue;
-use rvm_core::Kind;
-use rvm_object::{AnyArrayObject, Array, Object};
-use rvm_reader::ArrayInst;
+use rvm_core::{Kind, PrimitiveType};
+use rvm_object::Object;
+use rvm_runtime::Runtime;
 use std::fmt::{Display, Formatter};
+
+#[derive(Debug)]
+pub struct ArrayCreateTask(pub PrimitiveType);
+impl ArrayCreateTask {
+	pub fn exec(&self, runtime: &Runtime, frame: &mut ThreadFrame) {
+		let length = frame.pop().to_int();
+		let array = runtime.gc.lock().allocate_array(self.0, length).unwrap();
+		frame.push(StackValue::Reference(*array));
+	}
+}
+
+impl Display for ArrayCreateTask {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		write!(f, "newarray {}", self.0)
+	}
+}
 
 #[derive(Debug)]
 pub struct ArrayLengthTask;
