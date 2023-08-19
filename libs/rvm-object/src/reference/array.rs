@@ -201,6 +201,14 @@ impl<V: Value> Array<V> {
 	}
 }
 
+impl<V: Value> Deref for Array<V> {
+	type Target = AnyArrayObject;
+
+	fn deref(&self) -> &Self::Target {
+		&self.array
+	}
+}
+
 impl TryFrom<DynValue> for AnyArrayObject {
 	type Error = DynValue;
 

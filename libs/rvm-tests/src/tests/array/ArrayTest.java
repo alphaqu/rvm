@@ -6,6 +6,14 @@ public class ArrayTest {
 		return ints;
 	}
 
+	public static Object[] singleRefArray() {
+		Object[] ints = {
+				new Object(),
+				null
+		};
+		return ints;
+	}
+
 	public static int[][] multiArray(int value) {
 		int[][] ints = new int[4][4];
 		return ints;

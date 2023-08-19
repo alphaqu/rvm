@@ -54,6 +54,7 @@ impl Desc {
 
 enum PrimDesc {
 	Void,
+	Reference,
 	Char,
 	Bool,
 	I8,
@@ -69,6 +70,7 @@ impl Parse for PrimDesc {
 		let ident: Ident = input.parse()?;
 		Ok(match ident.to_string().as_str() {
 			"bool" => PrimDesc::Bool,
+			"Reference" => PrimDesc::Reference,
 			"char" => PrimDesc::Char,
 			"i8" => PrimDesc::I8,
 			"i16" => PrimDesc::I16,
@@ -93,6 +95,7 @@ impl PrimDesc {
 			PrimDesc::I64 => "J".to_string(),
 			PrimDesc::F32 => "F".to_string(),
 			PrimDesc::F64 => "D".to_string(),
+			PrimDesc::Reference => "Ljava/lang/Object;".to_string()
 		}
 	}
 }

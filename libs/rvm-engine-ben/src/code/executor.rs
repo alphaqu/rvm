@@ -243,6 +243,7 @@ impl<'a> Executor<'a> {
 					Task::ArrayLoad(v) => v.exec(frame),
 					Task::ArrayStore(v) => v.exec(frame),
 					Task::ArrayCreate(v) => v.exec(&self.runtime, frame),
+					Task::ArrayCreateRef(v) => v.exec(&self.runtime, frame),
 				};
 
 				gc_attempts = 0;

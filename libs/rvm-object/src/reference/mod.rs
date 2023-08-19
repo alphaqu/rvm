@@ -37,14 +37,14 @@ impl Object {
 		}
 	}
 
-	pub fn visit_refs(&self, mut visitor: impl FnMut(Reference)) {
+	pub fn visit_refs(&self, visitor: impl FnMut(Reference)) {
 		match self {
 			Object::Class(raw) => raw.visit_refs(visitor),
 			Object::Array(raw) => raw.visit_refs(visitor),
 		}
 	}
 
-	pub fn map_refs(&self, mut mapper: impl FnMut(Reference) -> Reference) {
+	pub fn map_refs(&self, mapper: impl FnMut(Reference) -> Reference) {
 		match self {
 			Object::Class(raw) => raw.map_refs(mapper),
 			Object::Array(raw) => raw.map_refs(mapper),

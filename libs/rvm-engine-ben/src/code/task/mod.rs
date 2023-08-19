@@ -1,6 +1,8 @@
 use std::fmt::{Display, Formatter};
 
-use crate::code::task::array::{ArrayCreateTask, ArrayLengthTask, ArrayLoadTask, ArrayStoreTask};
+use crate::code::task::array::{
+	ArrayCreateRefTask, ArrayCreateTask, ArrayLengthTask, ArrayLoadTask, ArrayStoreTask,
+};
 pub use combine::{CombineTask, CombineTaskOperation, CombineTaskType};
 pub use local::{LocalTask, LocalTaskKind};
 pub use r#const::ConstTask;
@@ -42,6 +44,7 @@ pub enum Task {
 
 	ArrayLength(ArrayLengthTask),
 	ArrayCreate(ArrayCreateTask),
+	ArrayCreateRef(ArrayCreateRefTask),
 	ArrayLoad(ArrayLoadTask),
 	ArrayStore(ArrayStoreTask),
 }
@@ -64,6 +67,7 @@ impl Display for Task {
 			Task::ArrayLoad(v) => v.fmt(f),
 			Task::ArrayStore(v) => v.fmt(f),
 			Task::ArrayCreate(v) => v.fmt(f),
+			Task::ArrayCreateRef(v) => v.fmt(f),
 		}
 	}
 }
@@ -103,6 +107,9 @@ impl Task {
 			Inst::Array(ArrayInst::Load(kind)) => Task::ArrayLoad(ArrayLoadTask(*kind)),
 			Inst::Array(ArrayInst::Store(kind)) => Task::ArrayStore(ArrayStoreTask(*kind)),
 			Inst::Array(ArrayInst::NewPrim(ty)) => Task::ArrayCreate(ArrayCreateTask(*ty)),
+			Inst::Array(ArrayInst::NewRef(ptr)) => {
+				Task::ArrayCreateRef(ArrayCreateRefTask::new(ptr, class))
+			}
 			_ => todo!("{inst:?}"),
 		}
 	}
