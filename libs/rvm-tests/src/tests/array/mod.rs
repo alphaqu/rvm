@@ -56,12 +56,6 @@ fn creation() {
 #[test]
 fn setter() {
 	launch(32 * 1024 * 1024, |runtime| {
-		compile(
-			&runtime,
-			&[("ArrayTest.java", include_str!("ArrayTest.java"))],
-		)
-		.unwrap();
-
 		runtime
 			.class_loader
 			.load_jar(include_bytes!("../../../../../rt.zip"), |v| {
@@ -69,9 +63,13 @@ fn setter() {
 			})
 			.unwrap();
 
+		compile(
+			&runtime,
+			&[("ArrayTest.java", include_str!("ArrayTest.java"))],
+		)
+		.unwrap();
+
 		let java_set = java_bind_method!(runtime fn ArrayTest:setValue(array: Array<i32>, index: i32, value: i32));
-		let java_get =
-			java_bind_method!(runtime fn ArrayTest:getValue(array: Array<i32>, index: i32) -> i32);
 
 		let short = runtime
 			.gc

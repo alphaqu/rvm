@@ -1,10 +1,10 @@
-use crate::code::Task;
+use crate::code::{CallType, Task};
 use crate::method::CompiledMethod;
 use crate::thread::{ThreadFrame, ThreadStack};
 use crate::value::StackValue;
 use crate::BenEngine;
-use rvm_core::{Kind, MethodAccessFlags, ObjectType, Reference, Type};
-use rvm_object::{DynValue, MethodIdentifier};
+use rvm_core::{Kind, MethodAccessFlags, MethodDesc, ObjectType, Reference, Type};
+use rvm_object::{DynValue, MethodIdentifier, Object};
 use rvm_reader::JumpKind;
 use rvm_runtime::engine::Thread;
 use rvm_runtime::gc::{AllocationError, GcMarker, GcSweeper, RootProvider};
@@ -30,26 +30,46 @@ impl<'a> Executor<'a> {
 		&mut self,
 		ty: &ObjectType,
 		method: &MethodIdentifier,
+		call_ty: CallType,
 		mut parameter_getter: impl FnMut() -> DynValue,
 	) -> ExecutorFrame<'f> {
 		debug!("Creating frame for {ty:?} {method:?}");
-		let method = self
-			.engine
-			.get_compiled_method(&self.runtime, ty.clone(), method.clone());
 
-		let is_static = method.flags.contains(MethodAccessFlags::STATIC);
-		let mut frame = self.stack.create(method.max_stack, method.max_locals);
-
-		for (i, ty) in method.parameters.iter().enumerate().rev() {
-			let value = parameter_getter();
-			frame.store(
-				if is_static { i } else { i + 1 } as u16,
-				StackValue::from_dyn(value),
-			);
+		let desc = MethodDesc::parse(&method.descriptor).unwrap();
+		let mut parameters = Vec::new();
+		for _ in desc.parameters {
+			parameters.push(StackValue::from_dyn(parameter_getter()));
 		}
 
+		let mut instance: Option<StackValue> = None;
+		let is_static = call_ty == CallType::Static;
 		if !is_static {
-			frame.store(0, StackValue::from_dyn(parameter_getter()));
+			instance = Some(StackValue::from_dyn(parameter_getter()));
+		}
+
+		let class_id = if call_ty == CallType::Interface {
+			let value1 = instance.unwrap();
+			let reference = value1.to_ref();
+			let object = Object::new(reference);
+			let class_object = object.as_class().unwrap();
+			class_object.class()
+		} else {
+			self.runtime
+				.class_loader
+				.get_class_id(&Type::Object(ty.clone()))
+		};
+
+		let method = self
+			.engine
+			.get_compiled_method(&self.runtime, class_id, method.clone());
+
+		let mut frame = self.stack.create(method.max_stack, method.max_locals);
+		for (i, value) in parameters.into_iter().rev().enumerate() {
+			frame.store(if is_static { i } else { i + 1 } as u16, value);
+		}
+
+		if let Some(value) = instance {
+			frame.store(0, value);
 		}
 
 		ExecutorFrame {
@@ -64,7 +84,7 @@ impl<'a> Executor<'a> {
 		method: &MethodIdentifier,
 		mut parameters: Vec<DynValue>,
 	) -> Option<DynValue> {
-		let mut frames = vec![self.create_frame(ty, method, || {
+		let mut frames = vec![self.create_frame(ty, method, CallType::Static, || {
 			parameters.pop().expect("Not enough parameters")
 		})];
 		let mut output: Option<Option<(StackValue, Kind)>> = None;
@@ -129,7 +149,7 @@ impl<'a> Executor<'a> {
 						match output.take() {
 							None => {
 								let executor_frame =
-									self.create_frame(&task.object, &task.method, || {
+									self.create_frame(&task.object, &task.method, task.ty, || {
 										frame.pop().to_dyn()
 									});
 								frames.push(executor_frame);

@@ -33,25 +33,25 @@ use tracing::{error, trace};
 macro_rules! impl_constant {
 	($VARIANT:ident $TY:ty) => {
 		impl crate::Constant for $TY {
-			fn get(value: &crate::ConstantInfo) -> &Self {
+			fn get(value: &crate::ConstantInfo) -> Option<&Self> {
 				if let crate::ConstantInfo::$VARIANT(v) = value {
-					return v;
+					return Some(v);
 				}
-				panic!("Wrong type")
+				None
 			}
 
-			fn get_mut(value: &mut crate::ConstantInfo) -> &mut Self {
+			fn get_mut(value: &mut crate::ConstantInfo) -> Option<&mut Self> {
 				if let crate::ConstantInfo::$VARIANT(v) = value {
-					return v;
+					return Some(v);
 				}
-				panic!("Wrong type")
+				None
 			}
 		}
 	};
 }
 pub trait Constant {
-	fn get(value: &ConstantInfo) -> &Self;
-	fn get_mut(value: &mut ConstantInfo) -> &mut Self;
+	fn get(value: &ConstantInfo) -> Option<&Self>;
+	fn get_mut(value: &mut ConstantInfo) -> Option<&mut Self>;
 }
 
 pub struct ConstPtr<V: Constant>(u16, PhantomData<V>);
@@ -63,6 +63,10 @@ impl<V: Constant> ConstPtr<V> {
 
 	pub fn get<'a>(&self, cp: &'a ConstantPool) -> Option<&'a V> {
 		cp.get(*self)
+	}
+
+	pub fn id(&self) -> u16 {
+		self.0
 	}
 }
 #[inline]
@@ -99,7 +103,7 @@ impl ConstantPool {
 	pub fn get<V: Constant>(&self, ptr: ConstPtr<V>) -> Option<&V> {
 		if ptr.0 >= 1 {
 			let info = &self.0[ptr.0 as usize - 1];
-			Some(V::get(info))
+			V::get(info)
 		} else {
 			None
 		}

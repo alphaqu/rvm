@@ -7,8 +7,8 @@ use std::sync::{Arc, RwLock};
 
 use tracing::debug;
 
-use rvm_core::{ObjectType, Storage, Type};
-use rvm_object::{Method, MethodCode, MethodData, MethodIdentifier};
+use rvm_core::{Id, ObjectType, Storage, Type};
+use rvm_object::{Class, Method, MethodCode, MethodData, MethodIdentifier};
 use rvm_reader::ConstantPool;
 use rvm_runtime::engine::{Engine, ThreadConfig, ThreadHandle};
 use rvm_runtime::Runtime;
@@ -23,17 +23,38 @@ mod value;
 
 pub struct BenEngine {
 	// TODO fuck the clones
-	methods: RwLock<Storage<(ObjectType, MethodIdentifier), Arc<CompiledMethod>>>,
+	methods: RwLock<Storage<(Id<Class>, MethodIdentifier), Arc<CompiledMethod>>>,
 }
 
 impl BenEngine {
-	pub fn get_compiled_method(
+	pub fn resolve_method(
 		&self,
 		runtime: &Runtime,
 		ty: ObjectType,
 		method: MethodIdentifier,
+	) -> Option<(Id<Class>, Id<Method>)> {
+		let mut id = runtime.class_loader.get_class_id(&Type::Object(ty));
+		let mut cl_guard = runtime.class_loader.get(id);
+		let mut class = cl_guard.object().unwrap();
+
+		let mut method_value: Option<Id<Method>> = class.methods.get_id(&method);
+		while method_value.is_none() {
+			cl_guard = runtime.class_loader.get(id);
+			class = cl_guard.object().unwrap();
+			method_value = class.methods.get_id(&method);
+			id = class.super_id?;
+		}
+
+		Some((id, method_value?))
+	}
+
+	pub fn get_compiled_method(
+		&self,
+		runtime: &Runtime,
+		mut id: Id<Class>,
+		method: MethodIdentifier,
 	) -> Arc<CompiledMethod> {
-		let mut id = runtime.class_loader.get_class_id(&Type::Object(ty.clone()));
+		//let mut id = runtime.class_loader.get_class_id(&Type::Object(ty.clone()));
 		let mut cl_guard = runtime.class_loader.get(id);
 		let mut class = cl_guard.object().unwrap();
 
@@ -51,7 +72,7 @@ impl BenEngine {
 			.clone()
 			.expect("Method does not contain code");
 
-		let key = (ty, method);
+		let key = (id, method);
 		let guard = self.methods.read().unwrap();
 		match guard.get_keyed(&key) {
 			None => {

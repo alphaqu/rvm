@@ -10,7 +10,7 @@ pub use r#return::ReturnTask;
 use rvm_object::ObjectClass;
 use rvm_reader::{ArrayInst, Inst, JumpInst, LocalInst, MathInst};
 
-use crate::code::task::call::CallTask;
+pub use crate::code::task::call::*;
 use crate::code::task::field::FieldTask;
 use crate::code::task::increment::IncrementTask;
 use crate::code::task::object::NewTask;
