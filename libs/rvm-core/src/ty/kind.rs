@@ -1,32 +1,34 @@
+use crate::Reference;
 use std::fmt::{Display, Formatter};
 use std::mem::size_of;
 
 /// A kind represents a type category without any deeper information about the types.
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+#[repr(u8)]
 pub enum Kind {
-	Boolean,
-	Byte,
-	Short,
-	Int,
-	Long,
-	Char,
-	Float,
-	Double,
-	Reference,
+	Reference = 3,
+	Boolean = 4,
+	Char = 5,
+	Float = 6,
+	Double = 7,
+	Byte = 8,
+	Short = 9,
+	Int = 10,
+	Long = 11,
 }
 
 impl Kind {
 	pub fn size(&self) -> usize {
 		match self {
+			Kind::Reference => size_of::<Reference>(),
 			Kind::Boolean => size_of::<bool>(),
+			Kind::Char => size_of::<u16>(),
+			Kind::Float => size_of::<f32>(),
+			Kind::Double => size_of::<f64>(),
 			Kind::Byte => size_of::<i8>(),
 			Kind::Short => size_of::<i16>(),
 			Kind::Int => size_of::<i32>(),
 			Kind::Long => size_of::<i64>(),
-			Kind::Char => size_of::<u16>(),
-			Kind::Float => size_of::<f32>(),
-			Kind::Double => size_of::<f64>(),
-			Kind::Reference => size_of::<*mut u8>(),
 		}
 	}
 

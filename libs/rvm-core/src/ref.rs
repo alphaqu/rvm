@@ -18,6 +18,7 @@ impl Reference {
 		};
 		match i {
 			1 => ReferenceKind::Class,
+			2 => ReferenceKind::Array,
 			_ => panic!("Corrupted kind {i}",),
 		}
 	}
@@ -30,6 +31,7 @@ impl Reference {
 #[derive(Debug)]
 pub enum ReferenceKind {
 	Class,
+	Array,
 }
 
 impl Debug for Reference {

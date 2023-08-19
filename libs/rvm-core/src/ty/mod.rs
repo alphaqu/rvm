@@ -159,7 +159,6 @@ impl From<&'static str> for ObjectType {
 	}
 }
 
-
 impl Display for ObjectType {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		f.write_char('L')?;

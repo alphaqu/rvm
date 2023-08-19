@@ -4,8 +4,8 @@ use std::mem::transmute;
 use rvm_core::{Kind, Reference, StackKind};
 use rvm_object::DynValue;
 
-#[derive(Copy, Clone, Debug, PartialEq)]
 #[repr(C)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum StackValue {
 	Int(i32),
 	Float(f32),

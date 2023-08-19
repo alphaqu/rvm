@@ -1,16 +1,13 @@
 use std::alloc::{alloc_zeroed, Layout};
-use std::cell::UnsafeCell;
 use std::fs::write;
 use std::ptr::copy;
-use std::thread::spawn;
-
 use tracing::{debug, trace};
 
 use crate::gc::sweep::{new_sweeper, GcSweeperHandle};
 pub use crate::gc::sweep::{GcMarker, GcSweeper};
 pub use object::{GcHeader, ObjectFlags, ObjectSize, OBJECT_HEADER};
-use rvm_core::{Id, Reference, ReferenceKind};
-use rvm_object::{AnyClassObject, Class, Object, ObjectClass};
+use rvm_core::{Id, Kind, Reference};
+use rvm_object::{AnyArrayObject, AnyClassObject, Class, Object, ObjectClass};
 
 mod object;
 mod sweep;
@@ -155,17 +152,44 @@ impl GarbageCollector {
 		statistics
 	}
 
-	pub unsafe fn allocate_object(
+	pub fn allocate_object(
 		&mut self,
 		id: Id<Class>,
 		class: &ObjectClass,
 	) -> Result<AnyClassObject, AllocationError> {
 		let reference =
 			self.allocate_raw((class.fields.size as usize) + AnyClassObject::FULL_HEADER_SIZE)?;
-		Ok(AnyClassObject::allocate(reference, id, class))
+		Ok(unsafe { AnyClassObject::allocate(reference, id, class) })
 	}
 
-	pub unsafe fn allocate_raw(&mut self, size: usize) -> Result<Reference, AllocationError> {
+	pub fn allocate_ref_array(
+		&mut self,
+		component: Id<Class>,
+		length: i32,
+	) -> Result<AnyArrayObject, AllocationError> {
+		let size = AnyArrayObject::size(Kind::Reference, length);
+		let reference = self.allocate_raw(size)?;
+		Ok(unsafe { AnyArrayObject::allocate_ref(reference, component, length) })
+	}
+
+	pub fn allocate_array(
+		&mut self,
+		kind: Kind,
+		length: i32,
+	) -> Result<AnyArrayObject, AllocationError> {
+		if kind == Kind::Reference {
+			panic!("Cannot allocate reference array with primitive construct.");
+		}
+		let size = AnyArrayObject::size(kind, length);
+		let reference = self.allocate_raw(size)?;
+		Ok(unsafe { AnyArrayObject::allocate_primitive(reference, kind, length) })
+	}
+
+	pub fn allocate_raw(&mut self, size: usize) -> Result<Reference, AllocationError> {
+		if size < 0 {
+			return Err(AllocationError::NegativeSize);
+		}
+
 		if size > ObjectSize::MAX as usize {
 			return Err(AllocationError::ObjectTooBig);
 		}
@@ -264,12 +288,6 @@ fn align_size(bytes: usize) -> usize {
 	bytes + unaligned.align_offset(OBJECT_ALIGNMENT)
 }
 
-fn visit_edges(reference: Reference) {
-	match reference.kind() {
-		ReferenceKind::Class => {}
-	}
-}
-
 pub struct GCStatistics {
 	objects_cleared: usize,
 	objects_remaining: usize,
@@ -277,13 +295,14 @@ pub struct GCStatistics {
 
 #[derive(Debug, Clone)]
 pub enum AllocationError {
+	NegativeSize,
 	OutOfHeap,
 	ObjectTooBig,
 }
 
 #[cfg(test)]
 mod tests {
-	use rvm_core::{FieldAccessFlags, Kind, ObjectType, PrimitiveType, Type};
+	use rvm_core::{FieldAccessFlags, Kind, ObjectType, PrimitiveType};
 	use rvm_object::{
 		Class, ClassLoader, ClassMethodManager, DynValue, FieldData, ObjectFieldLayout,
 	};

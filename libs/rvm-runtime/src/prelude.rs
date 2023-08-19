@@ -8,8 +8,11 @@ macro_rules! java_descriptor {
 	(f32) => {"F"};
 	(i64) => {"J"};
 	(f64) => {"D"};
+	(Array<$param:tt>) => {
+		::core::concat!("[", $crate::java_descriptor!($param))
+	};
 	(fn($($param:tt),*)) => {
-		$crate::java_descriptor!(fn($($param:tt),*) -> ())
+		$crate::java_descriptor!(fn($($param),*) -> ())
 	};
 	(fn($($param:tt),*) -> $ret:tt) => {
 		::core::concat!("(", $($crate::java_descriptor!($param),)* ")", $crate::java_descriptor!($ret))
@@ -18,7 +21,7 @@ macro_rules! java_descriptor {
 
 #[macro_export]
 macro_rules! java_bind_method {
-    ($runtime:ident fn $class:ident.$method:ident($($name:ident: $pty:tt),*) $(-> $ret:tt)?) => {
+    ($runtime:ident fn $class:ident.$method:ident($($name:ident: $pty:ty),*) $(-> $ret:ty)?) => {
 		 {
 			 let value = |$($name: $pty),*| $(-> $ret)? {
 			// just so jetbrains ides have colors
@@ -32,11 +35,11 @@ macro_rules! java_bind_method {
 				rvm_core::ObjectType(::core::stringify!($class).to_string()),
 				rvm_object::MethodIdentifier {
 					name: ::core::stringify!($method).to_string(),
-					descriptor: $crate::java_descriptor!(fn($($pty),*) $(-> $ret)?).to_string(),
+					descriptor: rvm_macro::java_desc!(fn($($pty),*) $(-> $ret)?).to_string(),
 				},
 				vec![
 					$(
-						<rvm_object::DynValue as From<$pty>>::from($name)
+						<rvm_object::DynValue as TryFrom<$pty>>::try_from($name).unwrap()
 					),*
 				]
 			);

@@ -1,10 +1,7 @@
-pub use crate::value::reference::*;
 use rvm_core::{Kind, Reference};
 use std::ptr::{read, write};
 
-mod reference;
-
-pub trait Value: Sized {
+pub trait Value: Sized + Copy {
 	fn ty() -> Kind;
 	unsafe fn write(ptr: *mut u8, value: Self);
 	unsafe fn read(ptr: *mut u8) -> Self;
@@ -55,7 +52,7 @@ impl_from!(bool, Boolean);
 impl_from!(Reference, Reference);
 
 impl DynValue {
-	pub fn ty(&self) -> Kind {
+	pub fn kind(&self) -> Kind {
 		match self {
 			DynValue::Byte(_) => i8::ty(),
 			DynValue::Short(_) => i16::ty(),

@@ -3,14 +3,14 @@ use crate::method::CompiledMethod;
 use crate::thread::{ThreadFrame, ThreadStack};
 use crate::value::StackValue;
 use crate::BenEngine;
-use rvm_core::{Kind, MethodAccessFlags, ObjectType, Op, Reference, StackKind, Type};
-use rvm_object::{AnyClassObject, DynValue, MethodIdentifier};
+use rvm_core::{Kind, MethodAccessFlags, ObjectType, Reference, Type};
+use rvm_object::{DynValue, MethodIdentifier};
 use rvm_reader::JumpKind;
 use rvm_runtime::engine::Thread;
 use rvm_runtime::gc::{AllocationError, GcMarker, GcSweeper, RootProvider};
 use rvm_runtime::Runtime;
 use std::sync::Arc;
-use tracing::{debug, info, trace};
+use tracing::{debug, trace};
 
 pub struct Executor<'a> {
 	pub thread: Thread,
@@ -239,6 +239,9 @@ impl<'a> Executor<'a> {
 							StackValue::Int(value.to_int() + task.increment as i32),
 						);
 					}
+					Task::ArrayLength(v) => v.exec(frame),
+					Task::ArrayLoad(v) => v.exec(frame),
+					Task::ArrayStore(v) => v.exec(frame),
 				};
 
 				gc_attempts = 0;

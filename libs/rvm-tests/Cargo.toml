@@ -7,6 +7,7 @@ edition = "2021"
 rvm-core = { path = "../rvm-core" }
 rvm-object = { path = "../rvm-object" }
 rvm-runtime = { path = "../rvm-runtime" }
+rvm-macro = { path = "../rvm-macro" }
 rvm-engine-ben = { path = "../rvm-engine-ben" }
 
 walkdir = "2.3.2"

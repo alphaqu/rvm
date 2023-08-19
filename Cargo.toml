@@ -28,5 +28,6 @@ members = [
     "./libs/rvm-engine-ben",
     "./libs/rvm-reader",
     "./libs/rvm-object",
+    "./libs/rvm-macro",
     "./libs/rvm-tests",
 ]

@@ -1,4 +1,4 @@
-use rvm_core::{Id, Type};
+use rvm_core::{Id, Kind, Type};
 use std::mem::size_of;
 
 pub const ARRAY_BASE_OFFSET: usize = size_of::<i32>();

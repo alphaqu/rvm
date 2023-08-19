@@ -1,46 +1,15 @@
-use crate::value::Value;
 use crate::value::{read_arr, write_arr};
-use crate::{Class, ClassLoader, DynValue, Field, ObjectClass, ObjectFieldLayout};
-use rvm_core::{Id, Reference, ReferenceKind, StorageValue};
+use crate::{Class, DynValue, Field, Object, ObjectClass, ObjectFieldLayout, Value};
+use rvm_core::{Id, Reference, StorageValue};
 use std::mem::size_of;
 use std::ops::Deref;
-
-pub enum Object {
-	Class(AnyClassObject),
-}
-
-impl Object {
-	pub const HEADER_SIZE: usize = size_of::<u8>();
-	pub fn new(reference: Reference) -> Object {
-		match reference.kind() {
-			ReferenceKind::Class => Object::Class(AnyClassObject { reference }),
-		}
-	}
-
-	pub fn as_class(&self) -> Option<&AnyClassObject> {
-		match self {
-			Object::Class(class) => Some(class),
-		}
-	}
-
-	pub fn visit_refs(&self, mut visitor: impl FnMut(Reference)) {
-		match self {
-			Object::Class(raw) => raw.visit_refs(visitor),
-		}
-	}
-
-	pub fn map_refs(&self, mut mapper: impl FnMut(Reference) -> Reference) {
-		match self {
-			Object::Class(raw) => raw.map_refs(mapper),
-		}
-	}
-}
+use std::println;
 
 #[derive(Copy, Clone)]
 pub struct AnyClassObject {
 	// 1: class (u32)
 	// 2: ref_fields (u16)
-	reference: Reference,
+	pub(super) reference: Reference,
 }
 
 impl Deref for AnyClassObject {
