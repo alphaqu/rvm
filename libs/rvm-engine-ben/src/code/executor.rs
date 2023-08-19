@@ -1,18 +1,19 @@
+use either::Either;
 use std::sync::Arc;
 
 use tracing::{debug, trace};
 
 use rvm_core::{Kind, MethodDesc, ObjectType, Type};
 use rvm_reader::JumpKind;
-use rvm_runtime::{AnyValue, MethodIdentifier, Reference, Runtime};
 use rvm_runtime::engine::Thread;
 use rvm_runtime::gc::{AllocationError, GcMarker, GcSweeper, RootProvider};
+use rvm_runtime::{AnyValue, MethodBinding, MethodCode, MethodIdentifier, Reference, Runtime};
 
-use crate::BenEngine;
 use crate::code::{CallType, Task};
-use crate::method::CompiledMethod;
+use crate::method::JavaMethod;
 use crate::thread::{ThreadFrame, ThreadStack};
 use crate::value::StackValue;
+use crate::{BenEngine, MethodCalling};
 
 pub struct Executor<'a> {
 	pub thread: Thread,
@@ -23,30 +24,36 @@ pub struct Executor<'a> {
 
 pub struct ExecutorFrame<'a> {
 	frame: ThreadFrame<'a>,
-	method: Arc<CompiledMethod>,
+	method: Arc<JavaMethod>,
 	cursor: usize,
 }
 
+enum CallReturn<'f> {
+	Frame(ExecutorFrame<'f>),
+	Result(Option<AnyValue>),
+}
+
 impl<'a> Executor<'a> {
-	fn create_frame<'f>(
+	fn call<'f>(
 		&mut self,
 		ty: &ObjectType,
 		method: &MethodIdentifier,
 		call_ty: CallType,
-		mut parameter_getter: impl FnMut() -> AnyValue,
-	) -> ExecutorFrame<'f> {
+		mut parameter_getter: impl FnMut() -> StackValue,
+	) -> CallReturn<'f> {
 		debug!("Creating frame for {ty:?} {method:?}");
 
 		let desc = MethodDesc::parse(&method.descriptor).unwrap();
 		let mut parameters = Vec::new();
-		for _ in desc.parameters {
-			parameters.push(StackValue::from_dyn(parameter_getter()));
+		for v in &desc.parameters {
+			parameters.push(parameter_getter().convert(v.kind()).unwrap());
 		}
+		parameters.reverse();
 
 		let mut instance: Option<StackValue> = None;
 		let is_static = call_ty == CallType::Static;
 		if !is_static {
-			instance = Some(StackValue::from_dyn(parameter_getter()));
+			instance = Some(parameter_getter());
 		}
 
 		let class_id = if call_ty == CallType::Interface {
@@ -58,34 +65,93 @@ impl<'a> Executor<'a> {
 			self.runtime.cl.resolve_class(&Type::Object(ty.clone()))
 		};
 
-		let method = self
+		let (method_class, method_id) = self
 			.engine
-			.get_compiled_method(&self.runtime, class_id, method.clone());
+			.resolve_method(&self.runtime, class_id, method.clone())
+			.expect("could not resolve method");
+		let class = self.runtime.cl.get(method_class);
+		let class = class.as_instance().unwrap();
+		let method = class.methods.get(method_id);
 
-		let mut frame = self.stack.create(method.max_stack, method.max_locals);
-		for (i, value) in parameters.into_iter().rev().enumerate() {
-			frame.store(if is_static { i } else { i + 1 } as u16, value);
-		}
+		//let method = self
+		//	.engine
+		//	.get_code(&self.runtime, class_id, method.clone());
 
-		if let Some(value) = instance {
-			frame.store(0, value);
-		}
+		let method_code = method.code.clone().expect("Method does not contain code");
 
-		ExecutorFrame {
-			frame,
-			method,
-			cursor: 0,
+		match &*method_code {
+			MethodCode::Java(code) => {
+				let guard = self.engine.methods.read().unwrap();
+				let key = (method_class, method_id);
+				let method = match guard.get_keyed(&key) {
+					None => {
+						drop(guard);
+						debug!(target: "ben", "Compiling method {key:?}");
+						let compiled = Arc::new(JavaMethod::new(code, class, method));
+						let mut guard = self.engine.methods.write().unwrap();
+						guard.insert(key, compiled.clone());
+						compiled
+					}
+					Some(value) => value.clone(),
+				};
+
+				let mut frame = self.stack.create(method.max_stack, method.max_locals);
+				for (i, value) in parameters.into_iter().enumerate() {
+					frame.store(
+						if is_static { i } else { i + 1 } as u16,
+						StackValue::from_any(value),
+					);
+				}
+
+				if let Some(value) = instance {
+					frame.store(0, value);
+				}
+
+				CallReturn::Frame(ExecutorFrame {
+					frame,
+					method,
+					cursor: 0,
+				})
+			}
+			MethodCode::Binding(binding) => {
+				let mut ref_borrow = binding.borrow();
+				let binding = match &*ref_borrow {
+					Either::Left(method) => {
+						let guard1 = self.runtime.bindings.read();
+						let method = guard1.get(method).unwrap();
+						drop(ref_borrow);
+						binding.replace(Either::Right(method.clone()));
+						ref_borrow = binding.borrow();
+						ref_borrow.as_ref().right().unwrap()
+					}
+					Either::Right(method) => method,
+				};
+
+				CallReturn::Result(binding.call(&parameters))
+			}
+			_ => todo!(),
 		}
 	}
+
 	pub fn execute(
 		mut self,
 		ty: &ObjectType,
 		method: &MethodIdentifier,
 		mut parameters: Vec<AnyValue>,
 	) -> Option<AnyValue> {
-		let mut frames = vec![self.create_frame(ty, method, CallType::Static, || {
-			parameters.pop().expect("Not enough parameters")
-		})];
+		let call_return = self.call(ty, method, CallType::Static, || {
+			StackValue::from_any(parameters.pop().expect("Not enough parameters"))
+		});
+
+		let mut frames = match call_return {
+			CallReturn::Frame(frame) => {
+				vec![frame]
+			}
+			CallReturn::Result(value) => {
+				return value;
+			}
+		};
+
 		let mut output: Option<Option<(StackValue, Kind)>> = None;
 
 		let mut gc_attempts = 0;
@@ -147,12 +213,19 @@ impl<'a> Executor<'a> {
 						// We push that return value (if it exists) and continue running.
 						match output.take() {
 							None => {
-								let executor_frame =
-									self.create_frame(&task.object, &task.method, task.ty, || {
-										frame.pop().to_dyn()
-									});
-								frames.push(executor_frame);
-								break;
+								let call =
+									self.call(&task.object, &task.method, task.ty, || frame.pop());
+								match call {
+									CallReturn::Frame(frame) => {
+										frames.push(frame);
+										break;
+									}
+									CallReturn::Result(value) => {
+										if let Some(value) = value {
+											frame.push(StackValue::from_any(value));
+										}
+									}
+								}
 							}
 							Some(value) => {
 								if let Some((value, _)) = value {

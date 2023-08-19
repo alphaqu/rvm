@@ -68,7 +68,7 @@ impl FieldTask {
 							let class = reference.to_class().unwrap();
 							let value = class.resolve(object).get_dyn(id);
 
-							frame.push(StackValue::from_dyn(value));
+							frame.push(StackValue::from_any(value));
 						}
 						FieldInstKind::Put => {
 							let value = frame.pop();

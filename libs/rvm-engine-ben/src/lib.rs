@@ -8,11 +8,13 @@ use std::sync::{Arc, RwLock};
 use tracing::debug;
 
 use rvm_core::{Id, ObjectType, Storage, Type};
-use rvm_reader::ConstantPool;
-use rvm_runtime::{Class, Method, MethodCode, MethodData, MethodIdentifier, Runtime};
+use rvm_reader::{Code, ConstantPool};
 use rvm_runtime::engine::{Engine, ThreadConfig, ThreadHandle};
+use rvm_runtime::{
+	Class, InstanceClass, Method, MethodBinding, MethodCode, MethodData, MethodIdentifier, Runtime,
+};
 
-use crate::method::CompiledMethod;
+use crate::method::JavaMethod;
 use crate::thread::spawn;
 
 mod code;
@@ -22,17 +24,16 @@ mod value;
 
 pub struct BenEngine {
 	// TODO fuck the clones
-	methods: RwLock<Storage<(Id<Class>, MethodIdentifier), Arc<CompiledMethod>>>,
+	pub methods: RwLock<Storage<(Id<Class>, Id<Method>), Arc<JavaMethod>>>,
 }
 
 impl BenEngine {
 	pub fn resolve_method(
 		&self,
 		runtime: &Runtime,
-		ty: ObjectType,
+		mut id: Id<Class>,
 		method: MethodIdentifier,
 	) -> Option<(Id<Class>, Id<Method>)> {
-		let mut id = runtime.cl.resolve_class(&Type::Object(ty));
 		let mut cl_guard = runtime.cl.get(id);
 		let mut class = cl_guard.as_instance().unwrap();
 
@@ -46,51 +47,10 @@ impl BenEngine {
 
 		Some((id, method_value?))
 	}
+}
 
-	pub fn get_compiled_method(
-		&self,
-		runtime: &Runtime,
-		mut id: Id<Class>,
-		method: MethodIdentifier,
-	) -> Arc<CompiledMethod> {
-		//let mut id = runtime.class_loader.get_class_id(&Type::Object(ty.clone()));
-		let mut cl_guard = runtime.cl.get(id);
-		let mut class = cl_guard.as_instance().unwrap();
-
-		let mut method_value: Option<&Method> = class.methods.get_keyed(&method);
-		while method_value.is_none() {
-			cl_guard = runtime.cl.get(id);
-			class = cl_guard.as_instance().unwrap();
-			method_value = class.methods.get_keyed(&method);
-			id = class.super_id.expect("Could not resolve method");
-		}
-
-		let method_value = method_value.unwrap();
-		let method_code = method_value
-			.code
-			.clone()
-			.expect("Method does not contain code");
-
-		let key = (id, method);
-		let guard = self.methods.read().unwrap();
-		match guard.get_keyed(&key) {
-			None => {
-				drop(guard);
-				debug!(target: "ben", "Compiling method {key:?}");
-				let compiled_method = Arc::new(match &(*method_code) {
-					MethodCode::Java(code) => CompiledMethod::new(code, class, method_value),
-					MethodCode::Native(_) => {
-						todo!()
-					}
-				});
-
-				let mut guard = self.methods.write().unwrap();
-				guard.insert(key, compiled_method.clone());
-				compiled_method
-			}
-			Some(value) => value.clone(),
-		}
-	}
+pub enum MethodCalling {
+	Java(Arc<JavaMethod>),
 }
 
 pub struct BenBinding {

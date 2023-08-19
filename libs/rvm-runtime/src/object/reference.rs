@@ -29,7 +29,7 @@ impl Reference {
 		match i {
 			1 => ReferenceKind::Instance,
 			2 => ReferenceKind::Array,
-			_ => panic!("Corrupted kind {i}", ),
+			_ => panic!("Corrupted kind {i}",),
 		}
 	}
 

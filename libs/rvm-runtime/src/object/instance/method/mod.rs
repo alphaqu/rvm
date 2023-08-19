@@ -1,4 +1,6 @@
-use std::cell::Cell;
+mod binding;
+
+use std::cell::{Cell, RefCell};
 use std::ffi::c_void;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -7,9 +9,10 @@ use anyways::ext::AuditExt;
 use anyways::Result;
 use either::Either;
 
-use rvm_core::{MethodAccessFlags, MethodDesc};
+pub use crate::object::instance::method::binding::MethodBinding;
 use rvm_core::Storage;
 use rvm_core::StorageValue;
+use rvm_core::{MethodAccessFlags, MethodDesc};
 use rvm_reader::{AttributeInfo, Code, ConstantPool, MethodInfo, NameAndTypeConst};
 
 pub struct ClassMethodManager {
@@ -32,13 +35,7 @@ impl ClassMethodManager {
 			let name = method.name_index.get(cp).unwrap().as_str();
 			let (name, method) = MethodData::parse(method, class_name, cp)
 				.wrap_err_with(|| format!("in METHOD \"{}\"", name))?;
-			storage.insert(
-				name,
-				Method {
-					data: method,
-					compiled: Cell::new(None),
-				},
-			);
+			storage.insert(name, Method { data: method });
 		}
 		Ok(ClassMethodManager { storage })
 	}
@@ -54,7 +51,6 @@ impl Deref for ClassMethodManager {
 
 pub struct Method {
 	data: MethodData,
-	pub compiled: Cell<Option<*const c_void>>,
 }
 
 impl Deref for Method {
@@ -109,8 +105,7 @@ impl MethodData {
 		};
 
 		if info.access_flags.contains(MethodAccessFlags::NATIVE) {
-			code = Some(Arc::new(MethodCode::Native(Either::Left((
-				class_name.to_string(),
+			code = Some(Arc::new(MethodCode::Binding(RefCell::new(Either::Left(
 				ident.clone(),
 			)))));
 		} else {
@@ -139,6 +134,7 @@ impl StorageValue for Method {
 
 pub enum MethodCode {
 	Java(Code),
+	Binding(RefCell<Either<MethodIdentifier, MethodBinding>>),
 	Native(Either<(String, MethodIdentifier), NativeCode>),
 }
 

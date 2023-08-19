@@ -72,7 +72,7 @@ impl StackValue {
 		self.category() == 2
 	}
 
-	pub fn from_dyn(value: AnyValue) -> StackValue {
+	pub fn from_any(value: AnyValue) -> StackValue {
 		match value {
 			AnyValue::Byte(value) => StackValue::Int(value as i32),
 			AnyValue::Short(value) => StackValue::Int(value as i32),

@@ -3,13 +3,17 @@
 #![feature(array_try_from_fn)]
 #![feature(thread_local)]
 #![feature(thread_id_value)]
+#![feature(c_variadic)]
+#![feature(fn_traits)]
 
+use ahash::HashMap;
 use std::sync::Arc;
 use std::thread::spawn;
 
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RwLock};
 
 pub use object::*;
+use rvm_core::MethodDesc;
 pub use value::*;
 
 use crate::engine::Engine;
@@ -34,6 +38,7 @@ pub struct Runtime {
 	pub cl: ClassLoader,
 	pub engine: Box<dyn Engine>,
 	pub gc: Mutex<GarbageCollector>,
+	pub bindings: RwLock<HashMap<MethodIdentifier, MethodBinding>>,
 }
 
 impl Runtime {
@@ -42,6 +47,7 @@ impl Runtime {
 			cl: ClassLoader::new(),
 			engine,
 			gc: Mutex::new(GarbageCollector::new(heap_size)),
+			bindings: Default::default(),
 		}
 	}
 

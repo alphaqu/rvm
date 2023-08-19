@@ -1,4 +1,6 @@
-use rvm_runtime::java_bind_method;
+use rvm_core::MethodDesc;
+use rvm_macro::java_desc;
+use rvm_runtime::{java_bind_method, java_binding, MethodBinding, MethodIdentifier};
 
 use crate::{compile, launch};
 
@@ -20,8 +22,14 @@ fn interface() {
 				("Assert.java", include_str!("../Assert.java")),
 			],
 		)
-			.unwrap();
+		.unwrap();
 
+		let (binding, identifier) = java_binding!(
+			fn yes(value: bool) {
+				println!("{value}");
+			}
+		);
+		runtime.bindings.write().insert(identifier, binding);
 		let java = java_bind_method!(runtime fn tests::object::InterfaceTest:hi());
 		let i = java();
 	})
@@ -45,7 +53,7 @@ fn extend_test() {
 				("Assert.java", include_str!("../Assert.java")),
 			],
 		)
-			.unwrap();
+		.unwrap();
 
 		let java = java_bind_method!(runtime fn tests::object::ExtendTest:create());
 		let i = java();
@@ -59,7 +67,7 @@ fn new_test() {
 			&runtime,
 			&[("ObjectTest.java", include_str!("ObjectTest.java"))],
 		)
-			.unwrap();
+		.unwrap();
 		runtime
 			.cl
 			.load_jar(include_bytes!("../../../../../rt.zip"), |v| {
@@ -81,7 +89,7 @@ fn gc_test() {
 			&runtime,
 			&[("ObjectTest.java", include_str!("ObjectTest.java"))],
 		)
-			.unwrap();
+		.unwrap();
 
 		runtime
 			.cl

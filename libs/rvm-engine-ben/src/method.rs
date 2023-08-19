@@ -4,7 +4,7 @@ use rvm_runtime::{InstanceClass, Method};
 
 use crate::code::Task;
 
-pub struct CompiledMethod {
+pub struct JavaMethod {
 	pub max_locals: u16,
 	pub max_stack: u16,
 	pub flags: MethodAccessFlags,
@@ -13,9 +13,9 @@ pub struct CompiledMethod {
 	pub returns: Option<Kind>,
 }
 
-impl CompiledMethod {
-	pub fn new(code: &Code, class: &InstanceClass, method: &Method) -> CompiledMethod {
-		CompiledMethod {
+impl JavaMethod {
+	pub fn new(code: &Code, class: &InstanceClass, method: &Method) -> JavaMethod {
+		JavaMethod {
 			max_locals: code.max_locals as u16,
 			max_stack: code.max_stack as u16,
 			flags: method.flags,
@@ -30,6 +30,6 @@ impl CompiledMethod {
 	}
 }
 
-impl StorageValue for CompiledMethod {
+impl StorageValue for JavaMethod {
 	type Idx = u32;
 }

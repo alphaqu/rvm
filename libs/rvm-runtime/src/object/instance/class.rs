@@ -1,18 +1,13 @@
-use std::ops::Deref;
 use std::sync::Arc;
 
 use anyways::ext::AuditExt;
 use anyways::Result;
 
-pub use field::*;
-pub use method::*;
+use crate::{ClassMethodManager, FieldData, ObjectFieldLayout};
 use rvm_core::{Id, ObjectType, Type};
 use rvm_reader::{ClassInfo, ConstantPool};
 
 use crate::object::{Class, ClassLoader};
-
-mod field;
-mod method;
 
 pub struct InstanceClass {
 	pub ty: ObjectType,

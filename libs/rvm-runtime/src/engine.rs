@@ -2,17 +2,17 @@ use std::ffi::c_void;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::thread;
-use std::thread::{JoinHandle, spawn};
+use std::thread::{spawn, JoinHandle};
 
-use crossbeam::channel::{Receiver, Sender, unbounded};
+use crossbeam::channel::{unbounded, Receiver, Sender};
 
 use rvm_core::ObjectType;
 use rvm_reader::ConstantPool;
 
 use crate::gc::GcSweeper;
-use crate::object::{MethodData, MethodIdentifier};
-use crate::Runtime;
 use crate::value::AnyValue;
+use crate::Runtime;
+use crate::{MethodData, MethodIdentifier};
 
 pub trait Engine: Send + Sync {
 	fn create_thread(&self, runtime: Arc<Runtime>, config: ThreadConfig) -> ThreadHandle;

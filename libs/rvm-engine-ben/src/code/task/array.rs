@@ -83,7 +83,7 @@ impl ArrayLoadTask {
 		}
 
 		let value = array.get(index).expect("Out of bounds");
-		frame.push(StackValue::from_dyn(value));
+		frame.push(StackValue::from_any(value));
 	}
 }
 
