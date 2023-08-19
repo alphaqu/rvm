@@ -1,10 +1,12 @@
-use crate::compiler::BlockCompiler;
-use crate::op::Task;
-use crate::resolver::BlockResolver;
-use inkwell::values::{BasicValue, BasicValueEnum};
 use std::fmt::{Display, Formatter};
+
+use inkwell::values::BasicValue;
+
 use rvm_core::Kind;
 use rvm_reader::ConversionInst;
+
+use crate::compiler::BlockCompiler;
+use crate::resolver::BlockResolver;
 
 #[derive(Clone, Debug)]
 pub struct ConversionTask {
@@ -37,7 +39,7 @@ impl ConversionTask {
 		}
 	}
 
-	pub fn compile<'b, 'a>(&self, bc: &mut BlockCompiler<'b, 'a>)  {
+	pub fn compile<'b, 'a>(&self, bc: &mut BlockCompiler<'b, 'a>) {
 		let name = bc.gen.next();
 		let name2 = bc.gen.next();
 

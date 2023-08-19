@@ -40,7 +40,7 @@ pub fn spawn(
 								thread,
 								stack,
 								engine,
-								runtime: runtime,
+								runtime,
 							};
 
 							out = executor.execute(&ty, &method, parameters);

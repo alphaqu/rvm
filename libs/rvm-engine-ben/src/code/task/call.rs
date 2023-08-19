@@ -1,7 +1,8 @@
-use rvm_core::ObjectType;
-use rvm_reader::{ConstPtr, InterfaceConst, InvokeInst, InvokeInstKind, MethodConst};
-use rvm_runtime::{InstanceClass, MethodIdentifier};
 use std::fmt::{Display, Formatter};
+
+use rvm_core::ObjectType;
+use rvm_reader::{ConstPtr, InterfaceConst, InvokeInst, InvokeInstKind};
+use rvm_runtime::{InstanceClass, MethodIdentifier};
 
 #[derive(Debug)]
 pub struct CallTask {
@@ -19,6 +20,7 @@ impl Display for CallTask {
 		)
 	}
 }
+
 impl CallTask {
 	pub fn new(inst: &InvokeInst, class: &InstanceClass) -> CallTask {
 		let (name_and_type, name, is_interface) = match inst.value.get(&class.cp) {

@@ -1,8 +1,10 @@
-use crate::compiler::BlockCompiler;
-use inkwell::IntPredicate;
 use std::fmt::{Display, Formatter};
+
+use inkwell::IntPredicate;
+
 use rvm_reader::JumpKind;
 
+use crate::compiler::BlockCompiler;
 use crate::resolver::BlockResolver;
 
 /// Checks a single value against a constant value

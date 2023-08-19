@@ -1,5 +1,6 @@
+pub use class::*;
+pub use object::*;
+
 mod class;
 mod object;
 
-pub use class::*;
-pub use object::*;

@@ -81,6 +81,7 @@ impl Display for StackKind {
 		self.kind().fmt(f)
 	}
 }
+
 impl StackKind {
 	pub fn kind(&self) -> Kind {
 		match self {

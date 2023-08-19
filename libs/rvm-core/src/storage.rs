@@ -1,12 +1,12 @@
-use num_traits::ToPrimitive;
-use num_traits::{NumCast, PrimInt};
 use std::borrow::Borrow;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
-use std::ops::Deref;
 use std::sync::Arc;
+
+use num_traits::{NumCast, PrimInt};
+use num_traits::ToPrimitive;
 
 pub struct Storage<K: Hash + Eq + Debug, V: StorageValue, O = V> {
 	lookup: HashMap<K, Id<V>>,
@@ -52,26 +52,26 @@ impl<K: Hash + Eq + Debug, V: StorageValue, O> Storage<K, V, O> {
 	}
 
 	pub fn get_id<Q: ?Sized>(&self, key: &Q) -> Option<Id<V>>
-	where
-		K: Borrow<Q>,
-		Q: Hash + Eq,
+		where
+			K: Borrow<Q>,
+			Q: Hash + Eq,
 	{
 		self.lookup.get(key).copied()
 	}
 
 	pub fn get_keyed<Q: ?Sized>(&self, key: &Q) -> Option<&O>
-	where
-		K: Borrow<Q>,
-		Q: Hash + Eq,
+		where
+			K: Borrow<Q>,
+			Q: Hash + Eq,
 	{
 		let id = self.get_id(key)?;
 		Some(self.get(id))
 	}
 
 	pub fn get_mut_keyed<Q: ?Sized>(&mut self, key: &Q) -> Option<&mut O>
-	where
-		K: Borrow<Q>,
-		Q: Hash + Eq,
+		where
+			K: Borrow<Q>,
+			Q: Hash + Eq,
 	{
 		let id = self.get_id(key)?;
 		Some(self.get_mut(id))
@@ -91,7 +91,7 @@ impl<K: Hash + Eq + Debug, V: StorageValue, O> Storage<K, V, O> {
 		self.values.as_slice()
 	}
 
-	pub fn iter_keys_unordered(&self) -> impl Iterator<Item = (Id<V>, &K, &O)> {
+	pub fn iter_keys_unordered(&self) -> impl Iterator<Item=(Id<V>, &K, &O)> {
 		self.lookup
 			.iter()
 			.map(|(k, i)| (*i, k, &self.values[i.0.to_usize().unwrap() - 1]))
@@ -131,6 +131,7 @@ impl<V: StorageValue> PartialEq for Id<V> {
 }
 
 impl<V: StorageValue> Eq for Id<V> {}
+
 impl<V: StorageValue> PartialOrd for Id<V> {
 	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
 		self.0.partial_cmp(&other.0)

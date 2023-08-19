@@ -1,10 +1,12 @@
+use std::fmt::{Display, Formatter};
+
+use inkwell::{FloatPredicate, IntPredicate};
+use inkwell::values::BasicValue;
+
+use rvm_reader::MathInst;
+
 use crate::compiler::BlockCompiler;
 use crate::resolver::BlockResolver;
-
-use inkwell::values::BasicValue;
-use inkwell::{FloatPredicate, IntPredicate};
-use std::fmt::{Display, Formatter};
-use rvm_reader::MathInst;
 
 /// Applies an operation on both values.
 #[derive(Clone, Debug)]

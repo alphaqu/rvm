@@ -6,10 +6,11 @@ use nom::error::VerboseErrorKind;
 use parking_lot::RwLock;
 use tracing::{debug, info, instrument, warn};
 
-use crate::object::class::Class;
-use crate::{ArrayClass, InstanceClass};
 use rvm_core::{Id, Kind, Storage, Type};
 use rvm_reader::ClassInfo;
+
+use crate::{ArrayClass, InstanceClass};
+use crate::object::class::Class;
 
 pub struct ClassLoader {
 	classes: RwLock<Storage<Type, Class, Arc<Class>>>,
@@ -26,17 +27,16 @@ impl ClassLoader {
 		self.classes.read().get(id).clone()
 	}
 
-	pub fn get_class_id(&self, desc: &Type) -> Id<Class> {
-		info!("getting class {desc:?}");
+	pub fn resolve_class(&self, desc: &Type) -> Id<Class> {
 		// if its in the match the lock wont get dropped
 		let option = self.classes.read().get_id(desc);
 		match option {
 			Some(value) => value,
 			None => {
-				info!("defining class {desc:?}");
+				info!("resolving class {desc:?}");
 				let class = match desc {
 					Type::Primitive(_) => {
-						panic!("primitive?!?!??!?!")
+						panic!("Tried to resolve primitive class.")
 					}
 					Type::Object(object) => {
 						for x in self.classes.read().iter() {
@@ -45,12 +45,13 @@ impl ClassLoader {
 						panic!("CLASS NOT LOADED {object:?}, Cannot load classes while running... yet.");
 					}
 					Type::Array(value) => {
+						let mut component_id = None;
 						if let Kind::Reference = value.component.kind() {
 							// ensure loaded
-							self.get_class_id(&value.component);
+							component_id = Some(self.resolve_class(&value.component));
 						}
 
-						Class::Array(ArrayClass::new((*value.component).clone()))
+						Class::Array(ArrayClass::new((*value.component).clone(), component_id))
 					}
 				};
 

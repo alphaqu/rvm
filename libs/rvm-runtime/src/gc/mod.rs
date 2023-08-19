@@ -1,19 +1,20 @@
 use std::alloc::{alloc_zeroed, Layout};
-use std::fs::write;
 use std::ptr::copy;
+
 use tracing::{debug, trace};
 
-use crate::gc::sweep::{new_sweeper, GcSweeperHandle};
+pub use object::{GcHeader, OBJECT_HEADER, ObjectFlags, ObjectSize};
+use rvm_core::{Id, Kind, PrimitiveType};
+
+use crate::gc::sweep::{GcSweeperHandle, new_sweeper};
 pub use crate::gc::sweep::{GcMarker, GcSweeper};
 use crate::object::{AnyArray, AnyInstance, Class, InstanceClass, Reference};
-use crate::ReferenceKind;
-pub use object::{GcHeader, ObjectFlags, ObjectSize, OBJECT_HEADER};
-use rvm_core::{Id, Kind, PrimitiveType};
 
 mod object;
 mod sweep;
 
 pub const OBJECT_ALIGNMENT: usize = 8;
+
 pub struct GarbageCollector {
 	handles: Vec<GcSweeperHandle>,
 	mark: bool,
@@ -24,7 +25,9 @@ pub struct GarbageCollector {
 }
 
 unsafe impl Sync for GarbageCollector {}
+
 unsafe impl Send for GarbageCollector {}
+
 pub trait RootProvider {
 	fn mark_roots(&mut self, marker: GcMarker);
 
@@ -276,6 +279,7 @@ unsafe fn move_reference(reference: Reference) -> Reference {
 	trace!("Moving {:?} to {:?}", obj as *mut u8, new as *mut u8);
 	header_to_ref(new as *mut GcHeader)
 }
+
 unsafe fn ref_to_header(reference: Reference) -> *mut GcHeader {
 	let data = reference.0.sub(OBJECT_HEADER);
 	data as *mut GcHeader
@@ -303,14 +307,16 @@ pub enum AllocationError {
 
 #[cfg(test)]
 mod tests {
-	use crate::{AnyValue, ClassLoader};
+	use std::mem::size_of;
+	use std::sync::Arc;
+
 	use rvm_core::{FieldAccessFlags, Kind, ObjectType, PrimitiveType};
 	use rvm_object::{
 		Class, ClassLoader, ClassMethodManager, DynValue, FieldData, ObjectFieldLayout,
 	};
 	use rvm_reader::ConstantPool;
-	use std::mem::size_of;
-	use std::sync::Arc;
+
+	use crate::{AnyValue, ClassLoader};
 
 	use super::*;
 
@@ -477,7 +483,7 @@ mod tests {
 		let id = create_class(&mut loader, "hi", &[("field", Kind::Int)]);
 
 		let arc = loader.get(id);
-		let object_class = arc.object().unwrap();
+		let object_class = arc.as_instance().unwrap();
 		let field_id = object_class.fields.get_id("field").unwrap();
 		let mut roots = TestRoots::default();
 		unsafe {
@@ -556,12 +562,12 @@ mod tests {
 		let child_id = create_class(&mut loader, "Child", &[("iq", Kind::Float)]);
 
 		let parent_arc = loader.get(parent_id);
-		let parent_class = parent_arc.object().unwrap();
+		let parent_class = parent_arc.as_instance().unwrap();
 		let parent_intimacy = parent_class.fields.get_id("intimacy").unwrap();
 		let parent_child = parent_class.fields.get_id("child").unwrap();
 
 		let child_arc = loader.get(child_id);
-		let child_class = child_arc.object().unwrap();
+		let child_class = child_arc.as_instance().unwrap();
 		let child_iq = child_class.fields.get_id("iq").unwrap();
 
 		unsafe {

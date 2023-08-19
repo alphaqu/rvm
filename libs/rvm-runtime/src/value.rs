@@ -1,6 +1,8 @@
-use crate::object::Reference;
-use rvm_core::Kind;
 use std::ptr::{read, write};
+
+use rvm_core::Kind;
+
+use crate::object::Reference;
 
 pub trait Value: Sized + Copy {
 	fn ty() -> Kind;

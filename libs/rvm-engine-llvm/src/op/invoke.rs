@@ -1,12 +1,13 @@
-use crate::compiler::BlockCompiler;
-
-use crate::resolver::BlockResolver;
+use std::fmt::{Display, Formatter};
 
 use either::Either;
 use inkwell::values::{BasicMetadataValueEnum, CallableValue};
-use std::fmt::{Display, Formatter};
+
 use rvm_reader::{InvokeInst, InvokeInstKind};
+
 use crate::{MethodReference, Reference};
+use crate::compiler::BlockCompiler;
+use crate::resolver::BlockResolver;
 
 #[derive(Clone, Debug)]
 pub struct InvokeTask {
@@ -16,7 +17,6 @@ pub struct InvokeTask {
 
 impl InvokeTask {
 	pub fn resolve(inst: &InvokeInst, resolver: &mut BlockResolver) -> InvokeTask {
-
 		let cp = resolver.cp();
 		let method = cp.get(inst.value);
 		let name_and_type = method.name_and_type.get(cp);

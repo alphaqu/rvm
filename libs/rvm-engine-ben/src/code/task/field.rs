@@ -1,7 +1,8 @@
+use std::fmt::{Display, Formatter};
+
 use rvm_core::{ObjectType, Type};
 use rvm_reader::{FieldInst, FieldInstKind};
 use rvm_runtime::{Class, InstanceClass, Runtime};
-use std::fmt::{Display, Formatter};
 
 use crate::thread::ThreadFrame;
 use crate::value::StackValue;
@@ -44,10 +45,8 @@ impl FieldTask {
 	}
 
 	pub fn exec(&self, runtime: &Runtime, frame: &mut ThreadFrame) {
-		let id = runtime
-			.class_loader
-			.get_class_id(&Type::Object(self.source.clone()));
-		let arc = runtime.class_loader.get(id);
+		let id = runtime.cl.resolve_class(&Type::Object(self.source.clone()));
+		let arc = runtime.cl.get(id);
 		match &*arc {
 			Class::Object(object) => {
 				let id = object.fields.get_id(&self.field_name).unwrap();

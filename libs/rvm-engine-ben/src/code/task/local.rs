@@ -1,11 +1,11 @@
-use rvm_core::StackKind;
-use rvm_reader::LocalInst;
 use std::fmt::{Debug, Display, Formatter, Write};
 
-use crate::thread::ThreadFrame;
-use crate::value::StackValue;
-#[derive(Debug)]
+use rvm_core::StackKind;
+use rvm_reader::LocalInst;
 
+use crate::thread::ThreadFrame;
+
+#[derive(Debug)]
 pub struct LocalTask {
 	pub kind: LocalTaskKind,
 	pub ty: StackKind,
@@ -24,11 +24,13 @@ impl Display for LocalTask {
 		write!(f, "{}", self.ty)
 	}
 }
+
 #[derive(Debug)]
 pub enum LocalTaskKind {
 	Load,
 	Store,
 }
+
 impl LocalTask {
 	pub fn new(inst: &LocalInst) -> LocalTask {
 		match inst {

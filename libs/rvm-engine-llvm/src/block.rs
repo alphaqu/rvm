@@ -1,9 +1,10 @@
-
 use ahash::AHashMap;
 use inkwell::basic_block::BasicBlock;
 use inkwell::values::PointerValue;
+
 use rvm_core::Kind;
 use rvm_reader::Inst;
+
 use crate::compiler::LocalId;
 use crate::op::Task;
 
@@ -36,6 +37,7 @@ pub struct CompilingBlock<'ctx> {
 	pub variables: AHashMap<LocalId, BlockVariable<'ctx>>,
 	pub basic_block: BasicBlock<'ctx>,
 }
+
 pub struct CompiledBlock<'ctx> {
 	pub outputs: Vec<PointerValue<'ctx>>,
 }

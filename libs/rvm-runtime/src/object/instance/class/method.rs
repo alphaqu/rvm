@@ -1,17 +1,16 @@
+use std::cell::Cell;
+use std::ffi::c_void;
 use std::ops::Deref;
+use std::sync::Arc;
 
 use anyways::ext::AuditExt;
 use anyways::Result;
-
-use rvm_core::Storage;
-
 use either::Either;
-use rvm_core::StorageValue;
+
 use rvm_core::{MethodAccessFlags, MethodDesc};
+use rvm_core::Storage;
+use rvm_core::StorageValue;
 use rvm_reader::{AttributeInfo, Code, ConstantPool, MethodInfo, NameAndTypeConst};
-use std::cell::{Cell, RefCell};
-use std::ffi::c_void;
-use std::sync::Arc;
 
 pub struct ClassMethodManager {
 	storage: Storage<MethodIdentifier, Method>,

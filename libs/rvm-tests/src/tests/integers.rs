@@ -1,5 +1,6 @@
-use crate::{compile, launch};
 use rvm_runtime::java_bind_method;
+
+use crate::{compile, launch};
 
 #[test]
 fn test() -> Result<(), std::io::Error> {

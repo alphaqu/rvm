@@ -1,8 +1,6 @@
-use crate::consts::utf_8::UTF8Const;
+use crate::impl_constant;
 use crate::consts::ConstPtr;
-use crate::{impl_constant};
-use rvm_core::Id;
-use std::cell::Cell;
+use crate::consts::utf_8::UTF8Const;
 
 #[derive(Clone, Debug)]
 pub struct ClassConst {

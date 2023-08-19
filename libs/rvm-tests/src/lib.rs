@@ -4,23 +4,21 @@
 #![feature(pin_macro)]
 
 use std::io::Result;
-use std::path::{Path, PathBuf};
-use std::pin::{pin, Pin};
 use std::sync::Arc;
 use std::time::Instant;
 
-use rvm_engine_ben::BenBinding;
 use walkdir::WalkDir;
 
+use rvm_engine_ben::BenBinding;
 use rvm_runtime::Runtime;
 
 #[cfg(test)]
 mod tests;
 
 pub fn launch<F, R>(heap_size: usize, f: F) -> R
-where
-	F: FnOnce(Arc<Runtime>) -> R + Send + 'static,
-	R: Send + 'static,
+	where
+		F: FnOnce(Arc<Runtime>) -> R + Send + 'static,
+		R: Send + 'static,
 {
 	std::thread::Builder::new()
 		.name(
@@ -83,7 +81,7 @@ pub fn compile(runtime: &Runtime, sources: &[(&str, &str)]) -> Result<()> {
 
 			if entry.path().extension().and_then(|x| x.to_str()) == Some("class") {
 				runtime
-					.class_loader
+					.cl
 					.load_class(&std::fs::read(entry.path())?)
 					.unwrap();
 			}
@@ -98,8 +96,8 @@ pub fn compile(runtime: &Runtime, sources: &[(&str, &str)]) -> Result<()> {
 }
 
 pub fn sample<F, R>(message: &str, times: usize, f: F) -> Vec<R>
-where
-	F: Fn(usize) -> R,
+	where
+		F: Fn(usize) -> R,
 {
 	let mut nanos = 0;
 	let mut results = Vec::with_capacity(times);

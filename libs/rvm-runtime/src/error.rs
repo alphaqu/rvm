@@ -1,10 +1,12 @@
-use crate::Runtime;
-use rvm_core::Id;
 use std::fmt::Debug;
+use std::fmt::Write;
+
+use rvm_core::Id;
+
+use crate::object::{Class, Method};
+use crate::Runtime;
 
 pub type JResult<V> = Result<V, JError>;
-use crate::object::{Class, Method};
-use std::fmt::Write;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct JError {
@@ -46,7 +48,7 @@ pub struct TraceEntry {
 
 impl TraceEntry {
 	fn fmt(&self, f: &mut String, runtime: &Runtime) -> std::fmt::Result {
-		let class = runtime.class_loader.get(self.class);
+		let class = runtime.cl.get(self.class);
 
 		match &*class {
 			Class::Object(object) => {

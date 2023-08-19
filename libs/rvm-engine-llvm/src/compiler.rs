@@ -1,16 +1,19 @@
+use std::collections::hash_map::Entry;
+use std::ops::Deref;
+
 use ahash::{AHashMap, AHashSet};
 use inkwell::basic_block::BasicBlock;
 use inkwell::builder::Builder;
 use inkwell::context::Context;
 use inkwell::module::{Linkage, Module};
 use inkwell::passes::PassManager;
-use inkwell::types::{BasicMetadataTypeEnum, BasicType, FloatType, IntType};
+use inkwell::types::{FloatType, IntType};
 use inkwell::values::{BasicValueEnum, FunctionValue};
-use std::collections::hash_map::Entry;
-use std::ops::Deref;
 use tracing::{info, warn};
+
 use rvm_core::{Kind, MethodAccessFlags, Type};
 use rvm_object::MethodData;
+
 use crate::block::{Block, BlockVariable, CompiledBlock, CompilingBlock};
 use crate::ir_gen::IrNameGen;
 use crate::util::{desc_ty, kind_ty};

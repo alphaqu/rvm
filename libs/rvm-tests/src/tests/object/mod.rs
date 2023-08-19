@@ -6,7 +6,7 @@ use crate::{compile, launch};
 fn interface() {
 	launch(32 * 1024 * 1024, |runtime| {
 		runtime
-			.class_loader
+			.cl
 			.load_jar(include_bytes!("../../../../../rt.zip"), |v| {
 				v == "java/lang/Object.class"
 			})
@@ -20,7 +20,7 @@ fn interface() {
 				("Assert.java", include_str!("../Assert.java")),
 			],
 		)
-		.unwrap();
+			.unwrap();
 
 		let java = java_bind_method!(runtime fn tests::object::InterfaceTest:hi());
 		let i = java();
@@ -31,7 +31,7 @@ fn interface() {
 fn extend_test() {
 	launch(32 * 1024 * 1024, |runtime| {
 		runtime
-			.class_loader
+			.cl
 			.load_jar(include_bytes!("../../../../../rt.zip"), |v| {
 				v == "java/lang/Object.class"
 			})
@@ -45,12 +45,13 @@ fn extend_test() {
 				("Assert.java", include_str!("../Assert.java")),
 			],
 		)
-		.unwrap();
+			.unwrap();
 
 		let java = java_bind_method!(runtime fn tests::object::ExtendTest:create());
 		let i = java();
 	})
 }
+
 #[test]
 fn new_test() {
 	launch(32 * 1024 * 1024, |runtime| {
@@ -58,9 +59,9 @@ fn new_test() {
 			&runtime,
 			&[("ObjectTest.java", include_str!("ObjectTest.java"))],
 		)
-		.unwrap();
+			.unwrap();
 		runtime
-			.class_loader
+			.cl
 			.load_jar(include_bytes!("../../../../../rt.zip"), |v| {
 				v == "java/lang/Object.class"
 			})
@@ -80,10 +81,10 @@ fn gc_test() {
 			&runtime,
 			&[("ObjectTest.java", include_str!("ObjectTest.java"))],
 		)
-		.unwrap();
+			.unwrap();
 
 		runtime
-			.class_loader
+			.cl
 			.load_jar(include_bytes!("../../../../../rt.zip"), |v| {
 				v == "java/lang/Object.class"
 			})

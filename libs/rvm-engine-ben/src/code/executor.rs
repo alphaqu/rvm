@@ -1,15 +1,18 @@
+use std::sync::Arc;
+
+use tracing::{debug, trace};
+
+use rvm_core::{Kind, MethodDesc, ObjectType, Type};
+use rvm_reader::JumpKind;
+use rvm_runtime::{AnyValue, MethodIdentifier, Reference, Runtime};
+use rvm_runtime::engine::Thread;
+use rvm_runtime::gc::{AllocationError, GcMarker, GcSweeper, RootProvider};
+
+use crate::BenEngine;
 use crate::code::{CallType, Task};
 use crate::method::CompiledMethod;
 use crate::thread::{ThreadFrame, ThreadStack};
 use crate::value::StackValue;
-use crate::BenEngine;
-use rvm_core::{Kind, MethodAccessFlags, MethodDesc, ObjectType, Type};
-use rvm_reader::JumpKind;
-use rvm_runtime::engine::Thread;
-use rvm_runtime::gc::{AllocationError, GcMarker, GcSweeper, RootProvider};
-use rvm_runtime::{AnyValue, MethodIdentifier, Reference, Runtime};
-use std::sync::Arc;
-use tracing::{debug, trace};
 
 pub struct Executor<'a> {
 	pub thread: Thread,
@@ -52,9 +55,7 @@ impl<'a> Executor<'a> {
 			let class_object = reference.to_class().unwrap();
 			class_object.class()
 		} else {
-			self.runtime
-				.class_loader
-				.get_class_id(&Type::Object(ty.clone()))
+			self.runtime.cl.resolve_class(&Type::Object(ty.clone()))
 		};
 
 		let method = self
@@ -110,11 +111,11 @@ impl<'a> Executor<'a> {
 					Task::New(object) => {
 						let id = self
 							.runtime
-							.class_loader
-							.get_class_id(&Type::Object(object.class_name.clone()));
+							.cl
+							.resolve_class(&Type::Object(object.class_name.clone()));
 
-						let class = self.runtime.class_loader.get(id);
-						let object = class.object().unwrap();
+						let class = self.runtime.cl.get(id);
+						let object = class.as_instance().unwrap();
 						unsafe {
 							let result = self.runtime.gc.lock().allocate_instance(id, object);
 

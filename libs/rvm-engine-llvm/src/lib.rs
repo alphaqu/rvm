@@ -1,46 +1,45 @@
+use std::ffi::{c_char, c_void, CStr};
+use std::fmt;
+use std::fmt::{Display, Formatter};
+use std::path::Path;
+use std::pin::Pin;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread::{Builder, JoinHandle};
+
+use ahash::{AHashMap, AHashSet};
+use crossbeam::channel::{bounded, Receiver, Sender};
+use either::Either;
+use inkwell::{AddressSpace, OptimizationLevel};
+use inkwell::context::Context;
+use inkwell::execution_engine::ExecutionEngine;
+use inkwell::module::{Linkage, Module};
+use inkwell::passes::{PassManager, PassManagerBuilder, PassRegistry};
+use inkwell::targets::{
+	CodeModel, InitializationConfig, RelocMode, Target, TargetMachine, TargetTriple,
+};
+use inkwell::types::BasicMetadataTypeEnum;
+use inkwell::values::{BasicMetadataValueEnum, CallableValue, FunctionValue};
+use tracing::{debug, info, instrument, trace};
+
+use rvm_core::MethodDesc;
+use rvm_object::{MethodCode, MethodData};
+use rvm_reader::{ConstantPool, Inst};
+use rvm_runtime::engine::Engine;
+use rvm_runtime::Runtime;
+
+use crate::block::Block;
+use crate::compiler::FunctionCompiler;
+use crate::ir_gen::IrNameGen;
+use crate::resolver::BlockResolver;
+use crate::util::desc_ty;
+
 mod block;
 mod compiler;
 mod ir_gen;
 mod op;
 mod resolver;
 mod util;
-
-use crate::block::Block;
-use crate::ir_gen::IrNameGen;
-use crate::resolver::BlockResolver;
-
-use ahash::{AHashMap, AHashSet};
-use either::Either;
-use inkwell::context::Context;
-use inkwell::execution_engine::ExecutionEngine;
-use inkwell::module::{Linkage, Module};
-use inkwell::passes::{PassManager, PassManagerBuilder, PassRegistry};
-use rvm_reader::{ConstantPool, Inst};
-
-use inkwell::types::BasicMetadataTypeEnum;
-use inkwell::values::{BasicMetadataValueEnum, CallableValue, FunctionValue};
-use inkwell::{AddressSpace, OptimizationLevel};
-use std::ffi::{c_char, c_void, CStr};
-use std::fmt;
-use std::fmt::{Display, Formatter};
-
-use inkwell::targets::{
-	CodeModel, InitializationConfig, RelocMode, Target, TargetMachine, TargetTriple,
-};
-use rvm_core::MethodDesc;
-use std::path::Path;
-use std::pin::Pin;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::thread::{Builder, JoinHandle};
-use crossbeam::channel::{bounded, Receiver, Sender};
-use tracing::{debug, info, instrument, trace};
-use rvm_object::{MethodData, MethodCode};
-use rvm_runtime::engine::Engine;
-use rvm_runtime::Runtime;
-use crate::compiler::FunctionCompiler;
-use crate::util::desc_ty;
-
 
 pub enum EngineTask {
 	CompileMethod {
@@ -59,7 +58,7 @@ pub enum EngineResponse {
 pub struct LLVMBinding {
 	send: Sender<EngineTask>,
 	recv: Receiver<EngineResponse>,
-	handle: JoinHandle<()>
+	handle: JoinHandle<()>,
 }
 
 impl Engine for LLVMBinding {
@@ -400,7 +399,7 @@ impl<'ctx> LLVMEngine<'ctx> {
 		function as *const c_void
 	}
 
-	#[instrument(name = "Computing blocks", skip_all, fields(target=format!("{}:{}", method.name, method.desc)))]
+	#[instrument(name = "Computing blocks", skip_all, fields(target = format!("{}:{}", method.name, method.desc)))]
 	fn compile_blocks(&self, method: &MethodData, data: BlocksData<'_, 'ctx>) {
 		let mut block_compiler =
 			FunctionCompiler::new(self.ctx, &self.module, &self.fpm, method, data.blocks);

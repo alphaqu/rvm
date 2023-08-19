@@ -4,11 +4,12 @@ use std::sync::Arc;
 use anyways::ext::AuditExt;
 use anyways::Result;
 
-use crate::object::{Class, ClassLoader};
 pub use field::*;
 pub use method::*;
 use rvm_core::{Id, ObjectType, Type};
 use rvm_reader::{ClassInfo, ConstantPool};
+
+use crate::object::{Class, ClassLoader};
 
 mod field;
 mod method;
@@ -27,7 +28,9 @@ pub struct InstanceClass {
 }
 
 unsafe impl Send for InstanceClass {}
+
 unsafe impl Sync for InstanceClass {}
+
 impl InstanceClass {
 	pub fn parse(info: ClassInfo, cl: &ClassLoader) -> Result<InstanceClass> {
 		let super_class = info
@@ -37,12 +40,12 @@ impl InstanceClass {
 			.map(|v| ObjectType(v.to_string()));
 		let super_id = super_class
 			.as_ref()
-			.map(|v| cl.get_class_id(&Type::Object(v.clone())));
+			.map(|v| cl.resolve_class(&Type::Object(v.clone())));
 
 		let super_object = super_id.map(|super_id| cl.get(super_id));
 		let super_fields = super_object
 			.as_ref()
-			.map(|v| &v.object().as_ref().unwrap().fields);
+			.map(|v| &v.as_instance().as_ref().unwrap().fields);
 
 		let class = info.constant_pool.get(info.this_class).unwrap();
 		let name = info.constant_pool.get(class.name).unwrap();

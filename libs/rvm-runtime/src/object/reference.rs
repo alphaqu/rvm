@@ -1,8 +1,8 @@
+use std::fmt::{Debug, Formatter};
 use std::mem::size_of;
+use std::ptr::null_mut;
 
 use crate::{AnyArray, AnyInstance};
-use std::fmt::{Debug, Formatter};
-use std::ptr::null_mut;
 
 #[derive(Copy, Clone, PartialEq)]
 #[repr(transparent)]
@@ -11,6 +11,7 @@ pub struct Reference(pub *mut u8);
 unsafe impl Send for Reference {}
 
 unsafe impl Sync for Reference {}
+
 impl Reference {
 	pub const HEADER_SIZE: usize = size_of::<u8>();
 	pub const NULL: Reference = Reference(null_mut());
@@ -28,7 +29,7 @@ impl Reference {
 		match i {
 			1 => ReferenceKind::Instance,
 			2 => ReferenceKind::Array,
-			_ => panic!("Corrupted kind {i}",),
+			_ => panic!("Corrupted kind {i}", ),
 		}
 	}
 

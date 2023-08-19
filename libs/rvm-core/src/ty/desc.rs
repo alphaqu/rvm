@@ -1,4 +1,5 @@
 use std::fmt::{Display, Formatter};
+
 use crate::Type;
 
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]

@@ -1,8 +1,5 @@
 use std::fmt::{Display, Formatter};
 
-use crate::code::task::array::{
-	ArrayCreateRefTask, ArrayCreateTask, ArrayLengthTask, ArrayLoadTask, ArrayStoreTask,
-};
 pub use combine::{CombineTask, CombineTaskOperation, CombineTaskType};
 pub use local::{LocalTask, LocalTaskKind};
 pub use r#const::ConstTask;
@@ -10,6 +7,9 @@ pub use r#return::ReturnTask;
 use rvm_reader::{ArrayInst, Inst, JumpInst, LocalInst, MathInst};
 use rvm_runtime::InstanceClass;
 
+use crate::code::task::array::{
+	ArrayCreateRefTask, ArrayCreateTask, ArrayLengthTask, ArrayLoadTask, ArrayStoreTask,
+};
 pub use crate::code::task::call::*;
 use crate::code::task::field::FieldTask;
 use crate::code::task::increment::IncrementTask;

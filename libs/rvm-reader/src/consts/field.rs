@@ -1,9 +1,7 @@
+use crate::impl_constant;
 use crate::consts::class::ClassConst;
-use crate::consts::name_and_type::NameAndTypeConst;
 use crate::consts::ConstPtr;
-use crate::{impl_constant};
-use rvm_core::Id;
-use std::cell::Cell;
+use crate::consts::name_and_type::NameAndTypeConst;
 
 #[derive(Clone, Debug)]
 pub struct FieldConst {

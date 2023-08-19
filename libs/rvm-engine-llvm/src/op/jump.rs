@@ -1,7 +1,6 @@
 use std::fmt::{Display, Formatter};
-use rvm_reader::JumpKind;
-use crate::compiler::BlockCompiler;
 
+use crate::compiler::BlockCompiler;
 use crate::resolver::BlockResolver;
 
 #[derive(Clone, Debug)]

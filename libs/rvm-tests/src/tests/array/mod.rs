@@ -1,6 +1,7 @@
-use crate::{compile, launch};
 use rvm_core::PrimitiveType;
-use rvm_runtime::{java_bind_method, Array, Reference};
+use rvm_runtime::{Array, java_bind_method, Reference};
+
+use crate::{compile, launch};
 
 #[test]
 fn primitive() {
@@ -34,10 +35,10 @@ fn creation() {
 			&runtime,
 			&[("ArrayTest.java", include_str!("ArrayTest.java"))],
 		)
-		.unwrap();
+			.unwrap();
 
 		runtime
-			.class_loader
+			.cl
 			.load_jar(include_bytes!("../../../../../rt.zip"), |v| {
 				v == "java/lang/Object.class"
 			})
@@ -56,7 +57,7 @@ fn creation() {
 fn setter() {
 	launch(32 * 1024 * 1024, |runtime| {
 		runtime
-			.class_loader
+			.cl
 			.load_jar(include_bytes!("../../../../../rt.zip"), |v| {
 				v == "java/lang/Object.class"
 			})
@@ -66,7 +67,7 @@ fn setter() {
 			&runtime,
 			&[("ArrayTest.java", include_str!("ArrayTest.java"))],
 		)
-		.unwrap();
+			.unwrap();
 
 		let java_set = java_bind_method!(runtime fn ArrayTest:setValue(array: Array<i32>, index: i32, value: i32));
 
@@ -97,10 +98,10 @@ fn getter() {
 			&runtime,
 			&[("ArrayTest.java", include_str!("ArrayTest.java"))],
 		)
-		.unwrap();
+			.unwrap();
 
 		runtime
-			.class_loader
+			.cl
 			.load_jar(include_bytes!("../../../../../rt.zip"), |v| {
 				v == "java/lang/Object.class"
 			})
@@ -131,10 +132,10 @@ fn refArrays() {
 			&runtime,
 			&[("ArrayTest.java", include_str!("ArrayTest.java"))],
 		)
-		.unwrap();
+			.unwrap();
 
 		runtime
-			.class_loader
+			.cl
 			.load_jar(include_bytes!("../../../../../rt.zip"), |v| {
 				v == "java/lang/Object.class"
 			})

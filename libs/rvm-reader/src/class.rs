@@ -1,15 +1,17 @@
+use nom::bytes::complete::tag;
+use nom::combinator::{map, map_opt};
+use nom::error::context;
+use nom::multi::length_count;
+use nom::number::complete::be_u16;
+use tracing::trace;
+
+use rvm_core::ClassAccessFlags;
+
+use crate::{ClassConst, ConstPtr, InterfaceConst, IResult};
 use crate::attribute::AttributeInfo;
 use crate::consts::{ConstantInfo, ConstantPool};
 use crate::field::FieldInfo;
 use crate::method::MethodInfo;
-use crate::{ClassConst, ConstPtr, IResult, InterfaceConst};
-use nom::bytes::complete::tag;
-use nom::combinator::{map, map_opt};
-use nom::error::{context, dbg_dmp};
-use nom::multi::length_count;
-use nom::number::complete::be_u16;
-use rvm_core::ClassAccessFlags;
-use tracing::trace;
 
 pub struct ClassInfo {
 	pub minor_version: u16,

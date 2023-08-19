@@ -1,6 +1,7 @@
+use rvm_core::{PrimitiveType, StorageValue, Type};
+
 use crate::object::array::ArrayClass;
 use crate::object::instance::InstanceClass;
-use rvm_core::{PrimitiveType, StorageValue, Type};
 
 pub enum Class {
 	Object(InstanceClass),
@@ -9,7 +10,7 @@ pub enum Class {
 }
 
 impl Class {
-	pub fn object(&self) -> Option<&InstanceClass> {
+	pub fn as_instance(&self) -> Option<&InstanceClass> {
 		if let Self::Object(class) = self {
 			return Some(class);
 		}

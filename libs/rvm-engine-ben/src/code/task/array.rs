@@ -1,12 +1,15 @@
-use crate::thread::ThreadFrame;
-use crate::value::StackValue;
+use std::fmt::{Display, Formatter};
+
 use rvm_core::{Kind, ObjectType, PrimitiveType, Type};
 use rvm_reader::{ClassConst, ConstPtr};
 use rvm_runtime::{InstanceClass, Runtime};
-use std::fmt::{Display, Formatter};
+
+use crate::thread::ThreadFrame;
+use crate::value::StackValue;
 
 #[derive(Debug)]
 pub struct ArrayCreateTask(pub PrimitiveType);
+
 impl ArrayCreateTask {
 	pub fn exec(&self, runtime: &Runtime, frame: &mut ThreadFrame) {
 		let length = frame.pop().to_int();
@@ -23,6 +26,7 @@ impl Display for ArrayCreateTask {
 
 #[derive(Debug)]
 pub struct ArrayCreateRefTask(ObjectType);
+
 impl ArrayCreateRefTask {
 	pub fn new(ptr: &ConstPtr<ClassConst>, obj: &InstanceClass) -> ArrayCreateRefTask {
 		let class = ptr.get(&obj.cp).unwrap();
@@ -33,9 +37,7 @@ impl ArrayCreateRefTask {
 	pub fn exec(&self, runtime: &Runtime, frame: &mut ThreadFrame) {
 		let length = frame.pop().to_int();
 
-		let id = runtime
-			.class_loader
-			.get_class_id(&Type::Object(self.0.clone()));
+		let id = runtime.cl.resolve_class(&Type::Object(self.0.clone()));
 		let array = runtime.gc.lock().allocate_ref_array(id, length).unwrap();
 
 		frame.push(StackValue::Reference(*array));
@@ -69,6 +71,7 @@ impl Display for ArrayLengthTask {
 
 #[derive(Debug)]
 pub struct ArrayLoadTask(pub Kind);
+
 impl ArrayLoadTask {
 	pub fn exec(&self, frame: &mut ThreadFrame) {
 		let index = frame.pop().to_int();
@@ -92,6 +95,7 @@ impl Display for ArrayLoadTask {
 
 #[derive(Debug)]
 pub struct ArrayStoreTask(pub Kind);
+
 impl ArrayStoreTask {
 	pub fn exec(&self, frame: &mut ThreadFrame) {
 		let value = frame.pop();
@@ -108,6 +112,7 @@ impl ArrayStoreTask {
 		array.set(index, value);
 	}
 }
+
 impl Display for ArrayStoreTask {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		write!(f, "arraystore {}", self.0)

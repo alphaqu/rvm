@@ -1,6 +1,9 @@
-use inkwell::types::BasicTypeEnum;
 use std::fmt::{Display, Formatter};
+
+use inkwell::types::BasicTypeEnum;
+
 use rvm_reader::StackInst;
+
 use crate::compiler::BlockCompiler;
 use crate::resolver::BlockResolver;
 
@@ -16,6 +19,7 @@ pub enum StackTask {
 	POP2,
 	SWAP,
 }
+
 impl StackTask {
 	pub fn resolve(inst: &StackInst, _: &mut BlockResolver) -> StackTask {
 		match inst {

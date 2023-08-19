@@ -1,15 +1,17 @@
-use crate::thread::ThreadFrame;
-use crate::value::StackValue;
-use rvm_core::PrimitiveType;
-use rvm_reader::MathInst;
 use std::fmt::{Display, Formatter};
 use std::ops::Add;
 use std::ops::Div;
 use std::ops::Mul;
 use std::ops::Rem;
 use std::ops::Sub;
-#[derive(Debug)]
 
+use rvm_core::PrimitiveType;
+use rvm_reader::MathInst;
+
+use crate::thread::ThreadFrame;
+use crate::value::StackValue;
+
+#[derive(Debug)]
 pub struct CombineTask {
 	pub ty: CombineTaskType,
 	pub op: CombineTaskOperation,
@@ -152,8 +154,8 @@ impl CombineTask {
 		}
 	}
 }
-#[derive(Debug)]
 
+#[derive(Debug)]
 pub enum CombineTaskOperation {
 	Add,
 	Sub,
@@ -171,14 +173,15 @@ pub enum CombineTaskOperation {
 	FCMPL,
 	ICMP,
 }
-#[derive(Debug)]
 
+#[derive(Debug)]
 pub enum CombineTaskType {
 	Int,
 	Long,
 	Float,
 	Double,
 }
+
 impl CombineTaskType {
 	pub fn new(ty: PrimitiveType) -> CombineTaskType {
 		match ty {

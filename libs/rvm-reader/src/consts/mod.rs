@@ -1,11 +1,12 @@
-mod class;
-mod field;
-mod interface;
-mod method;
-mod name_and_type;
-mod number;
-mod string;
-mod utf_8;
+use std::fmt::{Debug, Formatter};
+use std::marker::PhantomData;
+
+use nom::combinator::{map, map_res};
+use nom::multi::length_data;
+use nom::Needed;
+use nom::number::complete::{be_f32, be_f64, be_i32, be_i64, be_u16, be_u8};
+use nom::sequence::pair;
+use tracing::trace;
 
 pub use crate::consts::class::ClassConst;
 pub use crate::consts::field::FieldConst;
@@ -16,18 +17,15 @@ pub use crate::consts::number::{DoubleConst, FloatConst, IntegerConst, LongConst
 pub use crate::consts::string::StringConst;
 pub use crate::consts::utf_8::UTF8Const;
 use crate::IResult;
-use nom::combinator::{map, map_res};
-use nom::error::VerboseError;
-use nom::multi::length_data;
-use nom::number::complete::{be_f32, be_f64, be_i32, be_i64, be_u16, be_u8};
-use nom::sequence::pair;
-use nom::Needed;
-use std::cell::Cell;
-use std::fmt::{Debug, Formatter};
-use std::io;
-use std::io::ErrorKind;
-use std::marker::PhantomData;
-use tracing::{error, trace};
+
+mod class;
+mod field;
+mod interface;
+mod method;
+mod name_and_type;
+mod number;
+mod string;
+mod utf_8;
 
 #[macro_export]
 macro_rules! impl_constant {
@@ -69,6 +67,7 @@ impl<V: Constant> ConstPtr<V> {
 		self.0
 	}
 }
+
 #[inline]
 pub fn be_cp<V: Constant>(input: &[u8]) -> IResult<'_, ConstPtr<V>> {
 	map(be_u16, |v| ConstPtr::new(v))(input)

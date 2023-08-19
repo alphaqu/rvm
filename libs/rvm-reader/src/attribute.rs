@@ -1,11 +1,11 @@
-use crate::code::Code;
-use crate::consts::{ConstantInfo, ConstantPool};
-use crate::IResult;
 use nom::bytes::complete::take;
 use nom::combinator::{map, map_opt};
 use nom::number::complete::{be_u16, be_u32};
 use nom::sequence::tuple;
-use tracing::trace;
+
+use crate::code::Code;
+use crate::consts::{ConstantInfo, ConstantPool};
+use crate::IResult;
 
 pub struct AttributeException {
 	start_pc: u16,

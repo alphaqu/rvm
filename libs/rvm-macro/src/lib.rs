@@ -1,10 +1,12 @@
 extern crate proc_macro;
+
 use proc_macro::TokenStream;
 use std::fmt::Write;
-use syn::parse::discouraged::AnyDelimiter;
+
+use syn::{Ident, parenthesized, parse, token, Token};
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::{parenthesized, parse, token, Ident, Token};
+
 //macro_rules! java_descriptor {
 // 	(()) => {"V"};
 // 	(bool) => {"Z"};
@@ -153,6 +155,7 @@ impl FuncDesc {
 		out
 	}
 }
+
 impl Parse for FuncDesc {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
 		let content;

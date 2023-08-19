@@ -1,9 +1,12 @@
-use crate::compiler::BlockCompiler;
-use crate::resolver::BlockResolver;
-use inkwell::values::BasicValue;
 use std::fmt::{Display, Formatter};
+
+use inkwell::values::BasicValue;
+
 use rvm_core::PrimitiveType;
 use rvm_reader::MathInst;
+
+use crate::compiler::BlockCompiler;
+use crate::resolver::BlockResolver;
 
 /// Applies an operation on one value and spits out another
 #[derive(Clone, Debug)]

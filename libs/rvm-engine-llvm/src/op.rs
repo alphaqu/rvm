@@ -1,14 +1,7 @@
-pub mod apply;
-pub mod check;
-pub mod combine;
-pub mod compare;
-pub mod constant;
-pub mod conversion;
-pub mod invoke;
-pub mod jump;
-pub mod ret;
-pub mod stack;
-pub mod variable;
+use std::fmt::{Display, Formatter};
+
+use combine::CombineTask;
+use rvm_reader::{Inst, JumpInst, LocalInst, MathInst};
 
 use crate::compiler::BlockCompiler;
 use crate::op::apply::ApplyTask;
@@ -22,9 +15,18 @@ use crate::op::ret::ReturnTask;
 use crate::op::stack::StackTask;
 use crate::op::variable::{IncrementTask, LoadVariableTask, StoreVariableTask};
 use crate::resolver::BlockResolver;
-use combine::CombineTask;
-use rvm_reader::{Inst, JumpInst, JumpKind, LocalInst, MathInst};
-use std::fmt::{Display, Formatter};
+
+pub mod apply;
+pub mod check;
+pub mod combine;
+pub mod compare;
+pub mod constant;
+pub mod conversion;
+pub mod invoke;
+pub mod jump;
+pub mod ret;
+pub mod stack;
+pub mod variable;
 
 #[derive(Clone, Debug)]
 pub enum Task {
@@ -67,8 +69,8 @@ impl Task {
 				Task::Conversion(ConversionTask::resolve(inst, resolver))
 			}
 			Inst::Jump(JumpInst {
-				offset,
-				kind
+						   offset,
+						   kind
 					   }) => {
 				let target = resolver.inst_to_block(i.saturating_add_signed(*offset as isize));
 				match kind.args() {

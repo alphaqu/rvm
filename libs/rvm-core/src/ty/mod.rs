@@ -1,8 +1,10 @@
+use std::fmt::{Display, Formatter, Write};
+
 pub use desc::*;
 pub use flags::*;
 pub use kind::*;
 pub use op::*;
-use std::fmt::{Display, Formatter, Write};
+
 mod desc;
 mod flags;
 mod kind;

@@ -2,7 +2,9 @@ use std::fmt::{Display, Formatter};
 use std::mem::transmute;
 
 use inkwell::values::BasicValue;
+
 use rvm_core::Kind;
+
 use crate::compiler::{BlockCompiler, LocalId};
 use crate::op::Task;
 use crate::resolver::BlockResolver;
@@ -110,6 +112,7 @@ impl Display for IncrementTask {
 		write!(f, "inc {} {}", self.var, self.amount)
 	}
 }
+
 #[derive(Copy, Clone, Debug)]
 pub struct Var {
 	pub ty: Kind,

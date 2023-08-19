@@ -1,7 +1,6 @@
 use std::fmt::{Display, Formatter};
 
 #[derive(Debug)]
-
 pub struct IncrementTask {
 	pub local: u16,
 	pub increment: i16,

@@ -1,9 +1,11 @@
-use crate::gc::{move_reference, ref_to_header, ObjectFlags, RootProvider};
-use crate::object::Reference;
-use crossbeam::channel::{unbounded, Receiver, Sender};
-use crossbeam::sync::{Parker, Unparker};
 use std::time::Duration;
+
+use crossbeam::channel::{Receiver, Sender, unbounded};
+use crossbeam::sync::{Parker, Unparker};
 use tracing::trace;
+
+use crate::gc::{move_reference, ObjectFlags, ref_to_header, RootProvider};
+use crate::object::Reference;
 
 pub(super) fn new_sweeper() -> (GcSweeperHandle, GcSweeper) {
 	let complete_parker: Parker = Default::default();
@@ -25,6 +27,7 @@ pub(super) fn new_sweeper() -> (GcSweeperHandle, GcSweeper) {
 		},
 	)
 }
+
 pub struct GcSweeperHandle {
 	pub(super) unparker: Unparker,
 	pub(super) complete_parker: Parker,

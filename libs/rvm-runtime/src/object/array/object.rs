@@ -1,9 +1,11 @@
-use crate::{read_arr, write_arr, AnyValue, Class, Reference, ReferenceKind, Value};
-use rvm_core::{Id, Kind, PrimitiveType, StorageValue};
 use std::intrinsics::transmute;
 use std::marker::PhantomData;
 use std::mem::size_of;
 use std::ops::Deref;
+
+use rvm_core::{Id, Kind, PrimitiveType, StorageValue};
+
+use crate::{AnyValue, Class, read_arr, Reference, ReferenceKind, Value, write_arr};
 
 #[derive(Copy, Clone)]
 pub struct AnyArray {
@@ -116,17 +118,15 @@ impl AnyArray {
 
 	pub fn get(&self, index: i32) -> Option<AnyValue> {
 		Some(match self.kind() {
-			Kind::Reference => {
-				AnyValue::Reference(Array::<Reference>::new(self.clone()).get(index)?)
-			}
-			Kind::Boolean => AnyValue::Boolean(Array::<bool>::new(self.clone()).get(index)?),
-			Kind::Char => AnyValue::Char(Array::<u16>::new(self.clone()).get(index)?),
-			Kind::Float => AnyValue::Float(Array::<f32>::new(self.clone()).get(index)?),
-			Kind::Double => AnyValue::Double(Array::<f64>::new(self.clone()).get(index)?),
-			Kind::Byte => AnyValue::Byte(Array::<i8>::new(self.clone()).get(index)?),
-			Kind::Short => AnyValue::Short(Array::<i16>::new(self.clone()).get(index)?),
-			Kind::Int => AnyValue::Int(Array::<i32>::new(self.clone()).get(index)?),
-			Kind::Long => AnyValue::Long(Array::<i64>::new(self.clone()).get(index)?),
+			Kind::Reference => AnyValue::Reference(Array::<Reference>::new(*self).get(index)?),
+			Kind::Boolean => AnyValue::Boolean(Array::<bool>::new(*self).get(index)?),
+			Kind::Char => AnyValue::Char(Array::<u16>::new(*self).get(index)?),
+			Kind::Float => AnyValue::Float(Array::<f32>::new(*self).get(index)?),
+			Kind::Double => AnyValue::Double(Array::<f64>::new(*self).get(index)?),
+			Kind::Byte => AnyValue::Byte(Array::<i8>::new(*self).get(index)?),
+			Kind::Short => AnyValue::Short(Array::<i16>::new(*self).get(index)?),
+			Kind::Int => AnyValue::Int(Array::<i32>::new(*self).get(index)?),
+			Kind::Long => AnyValue::Long(Array::<i64>::new(*self).get(index)?),
 		})
 	}
 
@@ -135,20 +135,20 @@ impl AnyArray {
 			panic!();
 		}
 		match value {
-			AnyValue::Reference(v) => Array::<Reference>::new(self.clone()).set(index, v),
-			AnyValue::Boolean(v) => Array::<bool>::new(self.clone()).set(index, v),
-			AnyValue::Char(v) => Array::<u16>::new(self.clone()).set(index, v),
-			AnyValue::Float(v) => Array::<f32>::new(self.clone()).set(index, v),
-			AnyValue::Double(v) => Array::<f64>::new(self.clone()).set(index, v),
-			AnyValue::Byte(v) => Array::<i8>::new(self.clone()).set(index, v),
-			AnyValue::Short(v) => Array::<i16>::new(self.clone()).set(index, v),
-			AnyValue::Int(v) => Array::<i32>::new(self.clone()).set(index, v),
-			AnyValue::Long(v) => Array::<i64>::new(self.clone()).set(index, v),
+			AnyValue::Reference(v) => Array::<Reference>::new(*self).set(index, v),
+			AnyValue::Boolean(v) => Array::<bool>::new(*self).set(index, v),
+			AnyValue::Char(v) => Array::<u16>::new(*self).set(index, v),
+			AnyValue::Float(v) => Array::<f32>::new(*self).set(index, v),
+			AnyValue::Double(v) => Array::<f64>::new(*self).set(index, v),
+			AnyValue::Byte(v) => Array::<i8>::new(*self).set(index, v),
+			AnyValue::Short(v) => Array::<i16>::new(*self).set(index, v),
+			AnyValue::Int(v) => Array::<i32>::new(*self).set(index, v),
+			AnyValue::Long(v) => Array::<i64>::new(*self).set(index, v),
 		};
 	}
 
 	pub fn visit_refs(&self, mut visitor: impl FnMut(Reference)) {
-		if let Some(array) = Array::<Reference>::try_new(self.clone()) {
+		if let Some(array) = Array::<Reference>::try_new(*self) {
 			for i in 0..array.length() {
 				if let Some(reference) = array.get(i) {
 					visitor(reference);
@@ -158,7 +158,7 @@ impl AnyArray {
 	}
 
 	pub fn map_refs(&self, mut mapper: impl FnMut(Reference) -> Reference) {
-		if let Some(mut array) = Array::<Reference>::try_new(self.clone()) {
+		if let Some(mut array) = Array::<Reference>::try_new(*self) {
 			for i in 0..array.length() {
 				if let Some(reference) = array.get(i) {
 					array.set(i, mapper(reference));
@@ -235,6 +235,7 @@ impl TryFrom<AnyValue> for AnyArray {
 		Ok(AnyArray::try_new(reference).ok_or(value)?)
 	}
 }
+
 impl Into<AnyValue> for AnyArray {
 	fn into(self) -> AnyValue {
 		AnyValue::Reference(self.reference)

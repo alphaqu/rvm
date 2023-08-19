@@ -1,9 +1,11 @@
-use inkwell::values::BasicValue;
 use std::fmt::{Display, Formatter};
+
+use inkwell::values::BasicValue;
+
 use rvm_core::{Kind, StackKind};
 use rvm_reader::ReturnInst;
-use crate::compiler::BlockCompiler;
 
+use crate::compiler::BlockCompiler;
 use crate::resolver::BlockResolver;
 
 #[derive(Clone, Debug)]

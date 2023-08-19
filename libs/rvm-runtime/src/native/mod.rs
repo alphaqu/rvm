@@ -1,13 +1,9 @@
-use std::collections::HashMap;
-use std::ffi::{c_void, CStr};
-use std::ptr::null_mut;
+use std::ffi::c_void;
 
 use jni_sys::{
-	jint, JNIEnv, JNIInvokeInterface_, JNINativeInterface_, JavaVM, JavaVMInitArgs, JNI_ERR,
-	JNI_EVERSION, JNI_OK, JNI_TRUE, JNI_VERSION_1_8,
+	JavaVM, JavaVMInitArgs, jint, JNI_ERR,
+	JNI_EVERSION, JNI_OK, JNI_VERSION_1_8,
 };
-
-use crate::Runtime;
 
 #[no_mangle]
 pub unsafe extern "system" fn JNI_GetDefaultJavaVMInitArgs(args: *mut c_void) -> jint {

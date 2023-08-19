@@ -1,7 +1,8 @@
+use std::fmt::{Display, Formatter};
+
 use nom::combinator::map;
 use nom::number::complete::{be_i16, be_i32, be_i8, be_u16, be_u8};
 use nom::sequence::tuple;
-use std::fmt::{Display, Formatter};
 use tracing::trace;
 
 use rvm_core::{Kind, Op, PrimitiveType, StackKind};
@@ -94,6 +95,7 @@ pub struct JumpInst {
 	pub offset: i32,
 	pub kind: JumpKind,
 }
+
 impl Display for JumpInst {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		write!(f, "{:?} -> {}", self.kind, self.offset)
@@ -162,6 +164,7 @@ impl JumpKind {
 		)
 	}
 }
+
 #[derive(Copy, Clone, Debug)]
 pub enum LocalInst {
 	Load(StackKind, u16),
@@ -814,5 +817,6 @@ impl Inst {
 
 #[derive(Copy, Clone, Debug)]
 pub struct BranchOffset(pub i16);
+
 #[derive(Copy, Clone, Debug)]
 pub struct WideBranchOffset(pub i32);

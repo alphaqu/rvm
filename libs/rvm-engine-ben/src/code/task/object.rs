@@ -1,7 +1,8 @@
+use std::fmt::{Display, Formatter};
+
 use rvm_core::ObjectType;
 use rvm_reader::NewInst;
 use rvm_runtime::InstanceClass;
-use std::fmt::{Display, Formatter};
 
 #[derive(Debug)]
 pub struct NewTask {

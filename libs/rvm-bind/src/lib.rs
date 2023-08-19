@@ -1,9 +1,9 @@
 use proc_macro2::{Ident, Span, TokenStream};
 use proc_macro_error::{abort, proc_macro_error};
 use quote::quote;
+use syn::{FnArg, ItemFn, LitStr, parse_macro_input};
 use syn::__private::TokenStreamExt;
 use syn::spanned::Spanned;
-use syn::{parse_macro_input, FnArg, ItemFn, LitStr};
 
 #[proc_macro_error]
 #[proc_macro_attribute]
@@ -60,5 +60,5 @@ pub fn method(
 
 		#func
 	)
-	.into()
+		.into()
 }

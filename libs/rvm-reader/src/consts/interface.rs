@@ -1,7 +1,7 @@
-use crate::impl_constant;
 use crate::consts::class::ClassConst;
-use crate::consts::name_and_type::NameAndTypeConst;
 use crate::consts::ConstPtr;
+use crate::consts::name_and_type::NameAndTypeConst;
+use crate::impl_constant;
 
 #[derive(Copy, Clone, Debug)]
 pub struct InterfaceConst {

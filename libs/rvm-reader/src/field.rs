@@ -1,10 +1,12 @@
-use crate::attribute::AttributeInfo;
-use crate::consts::ConstantPool;
-use crate::{ConstPtr, IResult, UTF8Const};
 use nom::combinator::map_opt;
 use nom::multi::length_count;
 use nom::number::complete::be_u16;
+
 use rvm_core::FieldAccessFlags;
+
+use crate::{ConstPtr, IResult, UTF8Const};
+use crate::attribute::AttributeInfo;
+use crate::consts::ConstantPool;
 
 //field_info {
 //     u16             access_flags;

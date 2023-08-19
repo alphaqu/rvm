@@ -1,8 +1,10 @@
-use crate::thread::frame::Frame;
-use stackalloc::alloca_zeroed;
 use std::mem::{size_of, transmute};
 use std::ops::{Deref, DerefMut};
+
+use stackalloc::alloca_zeroed;
 use tracing::{debug, trace};
+
+use crate::thread::frame::Frame;
 
 pub const STACK_HEADER_SIZE: usize = size_of::<usize>() + size_of::<usize>();
 

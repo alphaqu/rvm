@@ -1,25 +1,4 @@
 #[macro_export]
-macro_rules! java_descriptor {
-	(()) => {"V"};
-	(bool) => {"Z"};
-	(i8) => {"B"};
-	(i16) => {"S"};
-	(i32) => {"I"};
-	(f32) => {"F"};
-	(i64) => {"J"};
-	(f64) => {"D"};
-	(Array<$param:tt>) => {
-		::core::concat!("[", $crate::java_descriptor!($param))
-	};
-	(fn($($param:tt),*)) => {
-		$crate::java_descriptor!(fn($($param),*) -> ())
-	};
-	(fn($($param:tt),*) -> $ret:tt) => {
-		::core::concat!("(", $($crate::java_descriptor!($param),)* ")", $crate::java_descriptor!($ret))
-	};
-}
-
-#[macro_export]
 macro_rules! java_bind_method {
     ($runtime:ident fn $class:path:$method:ident($($name:ident: $pty:ty),*) $(-> $ret:ty)?) => {
 		 {

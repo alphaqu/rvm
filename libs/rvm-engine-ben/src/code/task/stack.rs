@@ -1,4 +1,5 @@
 use std::fmt::{Display, Formatter};
+
 use rvm_reader::StackInst;
 
 use crate::thread::ThreadFrame;

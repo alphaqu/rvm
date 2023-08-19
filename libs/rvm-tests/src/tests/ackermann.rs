@@ -1,4 +1,4 @@
-use rvm_runtime::{java_bind_method, java_descriptor};
+use rvm_runtime::java_bind_method;
 
 use crate::{compile, launch, sample};
 
@@ -39,17 +39,6 @@ fn test() -> Result<(), std::io::Error> {
 		)?;
 
 		const SAMPLES: usize = 3;
-		println!(
-			"{}",
-			::core::concat!(
-				"(",
-				java_descriptor!(i32),
-				java_descriptor!(i32),
-				")",
-				java_descriptor!(i32)
-			)
-			.to_string()
-		);
 		let java_ack = java_bind_method!(runtime fn Main:ack(m: i32, n: i32) -> i32);
 		let rust = sample("Rust ackermann", SAMPLES, |i| ack(i as i32, 10));
 		let java = sample("Java ackermann", SAMPLES, |i| java_ack(i as i32, 10));

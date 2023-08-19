@@ -1,7 +1,8 @@
-use rvm_core::{Kind, StackKind};
-use rvm_runtime::{AnyValue, Reference};
 use std::fmt::{Display, Formatter};
 use std::mem::transmute;
+
+use rvm_core::{Kind, StackKind};
+use rvm_runtime::{AnyValue, Reference};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq)]

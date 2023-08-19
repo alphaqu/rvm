@@ -1,11 +1,12 @@
-use crate::thread::ThreadFrame;
-use crate::value::StackValue;
-use rvm_reader::{ConstInst, ConstantInfo};
-use rvm_runtime::{InstanceClass, Reference};
 use std::fmt::{Display, Formatter};
 
-#[derive(Debug)]
+use rvm_reader::{ConstantInfo, ConstInst};
+use rvm_runtime::{InstanceClass, Reference};
 
+use crate::thread::ThreadFrame;
+use crate::value::StackValue;
+
+#[derive(Debug)]
 pub enum ConstTask {
 	Null,
 	Int(i32),

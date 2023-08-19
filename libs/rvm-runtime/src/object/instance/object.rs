@@ -1,11 +1,13 @@
-use crate::{
-	read_arr, write_arr, AnyValue, Class, Field, InstanceClass, ObjectFieldLayout, Reference,
-	ReferenceKind, Value,
-};
-use rvm_core::{Id, StorageValue};
 use std::mem::size_of;
 use std::ops::Deref;
 use std::println;
+
+use rvm_core::{Id, StorageValue};
+
+use crate::{
+	AnyValue, Class, Field, InstanceClass, ObjectFieldLayout, read_arr, Reference, ReferenceKind,
+	Value, write_arr,
+};
 
 #[derive(Copy, Clone)]
 pub struct AnyInstance {

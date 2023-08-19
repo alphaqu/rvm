@@ -1,10 +1,10 @@
 use std::ops::Deref;
 
-use ahash::{HashMap, HashMapExt};
+use ahash::HashMapExt;
 use nom::ToUsize;
 
 use rvm_core::{FieldAccessFlags, Type};
-use rvm_core::{Id, Storage, StorageValue};
+use rvm_core::{Storage, StorageValue};
 use rvm_reader::{ConstantPool, FieldInfo};
 
 pub struct FieldData {

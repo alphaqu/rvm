@@ -9,11 +9,12 @@ use std::thread::spawn;
 
 use parking_lot::Mutex;
 
+pub use object::*;
+pub use value::*;
+
 use crate::engine::Engine;
 use crate::gc::GarbageCollector;
 
-pub use object::*;
-pub use value::*;
 pub mod engine;
 pub mod error;
 pub mod gc;
@@ -21,7 +22,6 @@ pub mod gc;
 pub mod native;
 mod object;
 pub mod prelude;
-mod thread;
 mod value;
 
 /// A runtime which (almost never) conforms to [The Java Virtual Machine Specification, Java SE 19 Edition][jvms]
@@ -31,7 +31,7 @@ mod value;
 /// [jvms]: https://docs.oracle.com/javase/specs/jvms/se19/html/index.html
 /// [llvm]: https://llvm.org/
 pub struct Runtime {
-	pub class_loader: ClassLoader,
+	pub cl: ClassLoader,
 	pub engine: Box<dyn Engine>,
 	pub gc: Mutex<GarbageCollector>,
 }
@@ -39,7 +39,7 @@ pub struct Runtime {
 impl Runtime {
 	pub fn new(heap_size: usize, engine: Box<dyn Engine>) -> Runtime {
 		Runtime {
-			class_loader: ClassLoader::new(),
+			cl: ClassLoader::new(),
 			engine,
 			gc: Mutex::new(GarbageCollector::new(heap_size)),
 		}
