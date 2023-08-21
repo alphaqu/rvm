@@ -1,4 +1,5 @@
 use std::mem::transmute;
+use std::sync::Arc;
 
 use rvm_core::{Kind, MethodDesc};
 
@@ -6,7 +7,7 @@ use crate::{AnyValue, Reference, Value};
 
 #[derive(Clone)]
 pub struct MethodBinding {
-	function: extern "C" fn(),
+	function: extern "system" fn(),
 	parameters: Vec<Kind>,
 	returns: Option<Kind>,
 }
@@ -14,7 +15,7 @@ pub struct MethodBinding {
 impl MethodBinding {
 	/// # Safety
 	/// Caller must ensure the function follows the signature of decs, else some UB might happen.
-	pub unsafe fn new(function: extern "C" fn(), desc: MethodDesc) -> MethodBinding {
+	pub unsafe fn new(function: extern "system" fn(), desc: MethodDesc) -> MethodBinding {
 		MethodBinding {
 			function,
 			parameters: desc.parameters.iter().map(|v| v.kind()).collect(),
@@ -38,6 +39,7 @@ impl MethodBinding {
 		}
 
 		let value = match self.parameters.len() {
+			0 => param!(),
 			1 => param!(usize),
 			2 => param!(usize, usize),
 			3 => param!(usize, usize, usize),

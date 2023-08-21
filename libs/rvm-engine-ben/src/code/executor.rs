@@ -10,10 +10,9 @@ use rvm_runtime::gc::{AllocationError, GcMarker, GcSweeper, RootProvider};
 use rvm_runtime::{AnyValue, MethodBinding, MethodCode, MethodIdentifier, Reference, Runtime};
 
 use crate::code::{CallType, Task};
-use crate::method::JavaMethod;
 use crate::thread::{ThreadFrame, ThreadStack};
 use crate::value::StackValue;
-use crate::{BenEngine, MethodCalling};
+use crate::{BenEngine, BenMethod};
 
 pub struct Executor<'a> {
 	pub thread: Thread,
@@ -24,7 +23,7 @@ pub struct Executor<'a> {
 
 pub struct ExecutorFrame<'a> {
 	frame: ThreadFrame<'a>,
-	method: Arc<JavaMethod>,
+	method: Arc<BenMethod>,
 	cursor: usize,
 }
 
@@ -69,33 +68,14 @@ impl<'a> Executor<'a> {
 			.engine
 			.resolve_method(&self.runtime, class_id, method.clone())
 			.expect("could not resolve method");
-		let class = self.runtime.cl.get(method_class);
-		let class = class.as_instance().unwrap();
-		let method = class.methods.get(method_id);
 
-		//let method = self
-		//	.engine
-		//	.get_code(&self.runtime, class_id, method.clone());
+		let method = self
+			.engine
+			.compile_method(&self.runtime, method_class, method_id);
 
-		let method_code = method.code.clone().expect("Method does not contain code");
-
-		match &*method_code {
-			MethodCode::Java(code) => {
-				let guard = self.engine.methods.read().unwrap();
-				let key = (method_class, method_id);
-				let method = match guard.get_keyed(&key) {
-					None => {
-						drop(guard);
-						debug!(target: "ben", "Compiling method {key:?}");
-						let compiled = Arc::new(JavaMethod::new(code, class, method));
-						let mut guard = self.engine.methods.write().unwrap();
-						guard.insert(key, compiled.clone());
-						compiled
-					}
-					Some(value) => value.clone(),
-				};
-
-				let mut frame = self.stack.create(method.max_stack, method.max_locals);
+		match &*method {
+			BenMethod::Java(java) => {
+				let mut frame = self.stack.create(java.max_stack, java.max_locals);
 				for (i, value) in parameters.into_iter().enumerate() {
 					frame.store(
 						if is_static { i } else { i + 1 } as u16,
@@ -113,23 +93,14 @@ impl<'a> Executor<'a> {
 					cursor: 0,
 				})
 			}
-			MethodCode::Binding(binding) => {
-				let mut ref_borrow = binding.borrow();
-				let binding = match &*ref_borrow {
-					Either::Left(method) => {
-						let guard1 = self.runtime.bindings.read();
-						let method = guard1.get(method).unwrap();
-						drop(ref_borrow);
-						binding.replace(Either::Right(method.clone()));
-						ref_borrow = binding.borrow();
-						ref_borrow.as_ref().right().unwrap()
-					}
-					Either::Right(method) => method,
-				};
-
-				CallReturn::Result(binding.call(&parameters))
+			BenMethod::Binding(binding) => CallReturn::Result(binding.call(&parameters)),
+			BenMethod::Native(native, desc) => {
+				let mut linker = self.runtime.linker.lock();
+				CallReturn::Result(linker.get(native, |function| unsafe {
+					trace!("Calling native function");
+					MethodBinding::new(function, desc.clone()).call(&parameters)
+				}))
 			}
-			_ => todo!(),
 		}
 	}
 
@@ -157,8 +128,13 @@ impl<'a> Executor<'a> {
 		let mut gc_attempts = 0;
 		// We look at the last frame which is the currently running one.
 		while let Some(exec_frame) = frames.last_mut() {
-			let method = &exec_frame.method;
 			let frame = &mut exec_frame.frame;
+
+			let method = &exec_frame.method;
+			let method = match &**method {
+				BenMethod::Java(method) => method,
+				_ => todo!(),
+			};
 			loop {
 				GcSweeper::yield_gc(&mut self);
 

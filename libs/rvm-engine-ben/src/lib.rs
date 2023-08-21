@@ -7,11 +7,11 @@ use std::sync::{Arc, RwLock};
 
 use tracing::debug;
 
-use rvm_core::{Id, ObjectType, Storage, Type};
+use rvm_core::{Id, MethodAccessFlags, MethodDesc, ObjectType, Storage, StorageValue, Type};
 use rvm_reader::{Code, ConstantPool};
 use rvm_runtime::engine::{Engine, ThreadConfig, ThreadHandle};
 use rvm_runtime::{
-	Class, InstanceClass, Method, MethodBinding, MethodCode, MethodData, MethodIdentifier, Runtime,
+	Class, InstanceClass, Method, MethodBinding, MethodCode, MethodIdentifier, Runtime,
 };
 
 use crate::method::JavaMethod;
@@ -23,8 +23,7 @@ mod thread;
 mod value;
 
 pub struct BenEngine {
-	// TODO fuck the clones
-	pub methods: RwLock<Storage<(Id<Class>, Id<Method>), Arc<JavaMethod>>>,
+	pub methods: RwLock<Storage<(Id<Class>, Id<Method>), BenMethod, Arc<BenMethod>>>,
 }
 
 impl BenEngine {
@@ -47,10 +46,61 @@ impl BenEngine {
 
 		Some((id, method_value?))
 	}
+
+	pub fn compile_method(
+		&self,
+		runtime: &Runtime,
+		id: Id<Class>,
+		method_id: Id<Method>,
+	) -> Arc<BenMethod> {
+		let methods = self.methods.read().unwrap();
+		if let Some(method) = methods.get_keyed(&(id, method_id)) {
+			return method.clone();
+		}
+		drop(methods);
+
+		let arc = runtime.cl.get(id);
+		let instance = arc.as_instance().unwrap();
+		let method = instance.methods.get(method_id);
+		debug!(target: "ben", "Resolving method {}.{}{}", instance.ty, method.name, method.desc);
+
+		let code = method.code.as_ref();
+		let ben_method = Arc::new(match code {
+			Some(MethodCode::Java(code)) => {
+				let compiled = JavaMethod::new(code, instance, method);
+				BenMethod::Java(compiled)
+			}
+			Some(MethodCode::Binding(binding)) => {
+				let binding_guard = runtime.bindings.read();
+				let binding = binding_guard.get(binding).unwrap();
+				BenMethod::Binding(binding.clone())
+			}
+			None => {
+				if (method.flags.contains(MethodAccessFlags::NATIVE)) {
+					BenMethod::Native(
+						format!("Java_{}_{}", instance.ty.0.replace('/', "_"), method.name),
+						method.desc.clone(),
+					)
+				} else {
+					panic!("Could not find method")
+				}
+			}
+		});
+
+		let mut guard = self.methods.write().unwrap();
+		guard.insert((id, method_id), ben_method.clone());
+		ben_method
+	}
 }
 
-pub enum MethodCalling {
-	Java(Arc<JavaMethod>),
+pub enum BenMethod {
+	Java(JavaMethod),
+	Binding(MethodBinding),
+	Native(String, MethodDesc),
+}
+
+impl StorageValue for BenMethod {
+	type Idx = u32;
 }
 
 pub struct BenBinding {
@@ -75,7 +125,7 @@ impl Engine for BenBinding {
 	fn compile_method(
 		&self,
 		runtime: &Pin<&Runtime>,
-		method: &MethodData,
+		method: &Method,
 		cp: &Arc<ConstantPool>,
 	) -> *const c_void {
 		todo!()

@@ -109,6 +109,14 @@ impl<V: StorageValue> Id<V> {
 		self.0
 	}
 }
+impl<K: Hash + Eq + Debug + Clone, V: StorageValue, O: Clone> Clone for Storage<K, V, O> {
+	fn clone(&self) -> Self {
+		Storage {
+			lookup: self.lookup.clone(),
+			values: self.values.clone(),
+		}
+	}
+}
 
 impl<V: StorageValue> Clone for Id<V> {
 	fn clone(&self) -> Self {

@@ -66,7 +66,10 @@ impl FieldTask {
 							let reference = frame.pop().to_ref();
 
 							let class = reference.to_class().unwrap();
-							let value = class.resolve(object).get_dyn(id);
+							let resolved_instance = unsafe {
+								class.resolve(&object.fields)
+							};
+							let value = resolved_instance.get_dyn(id);
 
 							frame.push(StackValue::from_any(value));
 						}
@@ -74,7 +77,10 @@ impl FieldTask {
 							let value = frame.pop();
 							let reference = frame.pop().to_ref();
 							let class = reference.to_class().unwrap();
-							class.resolve(object).put_dyn(id, value.to_dyn());
+							let resolved_instance = unsafe {
+								class.resolve(&object.fields)
+							};
+							resolved_instance.put_dyn(id, value.to_dyn());
 						}
 					}
 				}

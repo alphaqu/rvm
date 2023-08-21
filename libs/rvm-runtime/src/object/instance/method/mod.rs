@@ -25,17 +25,26 @@ impl ClassMethodManager {
 			storage: Storage::new(),
 		}
 	}
-	pub fn parse(
-		methods: Vec<MethodInfo>,
-		class_name: &str,
-		cp: &ConstantPool,
-	) -> Result<ClassMethodManager> {
+
+	pub fn new(methods: Vec<Method>) -> ClassMethodManager {
+		let mut storage = Storage::new();
+		for method in methods {
+			let key = MethodIdentifier {
+				name: method.name.clone(),
+				descriptor: method.desc.to_string(),
+			};
+			storage.insert(key, method);
+		}
+
+		ClassMethodManager { storage }
+	}
+	pub fn parse(methods: Vec<MethodInfo>, cp: &ConstantPool) -> Result<ClassMethodManager> {
 		let mut storage = Storage::new();
 		for method in methods {
 			let name = method.name_index.get(cp).unwrap().as_str();
-			let (name, method) = MethodData::parse(method, class_name, cp)
-				.wrap_err_with(|| format!("in METHOD \"{}\"", name))?;
-			storage.insert(name, Method { data: method });
+			let (name, method) =
+				Method::parse(method, cp).wrap_err_with(|| format!("in METHOD \"{}\"", name))?;
+			storage.insert(name, method);
 		}
 		Ok(ClassMethodManager { storage })
 	}
@@ -50,51 +59,34 @@ impl Deref for ClassMethodManager {
 }
 
 pub struct Method {
-	data: MethodData,
-}
-
-impl Deref for Method {
-	type Target = MethodData;
-
-	fn deref(&self) -> &Self::Target {
-		&self.data
-	}
-}
-
-#[derive(Clone)]
-pub struct MethodData {
 	pub name: String,
 	pub desc: MethodDesc,
 	pub flags: MethodAccessFlags,
-	pub code: Option<Arc<MethodCode>>,
+	pub code: Option<MethodCode>,
 }
 
-impl MethodData {
+impl Method {
 	pub fn new(
 		name: String,
 		desc: String,
 		flags: MethodAccessFlags,
 		code: MethodCode,
-	) -> (MethodIdentifier, MethodData) {
+	) -> (MethodIdentifier, Method) {
 		(
 			MethodIdentifier {
 				name: name.to_string(),
 				descriptor: desc.to_string(),
 			},
-			MethodData {
+			Method {
 				name,
 				desc: MethodDesc::parse(&desc).unwrap(),
 				flags,
-				code: Some(Arc::new(code)),
+				code: Some(code),
 			},
 		)
 	}
 
-	pub fn parse(
-		info: MethodInfo,
-		class_name: &str,
-		consts: &ConstantPool,
-	) -> Result<(MethodIdentifier, MethodData)> {
+	pub fn parse(info: MethodInfo, consts: &ConstantPool) -> Result<(MethodIdentifier, Method)> {
 		let desc_str = consts.get(info.descriptor_index).unwrap();
 		let desc = MethodDesc::parse(desc_str).unwrap();
 
@@ -105,20 +97,18 @@ impl MethodData {
 		};
 
 		if info.access_flags.contains(MethodAccessFlags::NATIVE) {
-			code = Some(Arc::new(MethodCode::Binding(RefCell::new(Either::Left(
-				ident.clone(),
-			)))));
+			//	code = Some(MethodCode::Binding(ident.clone()));
 		} else {
 			for attribute in info.attribute_info {
 				if let AttributeInfo::CodeAttribute { code: c } = attribute {
-					code = Some(Arc::new(MethodCode::Java(c)));
+					code = Some(MethodCode::Java(c));
 				}
 			}
 		}
 
 		Ok((
 			ident.clone(),
-			MethodData {
+			Method {
 				name: ident.name,
 				desc,
 				flags: info.access_flags,
@@ -134,13 +124,7 @@ impl StorageValue for Method {
 
 pub enum MethodCode {
 	Java(Code),
-	Binding(RefCell<Either<MethodIdentifier, MethodBinding>>),
-	Native(Either<(String, MethodIdentifier), NativeCode>),
-}
-
-#[derive(Copy, Clone)]
-pub struct NativeCode {
-	pub func: unsafe extern "C" fn(),
+	Binding(MethodIdentifier),
 }
 
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]

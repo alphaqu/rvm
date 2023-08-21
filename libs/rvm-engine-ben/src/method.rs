@@ -16,8 +16,8 @@ pub struct JavaMethod {
 impl JavaMethod {
 	pub fn new(code: &Code, class: &InstanceClass, method: &Method) -> JavaMethod {
 		JavaMethod {
-			max_locals: code.max_locals as u16,
-			max_stack: code.max_stack as u16,
+			max_locals: code.max_locals,
+			max_stack: code.max_stack,
 			flags: method.flags,
 			tasks: code
 				.instructions

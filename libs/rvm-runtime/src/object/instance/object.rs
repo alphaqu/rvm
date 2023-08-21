@@ -2,7 +2,7 @@ use std::mem::size_of;
 use std::ops::Deref;
 use std::println;
 
-use rvm_core::{Id, StorageValue};
+use rvm_core::{Id, Kind, StorageValue};
 
 use crate::{
 	AnyValue, Class, Field, InstanceClass, ObjectFieldLayout, read_arr, Reference, ReferenceKind,
@@ -88,6 +88,7 @@ impl AnyInstance {
 		}
 	}
 
+	#[inline(always)]
 	pub unsafe fn fields(&self) -> *mut u8 {
 		self.reference.0.add(Self::FULL_HEADER_SIZE)
 	}
@@ -114,11 +115,31 @@ impl AnyInstance {
 		}
 	}
 
-	pub fn resolve<'a>(&self, class: &'a InstanceClass) -> Instance<'a> {
+	pub unsafe fn resolve<'a>(&self, fields: &'a ObjectFieldLayout) -> Instance<'a> {
 		Instance {
-			fields: &class.fields,
+			fields: &fields,
 			raw: *self,
 		}
+	}
+	
+	pub unsafe fn get_any(&self, offset: usize, kind: Kind) -> AnyValue {
+		let data = self.fields().add(offset);
+		AnyValue::read(data, kind)
+	}
+
+	pub unsafe fn get<V: Value>(&self, offset: usize) -> V {
+		let data = self.fields().add(offset);
+		V::read(data)
+	}
+
+	pub unsafe fn put_any(&self, offset: usize, value: AnyValue) {
+		let data = self.fields().add(offset);
+		AnyValue::write(value, data)
+	}
+
+	pub unsafe fn put<V: Value>(&self, offset: usize, value: V) {
+		let data = self.fields().add(offset);
+		V::write(data, value)
 	}
 }
 
@@ -131,16 +152,17 @@ impl<'a> Instance<'a> {
 	pub fn get_dyn(&self, id: Id<Field>) -> AnyValue {
 		let field = self.fields.get(id);
 		unsafe {
-			let data = self.raw.fields().add(field.offset as usize);
-			AnyValue::read(data, field.ty.kind())
+			self.raw.get_any(field.offset as usize, field.ty.kind())
 		}
 	}
 
 	pub fn put_dyn(&self, id: Id<Field>, value: AnyValue) {
 		let field = self.fields.get(id);
 		unsafe {
-			let data = self.raw.fields().add(field.offset as usize);
-			AnyValue::write(value, data)
+			if field.ty.kind() != value.kind() {
+				panic!("Invalid type");
+			}
+			self.raw.put_any(field.offset as usize, value);
 		}
 	}
 }

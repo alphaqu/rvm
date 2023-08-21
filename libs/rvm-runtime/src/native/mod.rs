@@ -1,9 +1,10 @@
+mod env;
+mod link;
+
 use std::ffi::c_void;
 
-use jni_sys::{
-	JavaVM, JavaVMInitArgs, jint, JNI_ERR,
-	JNI_EVERSION, JNI_OK, JNI_VERSION_1_8,
-};
+use jni_sys::{jint, JavaVM, JavaVMInitArgs, JNI_ERR, JNI_EVERSION, JNI_OK, JNI_VERSION_1_8};
+pub use link::JNILinker;
 
 #[no_mangle]
 pub unsafe extern "system" fn JNI_GetDefaultJavaVMInitArgs(args: *mut c_void) -> jint {

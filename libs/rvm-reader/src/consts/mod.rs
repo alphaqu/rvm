@@ -87,6 +87,7 @@ impl<V: Constant> Debug for ConstPtr<V> {
 
 impl<V: Constant> Copy for ConstPtr<V> {}
 
+#[derive(Default)]
 pub struct ConstantPool(Vec<ConstantInfo>);
 
 impl ConstantPool {

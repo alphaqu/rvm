@@ -27,6 +27,7 @@ impl FieldData {
 	}
 }
 
+#[derive(Clone)]
 pub struct ObjectFieldLayout {
 	pub fields_size: u32,
 	pub ref_fields: u16,
@@ -118,6 +119,7 @@ impl StorageValue for Field {
 	type Idx = u16;
 }
 
+#[derive(Clone)]
 pub struct Field {
 	pub offset: u32,
 	pub flags: FieldAccessFlags,

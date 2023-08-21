@@ -12,7 +12,7 @@ use rvm_reader::ConstantPool;
 use crate::gc::GcSweeper;
 use crate::value::AnyValue;
 use crate::Runtime;
-use crate::{MethodData, MethodIdentifier};
+use crate::{Method, MethodIdentifier};
 
 pub trait Engine: Send + Sync {
 	fn create_thread(&self, runtime: Arc<Runtime>, config: ThreadConfig) -> ThreadHandle;
@@ -20,7 +20,7 @@ pub trait Engine: Send + Sync {
 	fn compile_method(
 		&self,
 		runtime: &Pin<&Runtime>,
-		method: &MethodData,
+		method: &Method,
 		cp: &Arc<ConstantPool>,
 	) -> *const c_void;
 }

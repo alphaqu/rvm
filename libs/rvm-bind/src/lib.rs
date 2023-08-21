@@ -1,64 +1,89 @@
-use proc_macro2::{Ident, Span, TokenStream};
-use proc_macro_error::{abort, proc_macro_error};
-use quote::quote;
-use syn::{FnArg, ItemFn, LitStr, parse_macro_input};
-use syn::__private::TokenStreamExt;
-use syn::spanned::Spanned;
+mod args;
+mod ret;
 
-#[proc_macro_error]
-#[proc_macro_attribute]
-pub fn method(
-	attr: proc_macro::TokenStream,
-	item: proc_macro::TokenStream,
-) -> proc_macro::TokenStream {
-	let name = attr.to_string();
-	let (class_name, descriptor) = name.split_once(',').unwrap();
+use crate::args::Args;
+use crate::ret::ReturnValue;
+use rvm_runtime::{ClassLoader, MethodBinding, Reference, Runtime, Value};
+use std::sync::Arc;
 
-	let func = parse_macro_input!(item as ItemFn);
+pub unsafe trait JavaBinder {
+	fn load_class(binder: &Binder, cl: &ClassLoader);
+}
 
-	let mut args = TokenStream::new();
-	let args_count = func.sig.inputs.len() as u16;
-	for (i, arg) in func.sig.inputs.iter().enumerate() {
-		let i = i as u16;
-		match arg {
-			FnArg::Receiver(receiver) => {
-				abort!(receiver.span(), "Cannot have receiver parameter. yet")
+pub struct JavaField<V: Value> {}
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use rvm_core::{ArrayType, FieldAccessFlags, Kind, MethodDesc, ObjectType, Type};
+	use rvm_reader::ConstantPool;
+	use rvm_runtime::{
+		Array, Class, ClassMethodManager, Field, FieldData, InstanceClass, Method, MethodCode,
+		MethodIdentifier, ObjectFieldLayout,
+	};
+
+	pub struct JavaString {
+		hi: JavaField<Array<i8>>,
+	}
+
+	impl JavaString {
+		pub fn hello(&mut self, things: i32) {}
+	}
+
+	unsafe impl JavaBinder for JavaString {
+		fn load_class(binder: &Binder, cl: &ClassLoader) {
+			let layout = ObjectFieldLayout::new(
+				&[FieldData {
+					name: "hi".to_string(),
+					ty: Type::parse("[I").unwrap(),
+					flags: FieldAccessFlags::PRIVATE,
+				}],
+				None,
+				false,
+			);
+			static mut HI_FIELD: Option<(u32, Kind)> = None;
+			unsafe {
+				let field = layout.get_keyed("hi").unwrap();
+				HI_FIELD = Some((field.offset, field.ty.kind()));
 			}
-			FnArg::Typed(ty) => {
-				let ty = &ty.ty;
-
-				args.append_all(quote!(
-				   #ty::from_java(local_table.get(#i), runtime)?
-				))
+			pub extern "C" fn hello(reference: Reference, things: i32) {
+				let instance = reference.to_class().unwrap();
+				unsafe {
+					JavaString {
+						hi: instance.get_any(HI_FIELD.unwrap().0, HI_FIELD.unwrap().1),
+					}
+					.hello(things);
+				}
 			}
+			cl.define(Class::Object(InstanceClass {
+				ty: ObjectType("java/lang/String".to_string()),
+				super_class: None,
+				super_id: None,
+				cp: Default::default(),
+				fields: ObjectFieldLayout::new(
+					&[FieldData {
+						name: "hi".to_string(),
+						ty: Type::parse("[I").unwrap(),
+						flags: FieldAccessFlags::PRIVATE,
+					}],
+					None,
+					false,
+				),
+				static_fields: ObjectFieldLayout::new(&[], None, true),
+				methods: ClassMethodManager::new(vec![Method {
+					name: "hello".to_string(),
+					desc: MethodDesc::parse("(Ljava/lang/String;)"),
+					flags: (),
+					code: Some(MethodCode::Binding(MethodIdentifier {
+						name: "".to_string(),
+						descriptor: "".to_string(),
+					})),
+				}]),
+			}));
 		}
 	}
 
-	let func_name = &func.sig.ident;
-	let str = LitStr::new(&func.sig.ident.to_string(), Span::call_site());
-	let call_method = Ident::new(
-		&("bind".to_string() + &func_name.to_string()),
-		Span::call_site(),
-	);
-
-	quote!(
-		fn #call_method(runtime: &mut Runtime) {
-			runtime.load_native(
-				#class_name.to_string(),
-				#str.to_string(),
-				#descriptor.to_string(),
-				NativeCode {
-					func: |local_table, runtime| {
-						Ok(Some(StackValue::from(
-							#func_name(#args)?.to_java(runtime)?,
-						)))
-					},
-					max_locals: #args_count,
-				},
-			);
-		}
-
-		#func
-	)
-		.into()
+	#[test]
+	fn test() {
+		Binder {}.add_method("hi", |runtime, this, hi: i32| {});
+	}
 }

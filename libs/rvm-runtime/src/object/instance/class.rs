@@ -55,7 +55,7 @@ impl InstanceClass {
 			ty: ObjectType(name.to_string()),
 			super_class,
 			super_id,
-			methods: ClassMethodManager::parse(info.methods, name.as_str(), &info.constant_pool)
+			methods: ClassMethodManager::parse(info.methods, &info.constant_pool)
 				.wrap_err_with(|| format!("in CLASS \"{}\"", name.as_str()))?,
 			//static_object: unsafe { ObjectData::new(fields.size(true) as usize) },
 			fields: ObjectFieldLayout::new(&fields, super_fields, false),

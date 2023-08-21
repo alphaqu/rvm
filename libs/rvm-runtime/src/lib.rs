@@ -18,11 +18,12 @@ pub use value::*;
 
 use crate::engine::Engine;
 use crate::gc::GarbageCollector;
+use crate::native::JNILinker;
 
+mod bind;
 pub mod engine;
 pub mod error;
 pub mod gc;
-#[cfg(feature = "native")]
 pub mod native;
 mod object;
 pub mod prelude;
@@ -39,15 +40,18 @@ pub struct Runtime {
 	pub engine: Box<dyn Engine>,
 	pub gc: Mutex<GarbageCollector>,
 	pub bindings: RwLock<HashMap<MethodIdentifier, MethodBinding>>,
+	pub linker: Mutex<JNILinker>,
 }
 
 impl Runtime {
 	pub fn new(heap_size: usize, engine: Box<dyn Engine>) -> Runtime {
+		let loader = ClassLoader::new();
 		Runtime {
-			cl: ClassLoader::new(),
+			cl: loader,
 			engine,
 			gc: Mutex::new(GarbageCollector::new(heap_size)),
 			bindings: Default::default(),
+			linker: Mutex::new(JNILinker::new()),
 		}
 	}
 
