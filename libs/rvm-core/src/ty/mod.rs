@@ -1,9 +1,10 @@
-use std::fmt::{Display, Formatter, Write};
-
 pub use descriptor::*;
 pub use flags::*;
 pub use kind::*;
 pub use op::*;
+use std::error::Error;
+use std::fmt::{Debug, Display, Formatter, Write};
+use thiserror::Error;
 
 mod descriptor;
 mod flags;
@@ -12,7 +13,7 @@ mod op;
 
 /// A Type holds concrete information about the type we are handling.
 /// [Kind] is similar, but has no idea what the concrete implementation is.
-#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub enum Type {
 	Primitive(PrimitiveType),
 	Object(ObjectType),
@@ -40,6 +41,16 @@ impl Type {
 	}
 }
 
+impl Debug for Type {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Type::Primitive(v) => Debug::fmt(v, f),
+			Type::Object(v) => Debug::fmt(v, f),
+			Type::Array(v) => Debug::fmt(v, f),
+		}
+	}
+}
+
 impl From<PrimitiveType> for Type {
 	fn from(value: PrimitiveType) -> Self {
 		Type::Primitive(value)
@@ -61,14 +72,14 @@ impl From<ArrayType> for Type {
 impl Display for Type {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		match self {
-			Type::Primitive(v) => v.fmt(f),
-			Type::Object(v) => v.fmt(f),
-			Type::Array(v) => v.fmt(f),
+			Type::Primitive(v) => Display::fmt(v, f),
+			Type::Object(v) => Display::fmt(v, f),
+			Type::Array(v) => Display::fmt(v, f),
 		}
 	}
 }
 
-#[derive(Clone, Copy, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+#[derive(Clone, Copy, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub enum PrimitiveType {
 	Boolean,
 	Byte,
@@ -123,6 +134,20 @@ impl PrimitiveType {
 		}
 	}
 }
+impl Debug for PrimitiveType {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		match self {
+			PrimitiveType::Boolean => f.write_str("boolean"),
+			PrimitiveType::Byte => f.write_str("byte"),
+			PrimitiveType::Short => f.write_str("short"),
+			PrimitiveType::Int => f.write_str("int"),
+			PrimitiveType::Long => f.write_str("long"),
+			PrimitiveType::Char => f.write_str("char"),
+			PrimitiveType::Float => f.write_str("float"),
+			PrimitiveType::Double => f.write_str("double"),
+		}
+	}
+}
 
 impl Display for PrimitiveType {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -130,10 +155,15 @@ impl Display for PrimitiveType {
 	}
 }
 
-#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub struct ObjectType(pub String);
 
 impl ObjectType {
+	#[allow(non_snake_case)]
+	pub fn Object() -> ObjectType {
+		ObjectType("java/lang/Object".to_string())
+	}
+
 	pub fn parse(string: &str) -> Option<ObjectType> {
 		Self::parse_len(string).map(|(v, _)| v)
 	}
@@ -148,6 +178,12 @@ impl ObjectType {
 
 	pub fn kind(&self) -> Kind {
 		Kind::Reference
+	}
+}
+
+impl Debug for ObjectType {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		f.write_str(&self.0)
 	}
 }
 
@@ -171,7 +207,7 @@ impl Display for ObjectType {
 	}
 }
 
-#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub struct ArrayType {
 	pub component: Box<Type>,
 }
@@ -206,10 +242,53 @@ impl ArrayType {
 		Kind::Reference
 	}
 }
-
+impl Debug for ArrayType {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		Debug::fmt(&self.component, f)?;
+		f.write_str("[]")
+	}
+}
 impl Display for ArrayType {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		f.write_char('[')?;
-		self.component.fmt(f)
+		Display::fmt(&self.component, f)
+	}
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct CastKindError {
+	pub expected: Kind,
+	pub found: Kind,
+}
+
+impl CastKindError {}
+impl Error for CastKindError {}
+
+impl Display for CastKindError {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		write!(
+			f,
+			"Cast error! Expected {} but found {}",
+			self.expected, self.found
+		)
+	}
+}
+
+#[derive(Debug, Clone)]
+pub struct CastTypeError {
+	pub expected: Type,
+	pub found: Type,
+}
+
+impl CastTypeError {}
+impl Error for CastTypeError {}
+
+impl Display for CastTypeError {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		write!(
+			f,
+			"Cast error! Expected {:?} but found {:?}",
+			self.expected, self.found
+		)
 	}
 }

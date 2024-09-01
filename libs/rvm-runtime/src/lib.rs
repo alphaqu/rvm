@@ -11,7 +11,7 @@ use std::thread::spawn;
 use parking_lot::{Mutex, RwLock};
 
 pub use object::*;
-use rvm_core::MethodDescriptor;
+use rvm_core::{Id, MethodDescriptor};
 pub use value::*;
 
 use crate::engine::Engine;
@@ -58,6 +58,21 @@ impl Runtime {
 			let mut gc = runtime.gc.lock();
 			gc.gc();
 		});
+	}
+
+	pub fn alloc_object(self: &Arc<Runtime>, id: Id<Class>) -> AnyInstance {
+		let instance = self
+			.gc
+			.lock()
+			.allocate_instance(
+				id,
+				self.cl
+					.get(id)
+					.as_instance()
+					.expect("Id does not point to a class"),
+			)
+			.unwrap();
+		AnyInstance::new(self.clone(), instance)
 	}
 
 	// /// Compiles a method with a given identifier. Uses the mapping in [`java!`]

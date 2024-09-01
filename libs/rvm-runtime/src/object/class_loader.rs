@@ -26,6 +26,10 @@ impl ClassLoader {
 		self.classes.read().get(id).clone()
 	}
 
+	pub fn get_named(&self, ty: &Type) -> Option<Id<Class>> {
+		self.classes.read().get_id(ty)
+	}
+
 	pub fn resolve_class(&self, desc: &Type) -> Id<Class> {
 		// if its in the match the lock wont get dropped
 		let option = self.classes.read().get_id(desc);
@@ -103,7 +107,9 @@ impl ClassLoader {
 
 		debug!("Parsed class {}", class.ty);
 
-		Ok(self.define(Class::Object(class)))
+		let id = self.define(Class::Object(class));
+
+		Ok(id)
 	}
 
 	pub fn define(&self, class: Class) -> Id<Class> {
@@ -112,7 +118,11 @@ impl ClassLoader {
 		if self.classes.is_locked() {
 			warn!("Classes are locked");
 		}
-		let id = self.classes.write().insert(ty.clone(), Arc::new(class));
+		let id = self.classes.write().insert_keyed(ty.clone(), |id| {
+			let mut data = class;
+			data.set_id(id);
+			Arc::new(data)
+		});
 		info!("Loaded class {ty:?} at {id:?}");
 		id
 	}

@@ -1,11 +1,13 @@
+use rvm_core::{ArrayType, Id, Kind, PrimitiveType, StorageValue, Type, Typed};
 use std::intrinsics::transmute;
 use std::marker::PhantomData;
 use std::mem::size_of;
 use std::ops::Deref;
+use std::sync::Arc;
 
-use rvm_core::{Id, Kind, PrimitiveType, StorageValue};
-
-use crate::{AnyValue, Class, read_arr, Reference, ReferenceKind, Value, write_arr};
+use crate::{
+	read_arr, write_arr, AnyValue, Class, Reference, ReferenceKind, Returnable, Runtime, Value,
+};
 
 #[derive(Copy, Clone)]
 pub struct AnyArray {
@@ -30,7 +32,7 @@ impl AnyArray {
 	}
 
 	pub fn try_new(reference: Reference) -> Option<AnyArray> {
-		if reference.kind() != Some(ReferenceKind::Array) {
+		if reference.reference_kind() != Some(ReferenceKind::Array) {
 			return None;
 		}
 
@@ -180,7 +182,7 @@ impl<V: Value> Array<V> {
 	}
 
 	pub fn try_new(array: AnyArray) -> Option<Array<V>> {
-		if array.kind() == V::ty() {
+		if array.kind() == V::kind() {
 			Some(Array {
 				array,
 				_p: Default::default(),
@@ -211,11 +213,18 @@ impl<V: Value> Array<V> {
 	}
 
 	pub unsafe fn data(&self) -> *const V {
-		(self.array.0.add(AnyArray::header_size(V::ty()))) as *const V
+		(self.array.0.add(AnyArray::header_size(V::kind()))) as *const V
 	}
 
 	pub unsafe fn data_mut(&mut self) -> *mut V {
-		(self.array.0.add(AnyArray::header_size(V::ty()))) as *mut V
+		(self.array.0.add(AnyArray::header_size(V::kind()))) as *mut V
+	}
+}
+
+impl<V: Value> Returnable for Array<V> {
+	fn from_value(runtime: &Arc<Runtime>, value: Option<AnyValue>) -> Self {
+		let reference = Reference::from_value(runtime, value);
+		Array::new(reference.to_array().unwrap())
 	}
 }
 
@@ -224,6 +233,12 @@ impl<V: Value> Deref for Array<V> {
 
 	fn deref(&self) -> &Self::Target {
 		&self.array
+	}
+}
+
+impl<V: Value + Typed> Typed for Array<V> {
+	fn ty() -> Type {
+		Type::Array(ArrayType::from_component(V::ty()))
 	}
 }
 

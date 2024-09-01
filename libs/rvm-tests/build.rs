@@ -1,15 +1,16 @@
 #![feature(try_blocks)]
 #![feature(exit_status_error)]
 
-use std::fs::{metadata, read, read_dir, File};
+use std::env::vars;
+use std::fs::{create_dir_all, metadata, read, read_dir, File};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 fn main() {
 	eprintln!("HI!");
 	let current_dir = std::env::current_dir().unwrap();
-	let mut cache_dir = current_dir.clone();
-	cache_dir.push("cache");
+	let mut bytecode_dir = current_dir.clone();
+	bytecode_dir.push("bytecode");
 
 	let mut paths = vec![];
 	walk_dir(PathBuf::from("src/testing"), &mut paths);
@@ -24,7 +25,7 @@ fn main() {
 			.modified()
 			.unwrap();
 		let class_path = format!(
-			"cache/{}.class",
+			"bytecode/{}.class",
 			path.to_str()
 				.unwrap()
 				.trim_start_matches("src/")
@@ -65,25 +66,38 @@ fn main() {
 		return;
 	}
 
-	std::fs::create_dir_all(&cache_dir).expect("Could not create cache folder");
+	std::fs::create_dir_all(&bytecode_dir).expect("Could not create bytecode dir");
 
+	for (key, value) in vars() {
+		println!("{key}: {value}")
+	}
 	let mut process = Command::new(match std::env::var("JAVA_HOME") {
-		Ok(java_home) => format!("{}/bin/javac", java_home),
+		Ok(java_home) => {
+			println!("Using JDK: \"{java_home}\"",);
+			format!("{}/bin/javac", java_home)
+		}
 		_ => "javac".to_string(),
 	});
+
+	println!(
+		"Using JAVAC: \"{}\"",
+		process.get_program().to_str().unwrap()
+	);
 	process.current_dir(&current_dir.join("src")).arg("-Xlint");
+
 	process.arg("-XDignore.symbol.file=true");
-	process.args(["-d", "../cache"]);
+	process.args(["-d", "../bytecode"]);
 	//process.args(["--patch-module", "java.base=java/lang"]);
 	//process.args(["--system", "none"]);
 
 	for path in paths {
-		let path: PathBuf = path.components().skip(1).collect();
-		println!("file: {path:?}");
-		process.arg(path);
+		let path: PathBuf = path.components().collect();
+		let canonic_path = path.canonicalize().unwrap();
+
+		process.arg(canonic_path);
 	}
 
-	let status = process.status().unwrap();
+	let status = process.status().expect("Could not start java compiler");
 
 	let string = String::from_utf8(process.output().unwrap().stderr).unwrap();
 	if !string.trim().is_empty() {

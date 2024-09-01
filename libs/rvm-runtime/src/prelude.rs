@@ -1,3 +1,31 @@
+use crate::engine::ThreadConfig;
+use crate::{AnyValue, MethodIdentifier, Returnable, Runtime};
+use rvm_core::ObjectType;
+use std::marker::PhantomData;
+use std::sync::Arc;
+
+pub struct TestMethodCall<R: Returnable> {
+	pub ty: ObjectType,
+	pub desc: MethodIdentifier,
+	pub parameters: Vec<AnyValue>,
+	pub _returns: PhantomData<R>,
+}
+
+impl<R: Returnable> TestMethodCall<R> {
+	pub fn call(self, runtime: &Arc<Runtime>) -> R {
+		let thread = runtime.engine.create_thread(
+			runtime.clone(),
+			ThreadConfig {
+				name: "run".to_string(),
+			},
+		);
+		thread.run(self.ty, self.desc, self.parameters);
+		let value = thread.join();
+		let dyn_value = value.expect("Thread failed to run");
+		R::from_value(runtime, dyn_value)
+	}
+}
+
 #[macro_export]
 macro_rules! java_bind_method {
     ($runtime:ident fn $class:path:$method:ident($($name:ident: $pty:ty),*) $(-> $ret:ty)?) => {
@@ -8,6 +36,7 @@ macro_rules! java_bind_method {
 			let thread = $runtime.engine.create_thread($runtime.clone(), rvm_runtime::engine::ThreadConfig {
 				name: "run".to_string(),
 			});
+
 
 			thread.run(
 				rvm_core::ObjectType(::core::stringify!($class).to_string().replace("::", "/")),
@@ -30,6 +59,51 @@ macro_rules! java_bind_method {
 		};
 			 value
 		 }
+	};
+}
+
+#[macro_export]
+macro_rules! bind_return {
+	() => {
+		()
+	};
+	($RETURNS:ty) => {
+		$RETURNS
+	};
+}
+
+#[macro_export]
+macro_rules! bind {
+    ($PACKAGE:literal { $($CLASS:ident {
+		$($METHOD:ident($($PARAM_NAME:ident: $PARAM:ty),*) $(-> $RETURNS:ty)?),*
+	}),* }) => {
+		$(
+			#[allow(unused, non_snake_case)]
+			impl $CLASS {
+				$(
+				pub fn $METHOD(runtime: &Arc<rvm_runtime::Runtime>) -> impl Fn($($PARAM),*) $(-> $RETURNS)? {
+					let runtime = runtime.clone();
+					let mut class = $PACKAGE.to_string();
+					class.push('/');
+					class.push_str(stringify!($CLASS));
+
+					move |$($PARAM_NAME: $PARAM),*| {
+						let call = rvm_runtime::prelude::TestMethodCall::<rvm_runtime::bind_return!($($RETURNS)?)> {
+							ty: rvm_core::ObjectType(class.clone()),
+							desc: rvm_runtime::MethodIdentifier {
+								name: stringify!($METHOD).to_string(),
+								descriptor: rvm_macro::java_desc!(fn($($PARAM),*) $(-> $RETURNS)?).to_string(),
+							},
+							parameters: vec![$($PARAM_NAME.into()),*],
+							_returns: Default::default(),
+						};
+						call.call(&runtime)
+					}
+				}
+				)*
+			}
+		)*
+
 	};
 }
 

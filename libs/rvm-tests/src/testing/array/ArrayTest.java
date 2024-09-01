@@ -1,7 +1,5 @@
 package testing.array;
 
-import testing.Testing;
-
 public class ArrayTest extends Object {
 	public static int[] singleArray(int value) {
 		int[] ints = {

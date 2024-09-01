@@ -12,7 +12,7 @@ pub struct ArrayCreateTask(pub PrimitiveType);
 
 impl ArrayCreateTask {
 	pub fn exec(&self, runtime: &Runtime, frame: &mut ThreadFrame) {
-		let length = frame.pop().to_int();
+		let length = frame.pop().to_int().unwrap();
 		let array = runtime.gc.lock().allocate_array(self.0, length).unwrap();
 		frame.push(StackValue::Reference(*array));
 	}
@@ -35,7 +35,7 @@ impl ArrayCreateRefTask {
 	}
 
 	pub fn exec(&self, runtime: &Runtime, frame: &mut ThreadFrame) {
-		let length = frame.pop().to_int();
+		let length = frame.pop().to_int().unwrap();
 
 		let id = runtime.cl.resolve_class(&Type::Object(self.0.clone()));
 		let array = runtime.gc.lock().allocate_ref_array(id, length).unwrap();
@@ -55,7 +55,7 @@ pub struct ArrayLengthTask;
 
 impl ArrayLengthTask {
 	pub fn exec(&self, frame: &mut ThreadFrame) {
-		let reference = frame.pop().to_ref();
+		let reference = frame.pop().to_ref().unwrap();
 		let option = reference.to_array();
 		let array = option.unwrap();
 		let length = array.length();
@@ -74,9 +74,9 @@ pub struct ArrayLoadTask(pub Kind);
 
 impl ArrayLoadTask {
 	pub fn exec(&self, frame: &mut ThreadFrame) {
-		let index = frame.pop().to_int();
+		let index = frame.pop().to_int().unwrap();
 
-		let reference = frame.pop().to_ref();
+		let reference = frame.pop().to_ref().unwrap();
 		let array = reference.to_array().unwrap();
 		if array.kind() != self.0 {
 			panic!("Array type does not match");
@@ -101,9 +101,9 @@ impl ArrayStoreTask {
 		let value = frame.pop();
 		let value = value.convert(self.0).expect("unable to conver");
 
-		let index = frame.pop().to_int();
+		let index = frame.pop().to_int().unwrap();
 
-		let reference = frame.pop().to_ref();
+		let reference = frame.pop().to_ref().unwrap();
 		let array = reference.to_array().unwrap();
 		if array.kind() != self.0 {
 			panic!("Array type does not match");

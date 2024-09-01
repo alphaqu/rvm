@@ -1,6 +1,6 @@
 use std::alloc::{alloc_zeroed, Layout};
 use std::ptr::copy;
-
+use thiserror::Error;
 use tracing::{debug, trace};
 
 pub use object::{GcHeader, ObjectFlags, ObjectSize, OBJECT_HEADER};
@@ -8,7 +8,7 @@ use rvm_core::{Id, Kind, PrimitiveType};
 
 use crate::gc::sweep::{new_sweeper, GcSweeperHandle};
 pub use crate::gc::sweep::{GcMarker, GcSweeper};
-use crate::object::{AnyArray, AnyInstance, Class, InstanceClass, Reference};
+use crate::object::{AnyArray, Class, InstanceClass, InstanceReference, Reference};
 
 mod object;
 mod sweep;
@@ -160,11 +160,12 @@ impl GarbageCollector {
 		&mut self,
 		id: Id<Class>,
 		class: &InstanceClass,
-	) -> Result<AnyInstance, AllocationError> {
+	) -> Result<InstanceReference, AllocationError> {
 		unsafe {
-			let reference =
-				self.allocate((class.fields.fields_size as usize) + AnyInstance::FULL_HEADER_SIZE)?;
-			Ok(AnyInstance::allocate(reference, id, class))
+			let reference = self.allocate(
+				(class.fields.fields_size as usize) + InstanceReference::FULL_HEADER_SIZE,
+			)?;
+			Ok(InstanceReference::allocate(reference, id, class))
 		}
 	}
 
@@ -299,9 +300,11 @@ pub struct GCStatistics {
 	objects_remaining: usize,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Error, Debug, Clone)]
 pub enum AllocationError {
+	#[error("Out of heap space")]
 	OutOfHeap,
+	#[error("Object is too big to be allocated")]
 	ObjectTooBig,
 }
 

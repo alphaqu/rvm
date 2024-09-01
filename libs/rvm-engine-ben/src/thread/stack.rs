@@ -34,7 +34,7 @@ impl ThreadStack {
 		}
 
 		unsafe {
-			let mut ptr = (&mut self.stack as *mut [u8] as *mut Frame).byte_add(self.data_pos);
+			let ptr = (&mut self.stack as *mut [u8] as *mut Frame).byte_add(self.data_pos);
 			self.data_pos += frame_size;
 
 			let frame: &mut Frame = &mut *ptr;

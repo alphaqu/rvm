@@ -1,5 +1,6 @@
 #![feature(pointer_byte_offsets)]
 #![feature(generic_const_exprs)]
+#![feature(let_chains)]
 
 use std::ffi::c_void;
 use std::pin::Pin;
@@ -30,21 +31,30 @@ impl BenEngine {
 	pub fn resolve_method(
 		&self,
 		runtime: &Runtime,
-		mut id: Id<Class>,
+		mut class_id: Id<Class>,
 		method: &MethodIdentifier,
 	) -> Option<(Id<Class>, Id<Method>)> {
-		let mut cl_guard = runtime.cl.get(id);
-		let mut class = cl_guard.as_instance().unwrap();
+		loop {
+			let class = runtime.cl.get(class_id);
 
-		let mut method_value: Option<Id<Method>> = class.methods.get_id(method);
-		while method_value.is_none() {
-			cl_guard = runtime.cl.get(id);
-			class = cl_guard.as_instance().unwrap();
-			method_value = class.methods.get_id(method);
-			id = class.super_id?;
+			let instance_class = class.as_instance().unwrap();
+
+			// Find method in current class
+			if let Some(method_id) = instance_class.methods.get_id(method) {
+				return Some((class_id, method_id));
+			}
+
+			// Go to super if method is not defined
+			if let Some(super_class) = &instance_class.super_class
+				&& super_class.id != class_id
+			{
+				class_id = super_class.id;
+			} else {
+				break;
+			}
 		}
 
-		Some((id, method_value?))
+		None
 	}
 
 	pub fn compile_method(
@@ -62,7 +72,7 @@ impl BenEngine {
 		let arc = runtime.cl.get(id);
 		let instance = arc.as_instance().unwrap();
 		let method = instance.methods.get(method_id);
-		debug!(target: "ben", "Resolving method {}.{}{}", instance.ty, method.name, method.desc);
+		debug!(target: "ben", "Compiling method {}.{}{}", instance.ty, method.name, method.desc);
 
 		let code = method.code.as_ref();
 		let ben_method = Arc::new(match code {
@@ -107,6 +117,15 @@ pub enum BenMethod {
 	Java(JavaMethod),
 	Binding(MethodBinding),
 	Native(String, MethodDescriptor),
+}
+
+impl BenMethod {
+	pub fn as_java(&self) -> Option<&JavaMethod> {
+		match self {
+			BenMethod::Java(java) => Some(java),
+			_ => None,
+		}
+	}
 }
 
 impl StorageValue for BenMethod {

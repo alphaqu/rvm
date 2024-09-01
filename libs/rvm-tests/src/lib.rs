@@ -34,7 +34,7 @@ pub fn launch(heap_size: usize, files: Vec<&str>) -> Arc<Runtime> {
 	for x in files {
 		runtime
 			.cl
-			.load_class(&read(format!("cache/{x}")).unwrap())
+			.load_class(&read(format!("bytecode/{x}")).unwrap())
 			.unwrap();
 	}
 	runtime

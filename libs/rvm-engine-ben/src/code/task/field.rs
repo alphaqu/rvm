@@ -1,8 +1,8 @@
-use std::fmt::{Display, Formatter};
-
 use rvm_core::{ObjectType, Type};
 use rvm_reader::{FieldInst, FieldInstKind};
-use rvm_runtime::{Class, InstanceClass, Runtime};
+use rvm_runtime::{AnyInstance, Class, InstanceClass, Runtime};
+use std::fmt::{Display, Formatter};
+use std::sync::Arc;
 
 use crate::thread::ThreadFrame;
 use crate::value::StackValue;
@@ -44,7 +44,7 @@ impl FieldTask {
 		}
 	}
 
-	pub fn exec(&self, runtime: &Runtime, frame: &mut ThreadFrame) {
+	pub fn exec(&self, runtime: &Arc<Runtime>, frame: &mut ThreadFrame) {
 		let id = runtime.cl.resolve_class(&Type::Object(self.source.clone()));
 		let arc = runtime.cl.get(id);
 		match &*arc {
@@ -63,24 +63,21 @@ impl FieldTask {
 
 					match self.kind {
 						FieldInstKind::Get => {
-							let reference = frame.pop().to_ref();
+							let reference = frame.pop().to_ref().unwrap();
 
 							let class = reference.to_class().unwrap();
-							let resolved_instance = unsafe {
-								class.resolve(&object.fields)
-							};
-							let value = resolved_instance.get_dyn(id);
+							let instance = AnyInstance::try_new(runtime.clone(), class).unwrap();
+
+							let value = instance.field(id).get();
 
 							frame.push(StackValue::from_any(value));
 						}
 						FieldInstKind::Put => {
 							let value = frame.pop();
-							let reference = frame.pop().to_ref();
+							let reference = frame.pop().to_ref().unwrap();
 							let class = reference.to_class().unwrap();
-							let resolved_instance = unsafe {
-								class.resolve(&object.fields)
-							};
-							resolved_instance.put_dyn(id, value.to_dyn());
+							let instance = AnyInstance::try_new(runtime.clone(), class).unwrap();
+							instance.field(id).set(value.to_any());
 						}
 					}
 				}

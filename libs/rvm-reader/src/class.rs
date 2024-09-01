@@ -22,7 +22,7 @@ pub struct ClassInfo {
 	pub this_class: ConstPtr<ClassConst>,
 	pub super_class: ConstPtr<ClassConst>,
 
-	pub interfaces: Vec<ConstPtr<InterfaceConst>>,
+	pub interfaces: Vec<ConstPtr<ClassConst>>,
 	pub fields: Vec<FieldInfo>,
 	pub methods: Vec<MethodInfo>,
 	pub attributes: Vec<AttributeInfo>,

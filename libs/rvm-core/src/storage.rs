@@ -5,8 +5,8 @@ use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
-use num_traits::{NumCast, PrimInt};
 use num_traits::ToPrimitive;
+use num_traits::{Bounded, NumCast, PrimInt};
 
 pub struct Storage<K: Hash + Eq + Debug, V: StorageValue, O = V> {
 	lookup: HashMap<K, Id<V>>,
@@ -20,17 +20,19 @@ impl<K: Hash + Eq + Debug, V: StorageValue, O> Storage<K, V, O> {
 			values: vec![],
 		}
 	}
-
-	pub fn insert(&mut self, key: K, value: O) -> Id<V> {
+	pub fn insert_keyed(&mut self, key: K, value: impl FnOnce(Id<V>) -> O) -> Id<V> {
 		let mut idx = unsafe { Id::new(self.values.len() + 1) };
 		if let Err(v) = self.lookup.try_insert(key, idx) {
 			// replace value
 			idx = *v.entry.get();
-			*self.get_mut(idx) = value;
+			*self.get_mut(idx) = value(idx);
 		} else {
-			self.values.push(value);
+			self.values.push(value(idx));
 		}
 		idx
+	}
+	pub fn insert(&mut self, key: K, value: O) -> Id<V> {
+		self.insert_keyed(key, |_| value)
 	}
 
 	pub fn push(&mut self, key: K, value: O) -> Id<V> {
@@ -52,26 +54,26 @@ impl<K: Hash + Eq + Debug, V: StorageValue, O> Storage<K, V, O> {
 	}
 
 	pub fn get_id<Q: ?Sized>(&self, key: &Q) -> Option<Id<V>>
-		where
-			K: Borrow<Q>,
-			Q: Hash + Eq,
+	where
+		K: Borrow<Q>,
+		Q: Hash + Eq,
 	{
 		self.lookup.get(key).copied()
 	}
 
 	pub fn get_keyed<Q: ?Sized>(&self, key: &Q) -> Option<&O>
-		where
-			K: Borrow<Q>,
-			Q: Hash + Eq,
+	where
+		K: Borrow<Q>,
+		Q: Hash + Eq,
 	{
 		let id = self.get_id(key)?;
 		Some(self.get(id))
 	}
 
 	pub fn get_mut_keyed<Q: ?Sized>(&mut self, key: &Q) -> Option<&mut O>
-		where
-			K: Borrow<Q>,
-			Q: Hash + Eq,
+	where
+		K: Borrow<Q>,
+		Q: Hash + Eq,
 	{
 		let id = self.get_id(key)?;
 		Some(self.get_mut(id))
@@ -91,7 +93,7 @@ impl<K: Hash + Eq + Debug, V: StorageValue, O> Storage<K, V, O> {
 		self.values.as_slice()
 	}
 
-	pub fn iter_keys_unordered(&self) -> impl Iterator<Item=(Id<V>, &K, &O)> {
+	pub fn iter_keys_unordered(&self) -> impl Iterator<Item = (Id<V>, &K, &O)> {
 		self.lookup
 			.iter()
 			.map(|(k, i)| (*i, k, &self.values[i.0.to_usize().unwrap() - 1]))
@@ -103,6 +105,10 @@ pub struct Id<V: StorageValue>(V::Idx);
 impl<V: StorageValue> Id<V> {
 	pub unsafe fn new(idx: usize) -> Id<V> {
 		Id((<V::Idx as NumCast>::from(idx)).unwrap())
+	}
+
+	pub fn null() -> Id<V> {
+		Id(V::Idx::max_value())
 	}
 
 	pub fn idx(&self) -> V::Idx {

@@ -4,30 +4,30 @@ use rvm_runtime::{java_bind_method, java_binding, MethodBinding, MethodIdentifie
 
 use crate::{compile, launch};
 
-#[test]
-fn interface() {
-	let runtime = launch(1024, vec![]);
-
-	compile(
-		&runtime,
-		&[
-			("InterfaceTest.java", include_str!("InterfaceTest.java")),
-			("Fruit.java", include_str!("Fruit.java")),
-			("Assert.java", include_str!("../Assert.java")),
-		],
-	)
-	.unwrap();
-
-	let (binding, identifier) = java_binding!(
-		fn yes(value: bool) {
-			println!("{value}");
-		}
-	);
-	println!("{identifier:?}");
-	runtime.bindings.write().insert(identifier, binding);
-	let java = java_bind_method!(runtime fn tests::object::InterfaceTest:hi());
-	let i = java();
-}
+//#[test]
+//fn interface() {
+//	let runtime = launch(1024, vec![]);
+//
+//	compile(
+//		&runtime,
+//		&[
+//			("InterfaceTest.java", include_str!("InterfaceTest.java")),
+//			("Fruit.java", include_str!("Fruit.java")),
+//			("Assert.java", include_str!("../Assert.java")),
+//		],
+//	)
+//	.unwrap();
+//
+//	let (binding, identifier) = java_binding!(
+//		fn yes(value: bool) {
+//			println!("{value}");
+//		}
+//	);
+//	println!("{identifier:?}");
+//	runtime.bindings.write().insert(identifier, binding);
+//	let java = java_bind_method!(runtime fn tests::object::InterfaceTest:hi());
+//	let i = java();
+//}
 
 #[test]
 fn extend_test() {

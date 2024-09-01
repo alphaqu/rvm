@@ -4,7 +4,7 @@ use rvm_core::ObjectType;
 use rvm_reader::{ConstPtr, InterfaceConst, InvokeInst, InvokeInstKind};
 use rvm_runtime::{InstanceClass, MethodIdentifier};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CallTask {
 	pub method: MethodIdentifier,
 	pub object: ObjectType,
@@ -64,4 +64,16 @@ pub enum CallType {
 	Static,
 	Special,
 	Interface,
+}
+
+impl CallType {
+	pub fn is_static(&self) -> bool {
+		matches!(self, CallType::Static)
+	}
+	pub fn is_special(&self) -> bool {
+		matches!(self, CallType::Special)
+	}
+	pub fn is_interface(&self) -> bool {
+		matches!(self, CallType::Interface)
+	}
 }

@@ -107,4 +107,21 @@ impl Frame {
 
 		unsafe { self.get_stack_mut().add(self.stack_pos as usize).read() }
 	}
+
+	// DEBUG
+	pub fn stack_values_debug(&self) -> String {
+		let mut stack_values = Vec::new();
+		for i in 0..self.stack_pos {
+			stack_values.push(format!("{}", self.get_stack_value(i)));
+		}
+		stack_values.join(",")
+	}
+
+	pub fn local_values_debug(&self) -> String {
+		let mut local_values = Vec::new();
+		for i in 0..self.local_size {
+			local_values.push(format!("{}", self.load(i)));
+		}
+		local_values.join(",")
+	}
 }

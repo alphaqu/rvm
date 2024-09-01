@@ -1,12 +1,12 @@
+use eyre::Context;
 use std::sync::Arc;
-
 use tracing::{debug, span, Level};
 
 use rvm_runtime::engine::{ThreadCommand, ThreadConfig, ThreadHandle};
 use rvm_runtime::Runtime;
 pub use stack::{ThreadFrame, ThreadStack};
 
-use crate::code::Executor;
+use crate::code::{Executor, ExecutorRunner};
 use crate::BenEngine;
 
 mod frame;
@@ -41,9 +41,13 @@ pub fn spawn(
 								stack,
 								engine,
 								runtime,
+								runner: ExecutorRunner::new(),
 							};
 
-							out = executor.execute(&ty, &method, parameters);
+							out = executor
+								.execute(&ty, &method, parameters)
+								.wrap_err("Running in thread")
+								.unwrap();
 							return;
 						}
 						ThreadCommand::Exit => {

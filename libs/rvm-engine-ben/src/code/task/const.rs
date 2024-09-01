@@ -1,6 +1,6 @@
 use std::fmt::{Display, Formatter};
 
-use rvm_reader::{ConstantInfo, ConstInst};
+use rvm_reader::{ConstInst, ConstantInfo};
 use rvm_runtime::{InstanceClass, Reference};
 
 use crate::thread::ThreadFrame;

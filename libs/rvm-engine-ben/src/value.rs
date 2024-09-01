@@ -1,11 +1,11 @@
+use derive_more::From;
+use rvm_core::{CastKindError, Kind, StackKind};
+use rvm_runtime::{AnyValue, Reference};
 use std::fmt::{Display, Formatter};
 use std::mem::transmute;
 
-use rvm_core::{Kind, StackKind};
-use rvm_runtime::{AnyValue, Reference};
-
 #[repr(C)]
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, From)]
 pub enum StackValue {
 	Int(i32),
 	Float(f32),
@@ -27,21 +27,23 @@ impl Display for StackValue {
 }
 
 impl StackValue {
-	pub fn to_int(self) -> i32 {
+	pub fn to_int(self) -> Result<i32, CastKindError> {
 		match self {
-			StackValue::Int(value) => value,
-			_ => {
-				panic!("Expected int, got {self:?}");
-			}
+			StackValue::Int(value) => Ok(value),
+			_ => Err(CastKindError {
+				expected: Kind::Int,
+				found: self.kind().kind(),
+			}),
 		}
 	}
 
-	pub fn to_ref(self) -> Reference {
+	pub fn to_ref(self) -> Result<Reference, CastKindError> {
 		match self {
-			StackValue::Reference(value) => value,
-			_ => {
-				panic!("Expected ref, got {self:?}");
-			}
+			StackValue::Reference(value) => Ok(value),
+			_ => Err(CastKindError {
+				expected: Kind::Reference,
+				found: self.kind().kind(),
+			}),
 		}
 	}
 	pub fn kind(&self) -> StackKind {
@@ -86,47 +88,47 @@ impl StackValue {
 		}
 	}
 
-	pub fn convert(self, kind: Kind) -> Option<AnyValue> {
+	pub fn convert(self, kind: Kind) -> Result<AnyValue, CastKindError> {
 		match kind {
 			Kind::Boolean => {
 				if let StackValue::Int(value) = self {
-					return Some(AnyValue::Boolean(value != 0));
+					return Ok(AnyValue::Boolean(value != 0));
 				}
 			}
 			Kind::Byte => {
 				if let StackValue::Int(value) = self {
-					return Some(AnyValue::Byte(value as i8));
+					return Ok(AnyValue::Byte(value as i8));
 				}
 			}
 			Kind::Short => {
 				if let StackValue::Int(value) = self {
-					return Some(AnyValue::Short(value as i16));
+					return Ok(AnyValue::Short(value as i16));
 				}
 			}
 			Kind::Int => {
 				if let StackValue::Int(value) = self {
-					return Some(AnyValue::Int(value));
+					return Ok(AnyValue::Int(value));
 				}
 			}
 			Kind::Long => {
 				if let StackValue::Long(value) = self {
-					return Some(AnyValue::Long(value));
+					return Ok(AnyValue::Long(value));
 				}
 			}
 
 			Kind::Float => {
 				if let StackValue::Float(value) = self {
-					return Some(AnyValue::Float(value));
+					return Ok(AnyValue::Float(value));
 				}
 			}
 			Kind::Double => {
 				if let StackValue::Double(value) = self {
-					return Some(AnyValue::Double(value));
+					return Ok(AnyValue::Double(value));
 				}
 			}
 			Kind::Reference => {
 				if let StackValue::Reference(value) = self {
-					return Some(AnyValue::Reference(value));
+					return Ok(AnyValue::Reference(value));
 				}
 			}
 			_ => {
@@ -134,10 +136,13 @@ impl StackValue {
 			}
 		}
 
-		None
+		Err(CastKindError {
+			expected: kind,
+			found: self.kind().kind(),
+		})
 	}
 
-	pub fn to_dyn(self) -> AnyValue {
+	pub fn to_any(self) -> AnyValue {
 		match self {
 			StackValue::Int(value) => AnyValue::Int(value),
 			StackValue::Float(value) => AnyValue::Float(value),

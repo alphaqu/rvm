@@ -13,6 +13,7 @@ use crate::code::task::array::{
 pub use crate::code::task::call::*;
 use crate::code::task::field::FieldTask;
 use crate::code::task::increment::IncrementTask;
+use crate::code::task::jump::JumpTask;
 use crate::code::task::object::NewTask;
 use crate::code::task::stack::StackTask;
 use crate::code::task::switch::SwitchTableTask;
@@ -38,7 +39,7 @@ pub enum Task {
 	Local(LocalTask),
 	Increment(IncrementTask),
 	Return(ReturnTask),
-	Jump(JumpInst),
+	Jump(JumpTask),
 	Call(CallTask),
 	Stack(StackTask),
 	New(NewTask),
@@ -103,7 +104,7 @@ impl Task {
 			}),
 			Inst::Invoke(inst) => Task::Call(CallTask::new(inst, class)),
 			Inst::Return(ret) => Task::Return(ReturnTask::new(ret)),
-			Inst::Jump(inst) => Task::Jump(*inst),
+			Inst::Jump(inst) => Task::Jump(JumpTask::new(inst)),
 			Inst::Stack(inst) => Task::Stack(StackTask::new(inst)),
 			Inst::New(inst) => Task::New(NewTask::new(inst, class)),
 			Inst::Field(inst) => Task::Field(FieldTask::new(inst, class)),

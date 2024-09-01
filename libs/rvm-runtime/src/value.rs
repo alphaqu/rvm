@@ -1,13 +1,33 @@
-use std::ptr::{read, write};
-
 use rvm_core::Kind;
+use std::ptr::{read, write};
+use std::sync::Arc;
 
 use crate::object::Reference;
+use crate::Runtime;
+
+pub trait Returnable {
+	fn from_value(runtime: &Arc<Runtime>, value: Option<AnyValue>) -> Self;
+}
+
+impl Returnable for () {
+	fn from_value(_: &Arc<Runtime>, value: Option<AnyValue>) -> Self {
+		assert!(value.is_none());
+		()
+	}
+}
+impl<R: Returnable> Returnable for Option<R> {
+	fn from_value(runtime: &Arc<Runtime>, value: Option<AnyValue>) -> Self {
+		value.map(|_| R::from_value(runtime, value))
+	}
+}
 
 pub trait Value: Sized + Copy {
-	fn ty() -> Kind;
+	fn kind() -> Kind;
 	unsafe fn write(ptr: *mut u8, value: Self);
 	unsafe fn read(ptr: *mut u8) -> Self;
+	unsafe fn cast(ptr: *mut u8) -> *mut Self {
+		ptr as *mut Self
+	}
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -25,6 +45,12 @@ pub enum AnyValue {
 
 macro_rules! impl_from {
 	($TY:ty, $KIND:ident) => {
+		impl Returnable for $TY {
+			fn from_value(_: &Arc<Runtime>, value: Option<AnyValue>) -> Self {
+				value.unwrap().try_into().unwrap()
+			}
+		}
+
 		impl From<$TY> for AnyValue {
 			fn from(value: $TY) -> Self {
 				AnyValue::$KIND(value)
@@ -57,15 +83,15 @@ impl_from!(Reference, Reference);
 impl AnyValue {
 	pub fn kind(&self) -> Kind {
 		match self {
-			AnyValue::Byte(_) => i8::ty(),
-			AnyValue::Short(_) => i16::ty(),
-			AnyValue::Int(_) => i32::ty(),
-			AnyValue::Long(_) => i64::ty(),
-			AnyValue::Char(_) => u16::ty(),
-			AnyValue::Float(_) => f32::ty(),
-			AnyValue::Double(_) => f64::ty(),
-			AnyValue::Boolean(_) => bool::ty(),
-			AnyValue::Reference(_) => Reference::ty(),
+			AnyValue::Byte(_) => i8::kind(),
+			AnyValue::Short(_) => i16::kind(),
+			AnyValue::Int(_) => i32::kind(),
+			AnyValue::Long(_) => i64::kind(),
+			AnyValue::Char(_) => u16::kind(),
+			AnyValue::Float(_) => f32::kind(),
+			AnyValue::Double(_) => f64::kind(),
+			AnyValue::Boolean(_) => bool::kind(),
+			AnyValue::Reference(_) => Reference::kind(),
 		}
 	}
 
@@ -100,7 +126,7 @@ impl AnyValue {
 macro_rules! impl_direct {
 	($VAR:ident $TY:ty) => {
 		impl Value for $TY {
-			fn ty() -> Kind {
+			fn kind() -> Kind {
 				Kind::$VAR
 			}
 
@@ -123,7 +149,7 @@ impl_direct!(Float f32);
 impl_direct!(Double f64);
 
 impl Value for bool {
-	fn ty() -> Kind {
+	fn kind() -> Kind {
 		Kind::Boolean
 	}
 
@@ -137,7 +163,7 @@ impl Value for bool {
 }
 
 impl Value for Reference {
-	fn ty() -> Kind {
+	fn kind() -> Kind {
 		Kind::Reference
 	}
 
@@ -145,12 +171,12 @@ impl Value for Reference {
 		write_arr(ptr, {
 			let x: *mut u8 = value.0;
 			let i = x as usize;
-			i.to_le_bytes()
+			i.to_ne_bytes()
 		})
 	}
 
 	unsafe fn read(ptr: *mut u8) -> Self {
-		Reference(usize::from_le_bytes(read_arr(ptr)) as *mut u8)
+		Reference(usize::from_ne_bytes(read_arr(ptr)) as *mut u8)
 	}
 }
 

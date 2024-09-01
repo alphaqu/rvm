@@ -1,8 +1,8 @@
+use crate::{AnyArray, InstanceReference};
+use rvm_core::{ObjectType, Type, Typed};
 use std::fmt::{Debug, Formatter};
 use std::mem::size_of;
 use std::ptr::null_mut;
-
-use crate::{AnyArray, AnyInstance};
 
 #[derive(Copy, Clone, PartialEq)]
 #[repr(transparent)]
@@ -16,15 +16,15 @@ impl Reference {
 	pub const HEADER_SIZE: usize = size_of::<u8>();
 	pub const NULL: Reference = Reference(null_mut());
 
-	pub fn kind(&self) -> Option<ReferenceKind> {
+	pub fn reference_kind(&self) -> Option<ReferenceKind> {
 		if self.is_null() {
 			return None;
 		}
 
-		Some(unsafe { self.kind_unchecked() })
+		Some(unsafe { self.reference_kind_unchecked() })
 	}
 
-	pub unsafe fn kind_unchecked(&self) -> ReferenceKind {
+	pub unsafe fn reference_kind_unchecked(&self) -> ReferenceKind {
 		let i = unsafe { *self.0 };
 		match i {
 			1 => ReferenceKind::Instance,
@@ -37,8 +37,8 @@ impl Reference {
 		self.0.is_null()
 	}
 
-	pub fn to_class(&self) -> Option<AnyInstance> {
-		AnyInstance::try_new(*self)
+	pub fn to_class(&self) -> Option<InstanceReference> {
+		InstanceReference::try_new(*self)
 	}
 
 	pub fn to_array(&self) -> Option<AnyArray> {
@@ -47,9 +47,9 @@ impl Reference {
 
 	pub fn visit_refs(&self, visitor: impl FnMut(Reference)) {
 		unsafe {
-			match self.kind() {
+			match self.reference_kind() {
 				Some(ReferenceKind::Instance) => {
-					AnyInstance::new_unchecked(*self).visit_refs(visitor)
+					InstanceReference::new_unchecked(*self).visit_refs(visitor)
 				}
 				Some(ReferenceKind::Array) => AnyArray::new_unchecked(*self).visit_refs(visitor),
 				_ => {}
@@ -59,8 +59,10 @@ impl Reference {
 
 	pub fn map_refs(&self, mapper: impl FnMut(Reference) -> Reference) {
 		unsafe {
-			match self.kind() {
-				Some(ReferenceKind::Instance) => AnyInstance::new_unchecked(*self).map_refs(mapper),
+			match self.reference_kind() {
+				Some(ReferenceKind::Instance) => {
+					InstanceReference::new_unchecked(*self).map_refs(mapper)
+				}
 				Some(ReferenceKind::Array) => AnyArray::new_unchecked(*self).map_refs(mapper),
 				_ => {}
 			}
@@ -77,5 +79,11 @@ pub enum ReferenceKind {
 impl Debug for Reference {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		write!(f, "{:?}", self.0)
+	}
+}
+
+impl Typed for Reference {
+	fn ty() -> Type {
+		Type::Object(ObjectType::Object())
 	}
 }

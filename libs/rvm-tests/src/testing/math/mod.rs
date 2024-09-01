@@ -3,7 +3,7 @@ use std::fmt::{Debug, Display, Write};
 use std::fs::read;
 use std::str::FromStr;
 
-use rvm_runtime::java_bind_method;
+use rvm_runtime::{bind, java_bind_method};
 
 use crate::launch;
 use crate::testing::consts::Samples;

@@ -5,6 +5,7 @@ use std::process::Command;
 mod array;
 mod consts;
 mod math;
+mod object;
 
 pub fn quick_compile(name: &str, data: &str) -> String {
 	let buf = temp_dir().join("rvm-quick").join(name);

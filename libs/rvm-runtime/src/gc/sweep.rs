@@ -1,10 +1,10 @@
 use std::time::Duration;
 
-use crossbeam::channel::{Receiver, Sender, unbounded};
+use crossbeam::channel::{unbounded, Receiver, Sender};
 use crossbeam::sync::{Parker, Unparker};
 use tracing::trace;
 
-use crate::gc::{move_reference, ObjectFlags, ref_to_header, RootProvider};
+use crate::gc::{move_reference, ref_to_header, ObjectFlags, RootProvider};
 use crate::object::Reference;
 
 pub(super) fn new_sweeper() -> (GcSweeperHandle, GcSweeper) {
@@ -56,6 +56,7 @@ impl GcSweeperHandle {
 }
 
 pub struct GcSweeper {
+	// Gives which mark
 	pub(super) receiver: Receiver<bool>,
 	pub(super) parker: Parker,
 	pub(super) complete: Unparker,
