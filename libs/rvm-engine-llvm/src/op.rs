@@ -50,60 +50,35 @@ impl Task {
 	pub fn resolve(i: usize, inst: &Inst, resolver: &mut BlockResolver) -> Task {
 		match inst {
 			Inst::Nop => Task::Nop,
-			Inst::Math(inst @ MathInst::Neg(_)) => {
-				Task::Apply(ApplyTask::resolve(inst, resolver))
-			}
-			Inst::Math(inst) => {
-				Task::Combine(CombineTask::resolve(inst, resolver))
-			}
-			Inst::Const(inst) => {
-				Task::Const(ConstTask::resolve(inst, resolver))
-			}
-			Inst::Stack(inst) => {
-				Task::Stack(StackTask::resolve(inst, resolver))
-			}
+			Inst::Math(inst @ MathInst::Neg(_)) => Task::Apply(ApplyTask::resolve(inst, resolver)),
+			Inst::Math(inst) => Task::Combine(CombineTask::resolve(inst, resolver)),
+			Inst::Const(inst) => Task::Const(ConstTask::resolve(inst, resolver)),
+			Inst::Stack(inst) => Task::Stack(StackTask::resolve(inst, resolver)),
 			Inst::Array(_) => {
 				todo!("array")
 			}
-			Inst::Conversion(inst) => {
-				Task::Conversion(ConversionTask::resolve(inst, resolver))
-			}
-			Inst::Jump(JumpInst {
-						   offset,
-						   kind
-					   }) => {
+			Inst::Conversion(inst) => Task::Conversion(ConversionTask::resolve(inst, resolver)),
+			Inst::Jump(JumpInst { offset, kind }) => {
 				let target = resolver.inst_to_block(i.saturating_add_signed(*offset as isize));
 				match kind.args() {
-					2 => {
-						Task::Compare(CompareTask::resolve(target, kind, resolver))
-					}
-					1 => {
-						Task::Check(CheckTask::resolve(target, kind, resolver))
-					}
-					_ => {
-						Task::Jump(JumpTask::resolve(target, resolver))
-					}
+					2 => Task::Compare(CompareTask::resolve(target, kind, resolver)),
+					1 => Task::Check(CheckTask::resolve(target, kind, resolver)),
+					_ => Task::Jump(JumpTask::resolve(target, resolver)),
 				}
 			}
-			Inst::Local(inst) => {
-				match inst {
-					LocalInst::Load(kind, var) => {
-						Task::LoadVariable(LoadVariableTask::resolve(kind.kind(), *var, resolver))
-					}
-					LocalInst::Store(kind, var) => {
-						Task::StoreVariable(StoreVariableTask::resolve(kind.kind(), *var, resolver))
-					}
-					LocalInst::Increment(amount, var) => {
-						Task::Increase(IncrementTask::resolve(*var, *amount, resolver))
-					}
+			Inst::Local(inst) => match inst {
+				LocalInst::Load(kind, var) => {
+					Task::LoadVariable(LoadVariableTask::resolve(kind.kind(), *var, resolver))
 				}
-			}
-			Inst::Return(inst) => {
-				Task::Return(ReturnTask::resolve(inst, resolver))
-			}
-			Inst::Invoke(inst) => {
-				Task::Invoke(InvokeTask::resolve(inst, resolver))
-			}
+				LocalInst::Store(kind, var) => {
+					Task::StoreVariable(StoreVariableTask::resolve(kind.kind(), *var, resolver))
+				}
+				LocalInst::Increment(amount, var) => {
+					Task::Increase(IncrementTask::resolve(*var, *amount, resolver))
+				}
+			},
+			Inst::Return(inst) => Task::Return(ReturnTask::resolve(inst, resolver)),
+			Inst::Invoke(inst) => Task::Invoke(InvokeTask::resolve(inst, resolver)),
 			// grandpa shit
 			Inst::JSR(_) => todo!("grandpa shit"),
 			Inst::JSR_W(_) => todo!("grandpa shit"),
@@ -128,7 +103,7 @@ impl Task {
 			}
 			// alpha reading challange any%
 			Inst::LOOKUPSWITCH => todo!("read"),
-			Inst::TABLESWITCH => todo!("read"),
+			Inst::TableSwitch => todo!("read"),
 			Inst::MONITORENTER => todo!("read"),
 			Inst::MONITOREXIT => todo!("read"),
 		}

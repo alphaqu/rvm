@@ -13,11 +13,11 @@ rvm-macro = { path = "../rvm-macro" }
 # Compilation
 # inkwell = { git = "https://github.com/TheDan64/inkwell", branch = "master", features = ["llvm14-0"] }
 
+eyre = "0.6"
 crossbeam = "0.8.2"
 lazy_static = "1.4.0"
 either = "1.8.0"
 thiserror = "1"
-anyways = "0.3"
 parking_lot = { version = "0.12", features = ["deadlock_detection"] }
 mimalloc = "0.1"
 base64 = "0.13"

@@ -1,7 +1,7 @@
 use std::mem::transmute;
 use std::sync::Arc;
 
-use rvm_core::{Kind, MethodDesc};
+use rvm_core::{Kind, MethodDescriptor};
 
 use crate::{AnyValue, Reference, Value};
 
@@ -15,11 +15,11 @@ pub struct MethodBinding {
 impl MethodBinding {
 	/// # Safety
 	/// Caller must ensure the function follows the signature of decs, else some UB might happen.
-	pub unsafe fn new(function: extern "system" fn(), desc: MethodDesc) -> MethodBinding {
+	pub unsafe fn new(function: extern "system" fn(), desc: MethodDescriptor) -> MethodBinding {
 		MethodBinding {
 			function,
 			parameters: desc.parameters.iter().map(|v| v.kind()).collect(),
-			returns: desc.ret.map(|v| v.kind()),
+			returns: desc.returns.map(|v| v.kind()),
 		}
 	}
 
@@ -104,7 +104,7 @@ macro_rules! java_binding {
 				let desc = java_desc!(fn($($P_TY),*) $(-> $RET)?);
 				($crate::MethodBinding::new(
 					std::mem::transmute($NAME as usize),
-					MethodDesc::parse(desc).unwrap(),
+					MethodDescriptor::parse(desc).unwrap(),
 				), MethodIdentifier {
 					name: stringify!($NAME).to_string(),
 					descriptor: desc.to_string(),

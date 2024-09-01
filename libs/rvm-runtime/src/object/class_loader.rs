@@ -1,16 +1,15 @@
-use std::io::{Cursor, Read};
-use std::sync::Arc;
-
-use anyways::ext::AuditExt;
+use eyre::Context;
 use nom::error::VerboseErrorKind;
 use parking_lot::RwLock;
+use std::io::{Cursor, Read};
+use std::sync::Arc;
 use tracing::{debug, info, instrument, warn};
 
 use rvm_core::{Id, Kind, Storage, Type};
 use rvm_reader::ClassInfo;
 
-use crate::{ArrayClass, InstanceClass};
 use crate::object::class::Class;
+use crate::{ArrayClass, InstanceClass};
 
 pub struct ClassLoader {
 	classes: RwLock<Storage<Type, Class, Arc<Class>>>,
@@ -46,12 +45,12 @@ impl ClassLoader {
 					}
 					Type::Array(value) => {
 						let mut component_id = None;
-						if let Kind::Reference = value.component.kind() {
+						if let Kind::Reference = value.component().kind() {
 							// ensure loaded
-							component_id = Some(self.resolve_class(&value.component));
+							component_id = Some(self.resolve_class(&value.component()));
 						}
 
-						Class::Array(ArrayClass::new((*value.component).clone(), component_id))
+						Class::Array(ArrayClass::new((*value.component()).clone(), component_id))
 					}
 				};
 
@@ -61,7 +60,7 @@ impl ClassLoader {
 	}
 
 	/// Forcefully loads all classes in a jar. This is used only in bootstrapping the java standard library.
-	pub fn load_jar(&self, data: &[u8], filter: impl Fn(&str) -> bool) -> anyways::Result<()> {
+	pub fn load_jar(&self, data: &[u8], filter: impl Fn(&str) -> bool) -> eyre::Result<()> {
 		let reader = Cursor::new(data);
 		let mut archive = zip::read::ZipArchive::new(reader)?;
 		let mut map: Vec<String> = archive.file_names().map(|v| v.to_string()).collect();
@@ -80,7 +79,7 @@ impl ClassLoader {
 
 	/// Loads a java class to the JVM and injects it to the class table by locking it.
 	#[instrument(skip_all)]
-	pub fn load_class(&self, data: &[u8]) -> anyways::Result<Id<Class>> {
+	pub fn load_class(&self, data: &[u8]) -> eyre::Result<Id<Class>> {
 		let info = match ClassInfo::parse(data) {
 			Ok((_, info)) => info,
 			Err(error) => {

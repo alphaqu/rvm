@@ -31,6 +31,19 @@ impl Kind {
 		}
 	}
 
+	pub fn local_size(&self) -> u8 {
+		match self {
+			Kind::Reference => 1,
+			Kind::Boolean => 1,
+			Kind::Char => 1,
+			Kind::Float => 1,
+			Kind::Byte => 1,
+			Kind::Short => 1,
+			Kind::Int => 1,
+			Kind::Double => 2,
+			Kind::Long => 2,
+		}
+	}
 	pub fn is_category_2(&self) -> bool {
 		matches!(self, Kind::Double | Kind::Long)
 	}

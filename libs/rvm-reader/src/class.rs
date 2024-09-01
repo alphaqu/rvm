@@ -7,11 +7,11 @@ use tracing::trace;
 
 use rvm_core::ClassAccessFlags;
 
-use crate::{ClassConst, ConstPtr, InterfaceConst, IResult};
 use crate::attribute::AttributeInfo;
 use crate::consts::{ConstantInfo, ConstantPool};
 use crate::field::FieldInfo;
 use crate::method::MethodInfo;
+use crate::{ClassConst, ConstPtr, IResult, InterfaceConst};
 
 pub struct ClassInfo {
 	pub minor_version: u16,
@@ -41,12 +41,12 @@ impl ClassInfo {
 			map(
 				length_count(
 					map(be_u16, |num| {
-						trace!("cp_pool count {}", num - 1);
+						//trace!("cp_pool count {}", num - 1);
 						num - 1
 					}),
 					|input| {
 						count += 1;
-						trace!("{count}");
+						//trace!("{count}");
 						ConstantInfo::parse(input, &mut skip)
 					},
 				),

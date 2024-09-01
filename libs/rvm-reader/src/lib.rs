@@ -1,3 +1,4 @@
+//! rvm-reader is responsible for parsing .class files.
 #![allow(dead_code)]
 
 use nom::error::VerboseError;

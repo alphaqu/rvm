@@ -15,6 +15,7 @@ use crate::code::task::field::FieldTask;
 use crate::code::task::increment::IncrementTask;
 use crate::code::task::object::NewTask;
 use crate::code::task::stack::StackTask;
+use crate::code::task::switch::SwitchTableTask;
 
 mod array;
 mod call;
@@ -27,6 +28,7 @@ mod local;
 mod object;
 mod r#return;
 mod stack;
+mod switch;
 
 #[derive(Debug)]
 pub enum Task {
@@ -47,6 +49,7 @@ pub enum Task {
 	ArrayCreateRef(ArrayCreateRefTask),
 	ArrayLoad(ArrayLoadTask),
 	ArrayStore(ArrayStoreTask),
+	SwitchTable(SwitchTableTask),
 }
 
 impl Display for Task {
@@ -68,6 +71,7 @@ impl Display for Task {
 			Task::ArrayStore(v) => v.fmt(f),
 			Task::ArrayCreate(v) => v.fmt(f),
 			Task::ArrayCreateRef(v) => v.fmt(f),
+			Task::SwitchTable(v) => v.fmt(f),
 		}
 	}
 }
@@ -110,6 +114,7 @@ impl Task {
 			Inst::Array(ArrayInst::NewRef(ptr)) => {
 				Task::ArrayCreateRef(ArrayCreateRefTask::new(ptr, class))
 			}
+			Inst::TableSwitch(inst) => Task::SwitchTable(SwitchTableTask::new(inst)),
 			_ => todo!("{inst:?}"),
 		}
 	}

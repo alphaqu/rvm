@@ -1,15 +1,17 @@
 use std::fmt::{Display, Formatter, Write};
 
-pub use desc::*;
+pub use descriptor::*;
 pub use flags::*;
 pub use kind::*;
 pub use op::*;
 
-mod desc;
+mod descriptor;
 mod flags;
 mod kind;
 mod op;
 
+/// A Type holds concrete information about the type we are handling.
+/// [Kind] is similar, but has no idea what the concrete implementation is.
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
 pub enum Type {
 	Primitive(PrimitiveType),
@@ -97,7 +99,7 @@ impl PrimitiveType {
 
 	pub fn char(&self) -> char {
 		match self {
-			PrimitiveType::Boolean => 'C',
+			PrimitiveType::Boolean => 'Z',
 			PrimitiveType::Byte => 'B',
 			PrimitiveType::Short => 'S',
 			PrimitiveType::Int => 'I',
@@ -175,6 +177,12 @@ pub struct ArrayType {
 }
 
 impl ArrayType {
+	pub fn from_component(ty: Type) -> ArrayType {
+		ArrayType {
+			component: Box::new(ty),
+		}
+	}
+
 	pub fn parse_len(string: &str) -> Option<(ArrayType, usize)> {
 		let bytes = string.as_bytes();
 		if bytes[0] != b'[' {
@@ -188,6 +196,10 @@ impl ArrayType {
 			},
 			length + 1,
 		))
+	}
+
+	pub fn component(&self) -> &Type {
+		&self.component
 	}
 
 	pub fn kind(&self) -> Kind {

@@ -3,14 +3,13 @@ use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::path::Path;
 use std::pin::Pin;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::thread::{Builder, JoinHandle};
 
 use ahash::{AHashMap, AHashSet};
 use crossbeam::channel::{bounded, Receiver, Sender};
 use either::Either;
-use inkwell::{AddressSpace, OptimizationLevel};
 use inkwell::context::Context;
 use inkwell::execution_engine::ExecutionEngine;
 use inkwell::module::{Linkage, Module};
@@ -20,9 +19,10 @@ use inkwell::targets::{
 };
 use inkwell::types::BasicMetadataTypeEnum;
 use inkwell::values::{BasicMetadataValueEnum, CallableValue, FunctionValue};
+use inkwell::{AddressSpace, OptimizationLevel};
 use tracing::{debug, info, instrument, trace};
 
-use rvm_core::MethodDesc;
+use rvm_core::MethodDescriptor;
 use rvm_object::{MethodCode, MethodData};
 use rvm_reader::{ConstantPool, Inst};
 use rvm_runtime::engine::Engine;
@@ -46,13 +46,11 @@ pub enum EngineTask {
 		runtime_ptr: usize,
 		method: MethodData,
 		cp: Arc<ConstantPool>,
-	}
+	},
 }
 
 pub enum EngineResponse {
-	CompileMethod {
-		value: usize
-	}
+	CompileMethod { value: usize },
 }
 
 pub struct LLVMBinding {
@@ -62,12 +60,19 @@ pub struct LLVMBinding {
 }
 
 impl Engine for LLVMBinding {
-	fn compile_method(&self, runtime: &Pin<&Runtime>, method: &MethodData, cp: &Arc<ConstantPool>) -> *const c_void {
-		self.send.send(EngineTask::CompileMethod {
-			runtime_ptr: runtime as *const _ as usize,
-			method: method.clone(),
-			cp: cp.clone(),
-		}).unwrap();
+	fn compile_method(
+		&self,
+		runtime: &Pin<&Runtime>,
+		method: &MethodData,
+		cp: &Arc<ConstantPool>,
+	) -> *const c_void {
+		self.send
+			.send(EngineTask::CompileMethod {
+				runtime_ptr: runtime as *const _ as usize,
+				method: method.clone(),
+				cp: cp.clone(),
+			})
+			.unwrap();
 		let task = self.recv.recv().unwrap();
 		match task {
 			EngineResponse::CompileMethod { value } => {
@@ -84,20 +89,28 @@ impl LLVMBinding {
 	pub fn new() -> LLVMBinding {
 		let (sender, receiver) = bounded(1);
 		let (sender_in, receiver_in) = bounded(1);
-		let handle = Builder::new().spawn(move || {
-			let context = Context::create();
-			let engine = LLVMEngine::new(&context);
+		let handle = Builder::new()
+			.spawn(move || {
+				let context = Context::create();
+				let engine = LLVMEngine::new(&context);
 
-			loop {
-				let task = receiver.recv().unwrap();
-				match task {
-					EngineTask::CompileMethod { runtime_ptr, method, cp } => {
-						let x = engine.compile_method(runtime_ptr, &method, &cp);
-						sender_in.send(EngineResponse::CompileMethod { value: x as usize }).unwrap();
+				loop {
+					let task = receiver.recv().unwrap();
+					match task {
+						EngineTask::CompileMethod {
+							runtime_ptr,
+							method,
+							cp,
+						} => {
+							let x = engine.compile_method(runtime_ptr, &method, &cp);
+							sender_in
+								.send(EngineResponse::CompileMethod { value: x as usize })
+								.unwrap();
+						}
 					}
 				}
-			}
-		}).unwrap();
+			})
+			.unwrap();
 
 		LLVMBinding {
 			send: sender,
@@ -106,7 +119,6 @@ impl LLVMBinding {
 		}
 	}
 }
-
 
 #[derive(Debug)]
 pub struct LLVMEngine<'a> {
@@ -270,9 +282,7 @@ impl<'ctx> LLVMEngine<'ctx> {
 				&[
 					builder
 						.build_int_to_ptr(
-							self.ctx
-								.i64_type()
-								.const_int(runtime_ptr as u64, false),
+							self.ctx.i64_type().const_int(runtime_ptr as u64, false),
 							self.ctx.i8_type().ptr_type(AddressSpace::Generic),
 							"runtime",
 						)
@@ -362,16 +372,12 @@ impl<'ctx> LLVMEngine<'ctx> {
 		// This stage decompiles the bytecode to a block form where jump instructions go to a certain block.
 		// Blocks are way more useful for compilation purposes.
 		let mut data = match &method.code {
-			Some(meth) => {
-				match meth.as_ref() {
-					MethodCode::Java(code) => {
-						self.compute_blocks(&code.instructions)
-					}
-					MethodCode::Native(_) => {
-						panic!("not code")
-					}
+			Some(meth) => match meth.as_ref() {
+				MethodCode::Java(code) => self.compute_blocks(&code.instructions),
+				MethodCode::Native(_) => {
+					panic!("not code")
 				}
-			}
+			},
 			_ => {
 				panic!("not code")
 			}
@@ -648,9 +654,9 @@ impl MethodReference {
 		format!("DEF{}", self)
 	}
 
-	pub fn desc(&self) -> MethodDesc {
+	pub fn desc(&self) -> MethodDescriptor {
 		// valid because checked on creation
-		MethodDesc::parse(&self.desc).unwrap()
+		MethodDescriptor::parse(&self.desc).unwrap()
 	}
 }
 

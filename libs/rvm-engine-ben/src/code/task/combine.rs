@@ -1,3 +1,4 @@
+use num_traits::{Bounded, Num, Signed};
 use std::fmt::{Display, Formatter};
 use std::ops::Add;
 use std::ops::Div;
@@ -40,60 +41,29 @@ impl Display for CombineTask {
 
 impl CombineTask {
 	pub fn new(inst: &MathInst) -> CombineTask {
-		match inst {
-			MathInst::Add(v) => CombineTask {
-				ty: CombineTaskType::new(*v),
-				op: CombineTaskOperation::Add,
-			},
-			MathInst::Sub(v) => CombineTask {
-				ty: CombineTaskType::new(*v),
-				op: CombineTaskOperation::Sub,
-			},
-			MathInst::Div(v) => CombineTask {
-				ty: CombineTaskType::new(*v),
-				op: CombineTaskOperation::Div,
-			},
-			MathInst::Mul(v) => CombineTask {
-				ty: CombineTaskType::new(*v),
-				op: CombineTaskOperation::Mul,
-			},
-			MathInst::Rem(v) => CombineTask {
-				ty: CombineTaskType::new(*v),
-				op: CombineTaskOperation::Rem,
-			},
-			MathInst::And(v) => CombineTask {
-				ty: CombineTaskType::new(*v),
-				op: CombineTaskOperation::And,
-			},
-			MathInst::Or(v) => CombineTask {
-				ty: CombineTaskType::new(*v),
-				op: CombineTaskOperation::Or,
-			},
-			MathInst::Xor(v) => CombineTask {
-				ty: CombineTaskType::new(*v),
-				op: CombineTaskOperation::Xor,
-			},
-			MathInst::Shl(v) => CombineTask {
-				ty: CombineTaskType::new(*v),
-				op: CombineTaskOperation::Shl,
-			},
-			MathInst::Shr(v) => CombineTask {
-				ty: CombineTaskType::new(*v),
-				op: CombineTaskOperation::Shr,
-			},
-			MathInst::Ushr(v) => CombineTask {
-				ty: CombineTaskType::new(*v),
-				op: CombineTaskOperation::UShr,
-			},
+		let task = CombineTaskType::new(inst.ty());
+		let operation = match inst {
+			MathInst::Add(_) => CombineTaskOperation::Add,
+			MathInst::Sub(_) => CombineTaskOperation::Sub,
+			MathInst::Div(_) => CombineTaskOperation::Div,
+			MathInst::Mul(_) => CombineTaskOperation::Mul,
+			MathInst::Rem(_) => CombineTaskOperation::Rem,
+			MathInst::And(_) => CombineTaskOperation::And,
+			MathInst::Or(_) => CombineTaskOperation::Or,
+			MathInst::Xor(_) => CombineTaskOperation::Xor,
+			MathInst::Shl(_) => CombineTaskOperation::Shl,
+			MathInst::Shr(_) => CombineTaskOperation::Shr,
 			_ => unreachable!(),
+		};
+
+		CombineTask {
+			ty: task,
+			op: operation,
 		}
 	}
 
 	pub fn exec(&self, frame: &mut ThreadFrame) {
-		/// According to all known laws of aviation, there is no way a bee should be able to fly.
-		/// It's wings are too small to get its fat little body off the ground.
-		/// The bee, of course, flies anyway, because bees don't care what humans think is impossible.
-		macro_rules! exciting_macro {
+		macro_rules! impl_for_type {
 			($v0:ident, $v1:ident, $TY:ident, $OP:expr) => {
 				match ($v0, $v1) {
 					(StackValue::$TY($v0), StackValue::$TY($v1)) => StackValue::$TY($OP),
@@ -110,20 +80,20 @@ impl CombineTask {
 			};
 		}
 
-		macro_rules! electric_boogaloo {
-			($frame:ident, $v:ident, $v0:ident, $v1:ident, $OP:expr, $FOP:expr) => {
-				match $v.ty {
+		macro_rules! impl_for_types {
+			($frame:ident, $task:ident, $v0:ident, $v1:ident, $OP:expr, $FOP:expr) => {
+				match $task.ty {
 					CombineTaskType::Int => {
-						$frame.push(exciting_macro!($v0, $v1, Int, $OP));
+						$frame.push(impl_for_type!($v0, $v1, Int, $OP));
 					}
 					CombineTaskType::Long => {
-						$frame.push(exciting_macro!($v0, $v1, Long, $OP));
+						$frame.push(impl_for_type!($v0, $v1, Long, $OP));
 					}
 					CombineTaskType::Float => {
-						$frame.push(exciting_macro!($v0, $v1, Float, $FOP));
+						$frame.push(impl_for_type!($v0, $v1, Float, $FOP));
 					}
 					CombineTaskType::Double => {
-						$frame.push(exciting_macro!($v0, $v1, Double, $FOP));
+						$frame.push(impl_for_type!($v0, $v1, Double, $FOP));
 					}
 				}
 			};
@@ -132,21 +102,32 @@ impl CombineTask {
 		let v1 = frame.pop();
 		let v0 = frame.pop();
 
+		fn java_div<V: Signed + Bounded>(v0: V, v1: V) -> V {
+			if v1 == V::zero() {
+				panic!("Division by 0");
+			}
+			if v1 == V::one().neg() && v0 == V::min_value() {
+				return v0;
+			}
+
+			V::div(v0, v1)
+		}
+
 		match self.op {
 			CombineTaskOperation::Add => {
-				electric_boogaloo!(frame, self, v0, v1, v0.overflowing_add(v1).0, v0.add(v1));
+				impl_for_types!(frame, self, v0, v1, v0.wrapping_add(v1), v0.add(v1));
 			}
 			CombineTaskOperation::Sub => {
-				electric_boogaloo!(frame, self, v0, v1, v0.overflowing_sub(v1).0, v0.sub(v1));
+				impl_for_types!(frame, self, v0, v1, v0.wrapping_sub(v1), v0.sub(v1));
 			}
 			CombineTaskOperation::Div => {
-				electric_boogaloo!(frame, self, v0, v1, v0.overflowing_div(v1).0, v0.div(v1));
+				impl_for_types!(frame, self, v0, v1, java_div(v0, v1), v0.div(v1));
 			}
 			CombineTaskOperation::Mul => {
-				electric_boogaloo!(frame, self, v0, v1, v0.overflowing_mul(v1).0, v0.mul(v1));
+				impl_for_types!(frame, self, v0, v1, v0.wrapping_mul(v1), v0.mul(v1));
 			}
 			CombineTaskOperation::Rem => {
-				electric_boogaloo!(frame, self, v0, v1, v0.overflowing_rem(v1).0, v0.rem(v1));
+				impl_for_types!(frame, self, v0, v1, v0.wrapping_rem(v1), v0.rem(v1));
 			}
 			_ => {
 				todo!()

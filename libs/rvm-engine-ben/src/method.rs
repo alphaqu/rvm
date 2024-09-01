@@ -25,7 +25,7 @@ impl JavaMethod {
 				.map(|v| Task::new(v, class))
 				.collect(),
 			parameters: method.desc.parameters.to_vec(),
-			returns: method.desc.ret.as_ref().map(|v| v.kind()),
+			returns: method.desc.returns.as_ref().map(|v| v.kind()),
 		}
 	}
 }

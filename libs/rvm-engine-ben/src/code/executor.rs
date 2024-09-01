@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use tracing::{debug, trace};
 
-use rvm_core::{Kind, MethodDesc, ObjectType, Type};
+use rvm_core::{Kind, MethodDescriptor, ObjectType, Type};
 use rvm_reader::JumpKind;
 use rvm_runtime::engine::Thread;
 use rvm_runtime::gc::{AllocationError, GcMarker, GcSweeper, RootProvider};
@@ -42,10 +42,16 @@ impl<'a> Executor<'a> {
 	) -> CallReturn<'f> {
 		debug!("Creating frame for {ty:?} {method:?}");
 
-		let desc = MethodDesc::parse(&method.descriptor).unwrap();
+		let desc = MethodDescriptor::parse(&method.descriptor).unwrap();
 		let mut parameters = Vec::new();
 		for v in &desc.parameters {
-			parameters.push(parameter_getter().convert(v.kind()).unwrap());
+			let stack_value = parameter_getter();
+			let kind = v.kind();
+			let value = stack_value
+				.convert(kind)
+				.ok_or_else(|| format!("{} could not be converted to {}", stack_value, kind))
+				.unwrap();
+			parameters.push(value);
 		}
 		parameters.reverse();
 
@@ -66,7 +72,7 @@ impl<'a> Executor<'a> {
 
 		let (method_class, method_id) = self
 			.engine
-			.resolve_method(&self.runtime, class_id, method.clone())
+			.resolve_method(&self.runtime, class_id, &method)
 			.expect("could not resolve method");
 
 		let method = self
@@ -76,11 +82,11 @@ impl<'a> Executor<'a> {
 		match &*method {
 			BenMethod::Java(java) => {
 				let mut frame = self.stack.create(java.max_stack, java.max_locals);
-				for (i, value) in parameters.into_iter().enumerate() {
-					frame.store(
-						if is_static { i } else { i + 1 } as u16,
-						StackValue::from_any(value),
-					);
+				let mut i = if is_static { 0 } else { 1 };
+				for value in parameters.into_iter() {
+					let local_size = value.kind().local_size();
+					frame.store(i, StackValue::from_any(value));
+					i += local_size as u16;
 				}
 
 				if let Some(value) = instance {
@@ -180,6 +186,7 @@ impl<'a> Executor<'a> {
 									value.unwrap();
 								}
 							}
+							gc_attempts = 0;
 						}
 					}
 					Task::Call(task) => {
@@ -298,6 +305,14 @@ impl<'a> Executor<'a> {
 							continue;
 						}
 					}
+					Task::SwitchTable(v) => {
+						let offset = v.exec(frame);
+						exec_frame.cursor = exec_frame
+							.cursor
+							.checked_add_signed(offset as isize)
+							.unwrap();
+						continue;
+					}
 					Task::Stack(task) => task.exec(frame),
 					Task::Field(task) => task.exec(&self.runtime, frame),
 					Task::Increment(task) => {
@@ -313,8 +328,6 @@ impl<'a> Executor<'a> {
 					Task::ArrayCreate(v) => v.exec(&self.runtime, frame),
 					Task::ArrayCreateRef(v) => v.exec(&self.runtime, frame),
 				};
-
-				gc_attempts = 0;
 				exec_frame.cursor += 1;
 			}
 		}

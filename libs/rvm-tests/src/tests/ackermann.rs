@@ -17,12 +17,12 @@ fn ack(m: i32, n: i32) -> i32 {
 
 #[test]
 fn test() -> Result<(), std::io::Error> {
-	launch(32 * 1024 * 1024, |runtime| {
-		compile(
-			&*runtime,
-			&[(
-				"Main.java",
-				"public class Main {
+	let runtime = launch(1024, vec![]);
+	compile(
+		&*runtime,
+		&[(
+			"Main.java",
+			"public class Main {
     static int ack(int m, int n) {
         if (m == 0) {
             return n + 1;
@@ -35,21 +35,19 @@ fn test() -> Result<(), std::io::Error> {
         }
     }
 }",
-			)],
-		)?;
+		)],
+	)?;
 
-		const SAMPLES: usize = 3;
-		let java_ack = java_bind_method!(runtime fn Main:ack(m: i32, n: i32) -> i32);
-		let rust = sample("Rust ackermann", SAMPLES, |i| ack(i as i32, 10));
-		let java = sample("Java ackermann", SAMPLES, |i| java_ack(i as i32, 10));
+	const SAMPLES: usize = 3;
+	let java_ack = java_bind_method!(runtime fn Main:ack(m: i32, n: i32) -> i32);
+	let rust = sample("Rust ackermann", SAMPLES, |i| ack(i as i32, 10));
+	let java = sample("Java ackermann", SAMPLES, |i| java_ack(i as i32, 10));
 
-		for ((i, rust), java) in rust.into_iter().enumerate().zip(java.into_iter()) {
-			assert_eq!(
-				rust, java,
-				"Ackermann({i}, 12) Rust ({rust}) vs Java ({java}) failed "
-			);
-		}
-
-		Ok(())
-	})
+	for ((i, rust), java) in rust.into_iter().enumerate().zip(java.into_iter()) {
+		assert_eq!(
+			rust, java,
+			"Ackermann({i}, 12) Rust ({rust}) vs Java ({java}) failed "
+		);
+	}
+	Ok(())
 }

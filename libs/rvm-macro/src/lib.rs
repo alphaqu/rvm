@@ -3,9 +3,9 @@ extern crate proc_macro;
 use proc_macro::TokenStream;
 use std::fmt::Write;
 
-use syn::{Ident, parenthesized, parse, token, Token};
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
+use syn::{parenthesized, parse, token, Ident, Token};
 
 //macro_rules! java_descriptor {
 // 	(()) => {"V"};
@@ -77,8 +77,8 @@ impl Parse for PrimDesc {
 			"i8" => PrimDesc::I8,
 			"i16" => PrimDesc::I16,
 			"i32" => PrimDesc::I32,
-			"f32" => PrimDesc::I64,
-			"i64" => PrimDesc::F32,
+			"f32" => PrimDesc::F32,
+			"i64" => PrimDesc::I64,
 			"f64" => PrimDesc::F64,
 			_ => panic!(),
 		})
@@ -97,7 +97,7 @@ impl PrimDesc {
 			PrimDesc::I64 => "J".to_string(),
 			PrimDesc::F32 => "F".to_string(),
 			PrimDesc::F64 => "D".to_string(),
-			PrimDesc::Reference => "Ljava/lang/Object;".to_string()
+			PrimDesc::Reference => "Ljava/lang/Object;".to_string(),
 		}
 	}
 }

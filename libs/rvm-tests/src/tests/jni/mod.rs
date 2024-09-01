@@ -1,24 +1,16 @@
-use crate::{compile, launch};
+use crate::{compile, launch, load_sdk};
 use rvm_runtime::java_bind_method;
 
 #[test]
 fn main() {
-	launch(32 * 1024 * 1024, |runtime| {
-		runtime
-			.cl
-			.load_jar(include_bytes!("../../../../../rt.zip"), |v| {
-				v == "java/lang/Object.class"
-			})
-			.unwrap();
+	let runtime = launch(1024, vec![]);
+	compile(&runtime, &[("Main.java", include_str!("Main.java"))]).unwrap();
 
-		compile(&runtime, &[("Main.java", include_str!("Main.java"))]).unwrap();
+	runtime
+		.linker
+		.lock()
+		.link("/home/alphasucks/CLionProjects/rvm/libs/rvm-tests/src/tests/jni/libnative.so");
 
-		runtime
-			.linker
-			.lock()
-			.link("/home/alphasucks/CLionProjects/rvm/libs/rvm-tests/src/tests/jni/libnative.so");
-
-		let java = java_bind_method!(runtime fn Main:main());
-		let i = java();
-	})
+	let java = java_bind_method!(runtime fn Main:main());
+	let i = java();
 }

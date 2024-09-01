@@ -1,11 +1,8 @@
-use std::sync::Arc;
-
-use anyways::ext::AuditExt;
-use anyways::Result;
-
 use crate::{ClassMethodManager, FieldData, ObjectFieldLayout};
+use eyre::Context;
 use rvm_core::{Id, ObjectType, Type};
 use rvm_reader::{ClassInfo, ConstantPool};
+use std::sync::Arc;
 
 use crate::object::{Class, ClassLoader};
 
@@ -27,7 +24,7 @@ unsafe impl Send for InstanceClass {}
 unsafe impl Sync for InstanceClass {}
 
 impl InstanceClass {
-	pub fn parse(info: ClassInfo, cl: &ClassLoader) -> Result<InstanceClass> {
+	pub fn parse(info: ClassInfo, cl: &ClassLoader) -> eyre::Result<InstanceClass> {
 		let super_class = info
 			.constant_pool
 			.get(info.super_class)

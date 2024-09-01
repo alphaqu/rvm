@@ -1,6 +1,7 @@
 use std::fmt::{Display, Formatter};
 
 use nom::combinator::map;
+use nom::multi::{length_count, length_value};
 use nom::number::complete::{be_i16, be_i32, be_i8, be_u16, be_u8};
 use nom::sequence::tuple;
 use tracing::trace;
@@ -60,6 +61,25 @@ pub enum MathInst {
 	Shl(PrimitiveType),
 	Shr(PrimitiveType),
 	Ushr(PrimitiveType),
+}
+
+impl MathInst {
+	pub fn ty(&self) -> PrimitiveType {
+		match self {
+			MathInst::Add(ty) => *ty,
+			MathInst::Sub(ty) => *ty,
+			MathInst::Div(ty) => *ty,
+			MathInst::Mul(ty) => *ty,
+			MathInst::Rem(ty) => *ty,
+			MathInst::Neg(ty) => *ty,
+			MathInst::And(ty) => *ty,
+			MathInst::Or(ty) => *ty,
+			MathInst::Xor(ty) => *ty,
+			MathInst::Shl(ty) => *ty,
+			MathInst::Shr(ty) => *ty,
+			MathInst::Ushr(ty) => *ty,
+		}
+	}
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -225,8 +245,16 @@ pub enum InvokeInstKind {
 	Virtual,
 }
 
+#[derive(Clone, Debug)]
+pub struct TableSwitchInst {
+	pub low: i32,
+	pub high: i32,
+	pub default_offset: i32,
+	pub offsets: Vec<i32>,
+}
+
 #[allow(non_camel_case_types)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub enum Inst {
 	Nop,
 	Const(ConstInst),
@@ -250,17 +278,17 @@ pub enum Inst {
 	RET(u8),
 	// TODO read
 	LOOKUPSWITCH,
-	TABLESWITCH,
+	TableSwitch(TableSwitchInst),
 	MONITORENTER,
 	MONITOREXIT,
 }
 
 impl Inst {
-	pub fn parse(input: &[u8]) -> IResult<Inst> {
+	pub fn parse(input: &[u8], pos: usize) -> IResult<Inst> {
 		let (input, value): (_, u8) = be_u8(input)?;
 		let value = Op::parse(value);
 		trace!("Parsed {value:?}");
-		Ok(match (value) {
+		Ok(match value {
 			Op::NOP => (input, Inst::Nop),
 			// Consts
 			Op::ACONST_NULL => (input, Inst::Const(ConstInst::Null)),
@@ -808,9 +836,34 @@ impl Inst {
 					kind: InvokeInstKind::Virtual,
 				})
 			})(input)?,
-			v => {
-				panic!("instruction {v:?} kinda dodo");
+			Op::TABLESWITCH => {
+				let pos = pos + 1;
+				let padding = 4 - (pos % 4);
+				let mut input = input;
+				if padding != 4 {
+					let (new_input, _) =
+						length_count(|input| Ok((input, padding)) as IResult<usize>, be_u8)(input)?;
+					input = new_input;
+				}
+				let (input, default) = be_i32(input)?;
+				let (input, low) = be_i32(input)?;
+				let (input, high) = be_i32(input)?;
+
+				let count = (high - low + 1) as usize;
+				let (input, offsets) =
+					length_count(|input| Ok((input, count)) as IResult<usize>, be_i32)(input)?;
+
+				(
+					input,
+					Inst::TableSwitch(TableSwitchInst {
+						default_offset: default,
+						low,
+						high,
+						offsets,
+					}),
+				)
 			}
+			v => panic!("instruction {v:?} kinda dodo"),
 		})
 	}
 }

@@ -1,5 +1,3 @@
-#![feature(hash_drain_filter)]
-#![feature(drain_filter)]
 #![feature(array_try_from_fn)]
 #![feature(thread_local)]
 #![feature(thread_id_value)]
@@ -13,7 +11,7 @@ use std::thread::spawn;
 use parking_lot::{Mutex, RwLock};
 
 pub use object::*;
-use rvm_core::MethodDesc;
+use rvm_core::MethodDescriptor;
 pub use value::*;
 
 use crate::engine::Engine;

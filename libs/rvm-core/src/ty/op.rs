@@ -1,5 +1,30 @@
 use std::mem::transmute;
 
+macro_rules! impl_op {
+	($( $NAME:ident = $NUM:literal ),*) => {
+		#[repr(u8)]
+		#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
+		pub enum Op2 {
+			$(
+				$NAME = $NUM
+			),*
+		}
+	};
+}
+
+impl_op!(
+	NOP = 0,
+	ACONST_NULL = 1,
+	ICONST_M1 = 2,
+	ICONST_0 = 3,
+	ICONST_1 = 4,
+	ICONST_2 = 5,
+	ICONST_3 = 6,
+	ICONST_4 = 7,
+	ICONST_5 = 8,
+	LCONST_0 = 9,
+	LCONST_1 = 10
+);
 /// Java instructions
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
@@ -210,6 +235,9 @@ pub enum Op {
 
 impl Op {
 	pub fn parse(value: u8) -> Op {
+		match value {
+			_ => {}
+		}
 		unsafe { transmute(value) }
 	}
 }

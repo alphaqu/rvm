@@ -14,7 +14,7 @@ pub struct JavaField<V: Value> {}
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use rvm_core::{ArrayType, FieldAccessFlags, Kind, MethodDesc, ObjectType, Type};
+	use rvm_core::{ArrayType, FieldAccessFlags, Kind, MethodDescriptor, ObjectType, Type};
 	use rvm_reader::ConstantPool;
 	use rvm_runtime::{
 		Array, Class, ClassMethodManager, Field, FieldData, InstanceClass, Method, MethodCode,
@@ -71,7 +71,7 @@ mod tests {
 				static_fields: ObjectFieldLayout::new(&[], None, true),
 				methods: ClassMethodManager::new(vec![Method {
 					name: "hello".to_string(),
-					desc: MethodDesc::parse("(Ljava/lang/String;)"),
+					desc: MethodDescriptor::parse("(Ljava/lang/String;)"),
 					flags: (),
 					code: Some(MethodCode::Binding(MethodIdentifier {
 						name: "".to_string(),

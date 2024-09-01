@@ -3,13 +3,13 @@ use std::fmt::{Display, Formatter};
 use crate::Type;
 
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
-pub struct MethodDesc {
+pub struct MethodDescriptor {
 	pub parameters: Vec<Type>,
-	pub ret: Option<Type>,
+	pub returns: Option<Type>,
 }
 
-impl MethodDesc {
-	pub fn parse(desc: &str) -> Option<MethodDesc> {
+impl MethodDescriptor {
+	pub fn parse(desc: &str) -> Option<MethodDescriptor> {
 		let end = desc.find(')')?;
 		let mut remaining = &desc[1..end];
 		let mut parameters = Vec::new();
@@ -27,18 +27,21 @@ impl MethodDesc {
 			remaining = &remaining[size..];
 		}
 
-		Some(MethodDesc { parameters, ret })
+		Some(MethodDescriptor {
+			parameters,
+			returns: ret,
+		})
 	}
 }
 
-impl Display for MethodDesc {
+impl Display for MethodDescriptor {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		write!(f, "(")?;
 		for ty in &self.parameters {
 			write!(f, "{ty}")?;
 		}
 		write!(f, ")")?;
-		match &self.ret {
+		match &self.returns {
 			None => {
 				write!(f, "V")
 			}

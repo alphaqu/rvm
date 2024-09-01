@@ -17,10 +17,10 @@ pub enum StackValue {
 impl Display for StackValue {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		match self {
-			StackValue::Int(v) => write!(f, "i{v}"),
-			StackValue::Float(v) => write!(f, "f{v}"),
-			StackValue::Long(v) => write!(f, "l{v}"),
-			StackValue::Double(v) => write!(f, "d{v}"),
+			StackValue::Int(v) => write!(f, "{v}"),
+			StackValue::Float(v) => write!(f, "{v}F"),
+			StackValue::Long(v) => write!(f, "{v}L"),
+			StackValue::Double(v) => write!(f, "{v}.0"),
 			StackValue::Reference(v) => write!(f, "{v:?}"),
 		}
 	}

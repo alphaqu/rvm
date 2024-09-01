@@ -3,6 +3,8 @@ name = "rvm-tests"
 version = "0.1.0"
 edition = "2021"
 
+build = "build.rs"
+
 [dependencies]
 rvm-core = { path = "../rvm-core" }
 rvm-runtime = { path = "../rvm-runtime" }
@@ -10,3 +12,4 @@ rvm-macro = { path = "../rvm-macro" }
 rvm-engine-ben = { path = "../rvm-engine-ben" }
 
 walkdir = "2.3.2"
+num-traits = "0.2.16"

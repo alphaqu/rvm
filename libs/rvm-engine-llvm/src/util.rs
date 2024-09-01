@@ -1,7 +1,7 @@
 use inkwell::context::Context;
 use inkwell::types::{BasicMetadataTypeEnum, BasicType, BasicTypeEnum, FunctionType};
 
-use rvm_core::{Kind, MethodDesc};
+use rvm_core::{Kind, MethodDescriptor};
 
 pub fn kind_ty(kind: Kind, ctx: &Context) -> BasicTypeEnum {
 	match kind {
@@ -17,19 +17,15 @@ pub fn kind_ty(kind: Kind, ctx: &Context) -> BasicTypeEnum {
 	}
 }
 
-pub fn desc_ty<'ctx>(desc: &MethodDesc, ctx: &'ctx Context) -> FunctionType<'ctx> {
+pub fn desc_ty<'ctx>(desc: &MethodDescriptor, ctx: &'ctx Context) -> FunctionType<'ctx> {
 	let param_types: Vec<BasicMetadataTypeEnum> = desc
 		.parameters
 		.iter()
 		.map(|v| BasicMetadataTypeEnum::from(kind_ty(v.kind(), ctx)))
 		.collect();
 
-	match &desc.ret {
-		None => {
-			ctx.void_type().fn_type(&param_types, false)
-		}
-		Some(ty) => {
-			kind_ty(ty.kind(), ctx).fn_type(&param_types, false)
-		}
+	match &desc.returns {
+		None => ctx.void_type().fn_type(&param_types, false),
+		Some(ty) => kind_ty(ty.kind(), ctx).fn_type(&param_types, false),
 	}
 }

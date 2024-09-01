@@ -5,9 +5,9 @@ use std::ffi::c_void;
 use std::pin::Pin;
 use std::sync::{Arc, RwLock};
 
-use tracing::debug;
+use tracing::{debug, info};
 
-use rvm_core::{Id, MethodAccessFlags, MethodDesc, ObjectType, Storage, StorageValue, Type};
+use rvm_core::{Id, MethodAccessFlags, MethodDescriptor, ObjectType, Storage, StorageValue, Type};
 use rvm_reader::{Code, ConstantPool};
 use rvm_runtime::engine::{Engine, ThreadConfig, ThreadHandle};
 use rvm_runtime::{
@@ -31,16 +31,16 @@ impl BenEngine {
 		&self,
 		runtime: &Runtime,
 		mut id: Id<Class>,
-		method: MethodIdentifier,
+		method: &MethodIdentifier,
 	) -> Option<(Id<Class>, Id<Method>)> {
 		let mut cl_guard = runtime.cl.get(id);
 		let mut class = cl_guard.as_instance().unwrap();
 
-		let mut method_value: Option<Id<Method>> = class.methods.get_id(&method);
+		let mut method_value: Option<Id<Method>> = class.methods.get_id(method);
 		while method_value.is_none() {
 			cl_guard = runtime.cl.get(id);
 			class = cl_guard.as_instance().unwrap();
-			method_value = class.methods.get_id(&method);
+			method_value = class.methods.get_id(method);
 			id = class.super_id?;
 		}
 
@@ -76,11 +76,21 @@ impl BenEngine {
 				BenMethod::Binding(binding.clone())
 			}
 			None => {
-				if (method.flags.contains(MethodAccessFlags::NATIVE)) {
-					BenMethod::Native(
-						format!("Java_{}_{}", instance.ty.0.replace('/', "_"), method.name),
-						method.desc.clone(),
-					)
+				if method.flags.contains(MethodAccessFlags::NATIVE) {
+					let binding_guard = runtime.bindings.read();
+					let identifier = MethodIdentifier {
+						name: method.name.clone(),
+						descriptor: method.desc.to_string(),
+					};
+					info!("Trying to find {identifier:?}");
+					if let Some(binding) = binding_guard.get(&identifier) {
+						BenMethod::Binding(binding.clone())
+					} else {
+						BenMethod::Native(
+							format!("Java_{}_{}", instance.ty.0.replace('/', "_"), method.name),
+							method.desc.clone(),
+						)
+					}
 				} else {
 					panic!("Could not find method")
 				}
@@ -96,7 +106,7 @@ impl BenEngine {
 pub enum BenMethod {
 	Java(JavaMethod),
 	Binding(MethodBinding),
-	Native(String, MethodDesc),
+	Native(String, MethodDescriptor),
 }
 
 impl StorageValue for BenMethod {

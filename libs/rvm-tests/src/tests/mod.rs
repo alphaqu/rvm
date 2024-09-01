@@ -6,3 +6,4 @@ mod floats;
 mod integers;
 mod jni;
 mod object;
+mod switch_statement;

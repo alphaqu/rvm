@@ -3,9 +3,9 @@ use std::marker::PhantomData;
 
 use nom::combinator::{map, map_res};
 use nom::multi::length_data;
-use nom::Needed;
 use nom::number::complete::{be_f32, be_f64, be_i32, be_i64, be_u16, be_u8};
 use nom::sequence::pair;
+use nom::Needed;
 use tracing::trace;
 
 pub use crate::consts::class::ClassConst;
@@ -137,7 +137,7 @@ impl ConstantInfo {
 		}
 		let (input, variant) = be_u8(input)?;
 
-		trace!("cp_info tag: {variant}");
+		//trace!("cp_info tag: {variant}");
 		match variant {
 			1 => map_res(
 				length_data(be_u16),
@@ -146,7 +146,7 @@ impl ConstantInfo {
 					let data = mutf8::mutf8_to_utf8(data).unwrap();
 					let vec = data.to_vec();
 					String::from_utf8(vec).map(|v| {
-						trace!("cp_info UTF-8 {v}");
+						//trace!("cp_info UTF-8 {v}");
 						ConstantInfo::UTF8(UTF8Const(v))
 					})
 				},

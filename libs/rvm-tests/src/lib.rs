@@ -2,7 +2,9 @@
 #![feature(io_error_other)]
 #![feature(try_blocks)]
 #![feature(pin_macro)]
+#![feature(unchecked_math)]
 
+use std::fs::read;
 use std::io::Result;
 use std::sync::Arc;
 use std::time::Instant;
@@ -12,41 +14,37 @@ use walkdir::WalkDir;
 use rvm_engine_ben::BenBinding;
 use rvm_runtime::Runtime;
 
+mod testing;
 #[cfg(test)]
 mod tests;
 
-pub fn launch<F, R>(heap_size: usize, f: F) -> R
-	where
-		F: FnOnce(Arc<Runtime>) -> R + Send + 'static,
-		R: Send + 'static,
-{
-	std::thread::Builder::new()
-		.name(
-			std::thread::current()
-				.name()
-				.unwrap_or("Runner")
-				.to_string(),
-		)
-		.stack_size(1024 * 1024 * 64)
-		.spawn(move || {
-			rvm_core::init();
-			let runtime = Arc::new(Runtime::new(heap_size, Box::new(BenBinding::new())));
-
-			f(runtime)
-		})
-		.unwrap()
-		.join()
-		.unwrap()
+pub fn load_sdk(runtime: &Runtime) {
+	let vec = read("../../rt.zip").unwrap();
+	runtime
+		.cl
+		.load_jar(&vec, |v| v == "java/lang/Object.class")
+		.unwrap();
 }
 
-unsafe extern "C" fn blow_up() {}
+pub fn launch(heap_size: usize, files: Vec<&str>) -> Arc<Runtime> {
+	rvm_core::init();
+	let runtime = Arc::new(Runtime::new(heap_size, Box::new(BenBinding::new())));
+
+	load_sdk(&runtime);
+	for x in files {
+		runtime
+			.cl
+			.load_class(&read(format!("cache/{x}")).unwrap())
+			.unwrap();
+	}
+	runtime
+}
 
 pub fn compile(runtime: &Runtime, sources: &[(&str, &str)]) -> Result<()> {
 	let mut root = std::env::current_dir().unwrap();
 	root.push("temp");
 	root.push(&format!("rvm-{:p}", runtime));
 
-	println!("hi {root:?}");
 	let result: Result<()> = try {
 		std::fs::create_dir_all(&root)?;
 
@@ -96,8 +94,8 @@ pub fn compile(runtime: &Runtime, sources: &[(&str, &str)]) -> Result<()> {
 }
 
 pub fn sample<F, R>(message: &str, times: usize, f: F) -> Vec<R>
-	where
-		F: Fn(usize) -> R,
+where
+	F: Fn(usize) -> R,
 {
 	let mut nanos = 0;
 	let mut results = Vec::with_capacity(times);

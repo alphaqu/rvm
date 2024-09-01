@@ -32,7 +32,7 @@ impl Code {
 		// Read code and create opbyte to op vec
 		while op_byte_pos < code_length as usize {
 			let old = input.len();
-			let (input2, op) = Inst::parse(input)?;
+			let (input2, op) = Inst::parse(input, op_byte_pos)?;
 			let new = input2.len();
 
 			let op_byte_length = old - new;
@@ -50,12 +50,25 @@ impl Code {
 		let mut code: Vec<Inst> = Vec::with_capacity(op_byte_ops.len());
 		op_pos = 0;
 		for (op_byte, mut op) in op_byte_ops {
-			match &mut op {
-				Inst::Jump(JumpInst { offset, kind: _ }) => {
-					let i = ((op_byte as i64) + (*offset as i64)) as usize;
-					let jump_pos = op_byte_to_op[i] as i64;
+			let map = |offset: &mut i32| {
+				let i = ((op_byte as i64) + (*offset as i64)) as usize;
+				let jump_pos = op_byte_to_op[i] as i64;
 
-					*offset = (jump_pos - op_pos as i64) as i16 as i32;
+				*offset = (jump_pos - op_pos as i64) as i16 as i32;
+			};
+			match &mut op {
+				Inst::Jump(JumpInst { offset, .. }) => {
+					map(offset);
+				}
+				Inst::TableSwitch(TableSwitchInst {
+					offsets,
+					default_offset,
+					..
+				}) => {
+					map(default_offset);
+					for offset in offsets {
+						map(offset);
+					}
 				}
 				_ => {}
 			};
