@@ -6,15 +6,15 @@ use crate::thread::ThreadFrame;
 
 #[derive(Debug)]
 pub enum StackTask {
-	DUP,
-	DUP_X1,
-	DUP_X2,
-	DUP2,
-	DUP2_X1,
-	DUP2_X2,
-	POP,
-	POP2,
-	SWAP,
+	Dup,
+	DupX1,
+	DupX2,
+	Dup2,
+	Dup2X1,
+	Dup2X2,
+	Pop,
+	Pop2,
+	Swap,
 }
 
 impl Display for StackTask {
@@ -26,33 +26,33 @@ impl Display for StackTask {
 impl StackTask {
 	pub fn new(inst: &StackInst) -> StackTask {
 		match inst {
-			StackInst::DUP => StackTask::DUP,
-			StackInst::DUP_X1 => StackTask::DUP_X1,
-			StackInst::DUP_X2 => StackTask::DUP_X2,
-			StackInst::DUP2 => StackTask::DUP2,
-			StackInst::DUP2_X1 => StackTask::DUP2_X1,
-			StackInst::DUP2_X2 => StackTask::DUP2_X2,
-			StackInst::POP => StackTask::POP,
-			StackInst::POP2 => StackTask::POP2,
-			StackInst::SWAP => StackTask::SWAP,
+			StackInst::Dup => StackTask::Dup,
+			StackInst::DupX1 => StackTask::DupX1,
+			StackInst::DupX2 => StackTask::DupX2,
+			StackInst::Dup2 => StackTask::Dup2,
+			StackInst::Dup2X1 => StackTask::Dup2X1,
+			StackInst::Dup2X2 => StackTask::Dup2X2,
+			StackInst::Pop => StackTask::Pop,
+			StackInst::Pop2 => StackTask::Pop2,
+			StackInst::Swap => StackTask::Swap,
 		}
 	}
 
 	pub fn exec(&self, frame: &mut ThreadFrame) {
 		match self {
-			StackTask::DUP => {
+			StackTask::Dup => {
 				let value = frame.pop();
 				frame.push(value);
 				frame.push(value);
 			}
-			StackTask::DUP_X1 => {
+			StackTask::DupX1 => {
 				let value1 = frame.pop();
 				let value2 = frame.pop();
 				frame.push(value1);
 				frame.push(value2);
 				frame.push(value1);
 			}
-			StackTask::DUP_X2 => {
+			StackTask::DupX2 => {
 				let value1 = frame.pop();
 				let value2 = frame.pop();
 				if value2.category_1() {
@@ -67,7 +67,7 @@ impl StackTask {
 					frame.push(value1);
 				}
 			}
-			StackTask::DUP2 => {
+			StackTask::Dup2 => {
 				let value1 = frame.pop();
 				if value1.category_1() {
 					let value2 = frame.pop();
@@ -80,7 +80,7 @@ impl StackTask {
 					frame.push(value1);
 				}
 			}
-			StackTask::DUP2_X1 => {
+			StackTask::Dup2X1 => {
 				let value1 = frame.pop();
 				let value2 = frame.pop();
 				if value1.category_1() {
@@ -96,7 +96,7 @@ impl StackTask {
 					frame.push(value1);
 				}
 			}
-			StackTask::DUP2_X2 => {
+			StackTask::Dup2X2 => {
 				// form1 v4  v3  v2  v1
 				// form3     v3* v2  v1
 				// form2     v3  v2  v1*
@@ -137,16 +137,16 @@ impl StackTask {
 					frame.push(value1);
 				}
 			}
-			StackTask::POP => {
+			StackTask::Pop => {
 				frame.pop();
 			}
-			StackTask::POP2 => {
+			StackTask::Pop2 => {
 				let value = frame.pop();
 				if value.category_1() {
 					frame.pop();
 				}
 			}
-			StackTask::SWAP => {
+			StackTask::Swap => {
 				let value1 = frame.pop();
 				let value2 = frame.pop();
 				frame.push(value1);

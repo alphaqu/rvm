@@ -1,3 +1,5 @@
+package tests.jni;
+
 public class Main {
 	static {
 		System.loadLibrary("native");

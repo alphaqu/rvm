@@ -239,7 +239,6 @@ impl GarbageCollector {
 		}
 	}
 	pub fn walk(&self, mut visitor: impl FnMut(bool, Reference)) {
-		let mark = self.mark;
 		unsafe {
 			let mut current = self.data;
 			while (current as usize) < (self.free as usize) {
@@ -296,8 +295,8 @@ fn align_size(bytes: usize) -> usize {
 }
 
 pub struct GCStatistics {
-	objects_cleared: usize,
-	objects_remaining: usize,
+	pub objects_cleared: usize,
+	pub objects_remaining: usize,
 }
 
 #[derive(Error, Debug, Clone)]

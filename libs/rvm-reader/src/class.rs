@@ -1,9 +1,9 @@
+use eyre::Report;
 use nom::bytes::complete::tag;
 use nom::combinator::{map, map_opt};
 use nom::error::context;
 use nom::multi::length_count;
 use nom::number::complete::be_u16;
-use tracing::trace;
 
 use rvm_core::ClassAccessFlags;
 
@@ -11,7 +11,7 @@ use crate::attribute::AttributeInfo;
 use crate::consts::{ConstantInfo, ConstantPool};
 use crate::field::FieldInfo;
 use crate::method::MethodInfo;
-use crate::{ClassConst, ConstPtr, IResult, InterfaceConst};
+use crate::{ClassConst, ConstPtr, IResult};
 
 pub struct ClassInfo {
 	pub minor_version: u16,
@@ -29,6 +29,15 @@ pub struct ClassInfo {
 }
 
 impl ClassInfo {
+	pub fn parse_complete(input: &[u8]) -> eyre::Result<Self> {
+		Self::parse(input).map(|(_, value)| value).map_err(|err| {
+			match err.map(|e| e.format(input)) {
+				nom::Err::Error(report) => report,
+				nom::Err::Failure(report) => report,
+				error => Report::new(error),
+			}
+		})
+	}
 	pub fn parse(input: &[u8]) -> IResult<Self> {
 		let (input, _) = context("CAFE", tag(b"\xca\xfe\xba\xbe"))(input)?;
 		let (input, minor_version) = context("Java Minor Version", be_u16)(input)?;
@@ -73,10 +82,7 @@ impl ClassInfo {
 			"Methods",
 			length_count(be_u16, |input| MethodInfo::parse(input, &constant_pool)),
 		)(input)?;
-		let (input, attributes) = context(
-			"Attributes",
-			length_count(be_u16, |input| AttributeInfo::parse(input, &constant_pool)),
-		)(input)?;
+		let (input, attributes) = AttributeInfo::parse_list(input, &constant_pool)?;
 
 		Ok((
 			input,

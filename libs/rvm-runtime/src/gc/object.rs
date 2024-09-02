@@ -3,7 +3,6 @@ use std::mem::size_of;
 use bitflags::bitflags;
 
 pub type ObjectSize = u16;
-pub type ObjectRefFieldsHeader = u16;
 
 pub const OBJECT_HEADER: usize = size_of::<GcHeader>();
 

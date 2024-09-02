@@ -1,14 +1,13 @@
 use std::fmt::{Display, Formatter};
 
 use nom::combinator::map;
-use nom::multi::{length_count, length_value};
+use nom::multi::length_count;
 use nom::number::complete::{be_i16, be_i32, be_i8, be_u16, be_u8};
 use nom::sequence::tuple;
-use tracing::trace;
 
-use rvm_core::{Kind, Op, PrimitiveType, StackKind};
+use rvm_core::{Kind, PrimitiveType, StackKind};
 
-use crate::{be_cp, IResult};
+use crate::{be_cp, IResult, Op};
 use crate::{ClassConst, ConstPtr, FieldConst, MethodConst};
 
 #[derive(Copy, Clone, Debug)]
@@ -23,15 +22,15 @@ pub enum ConstInst {
 
 #[derive(Copy, Clone, Debug)]
 pub enum StackInst {
-	DUP,
-	DUP_X1,
-	DUP_X2,
-	DUP2,
-	DUP2_X1,
-	DUP2_X2,
-	POP,
-	POP2,
-	SWAP,
+	Dup,
+	DupX1,
+	DupX2,
+	Dup2,
+	Dup2X1,
+	Dup2X2,
+	Pop,
+	Pop2,
+	Swap,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -122,6 +121,7 @@ impl Display for JumpInst {
 	}
 }
 
+#[allow(non_camel_case_types)]
 #[derive(Copy, Clone, Debug)]
 pub enum JumpKind {
 	IF_ACMPEQ,
@@ -285,9 +285,8 @@ pub enum Inst {
 
 impl Inst {
 	pub fn parse(input: &[u8], pos: usize) -> IResult<Inst> {
-		let (input, value): (_, u8) = be_u8(input)?;
-		let value = Op::parse(value);
-		trace!("Parsed {value:?}");
+		let (input, value) = Op::parse_op(input)?;
+
 		Ok(match value {
 			Op::NOP => (input, Inst::Nop),
 			// Consts
@@ -307,15 +306,15 @@ impl Inst {
 			Op::LCONST_0 => (input, Inst::Const(ConstInst::Long(0))),
 			Op::LCONST_1 => (input, Inst::Const(ConstInst::Long(1))),
 			// Stack operations
-			Op::DUP => (input, Inst::Stack(StackInst::DUP)),
-			Op::DUP_X1 => (input, Inst::Stack(StackInst::DUP_X1)),
-			Op::DUP_X2 => (input, Inst::Stack(StackInst::DUP_X2)),
-			Op::DUP2 => (input, Inst::Stack(StackInst::DUP2)),
-			Op::DUP2_X1 => (input, Inst::Stack(StackInst::DUP2_X1)),
-			Op::DUP2_X2 => (input, Inst::Stack(StackInst::DUP2_X2)),
-			Op::POP => (input, Inst::Stack(StackInst::POP)),
-			Op::POP2 => (input, Inst::Stack(StackInst::POP2)),
-			Op::SWAP => (input, Inst::Stack(StackInst::SWAP)),
+			Op::DUP => (input, Inst::Stack(StackInst::Dup)),
+			Op::DUP_X1 => (input, Inst::Stack(StackInst::DupX1)),
+			Op::DUP_X2 => (input, Inst::Stack(StackInst::DupX2)),
+			Op::DUP2 => (input, Inst::Stack(StackInst::Dup2)),
+			Op::DUP2_X1 => (input, Inst::Stack(StackInst::Dup2X1)),
+			Op::DUP2_X2 => (input, Inst::Stack(StackInst::Dup2X2)),
+			Op::POP => (input, Inst::Stack(StackInst::Pop)),
+			Op::POP2 => (input, Inst::Stack(StackInst::Pop2)),
+			Op::SWAP => (input, Inst::Stack(StackInst::Swap)),
 			// Math
 			Op::DADD => (input, Inst::Math(MathInst::Add(PrimitiveType::Double))),
 			Op::DDIV => (input, Inst::Math(MathInst::Div(PrimitiveType::Double))),
@@ -427,21 +426,19 @@ impl Inst {
 			Op::SASTORE => (input, Inst::Array(ArrayInst::Store(Kind::Short))),
 			Op::ARRAYLENGTH => (input, Inst::Array(ArrayInst::Length)),
 			Op::NEWARRAY => map(be_u8, |v: u8| {
-				Inst::Array(ArrayInst::NewPrim(
-					(match v {
-						4 => PrimitiveType::Boolean,
-						5 => PrimitiveType::Char,
-						6 => PrimitiveType::Float,
-						7 => PrimitiveType::Double,
-						8 => PrimitiveType::Byte,
-						9 => PrimitiveType::Short,
-						10 => PrimitiveType::Int,
-						11 => PrimitiveType::Long,
-						_ => {
-							panic!("Invalid type")
-						}
-					}),
-				))
+				Inst::Array(ArrayInst::NewPrim(match v {
+					4 => PrimitiveType::Boolean,
+					5 => PrimitiveType::Char,
+					6 => PrimitiveType::Float,
+					7 => PrimitiveType::Double,
+					8 => PrimitiveType::Byte,
+					9 => PrimitiveType::Short,
+					10 => PrimitiveType::Int,
+					11 => PrimitiveType::Long,
+					_ => {
+						panic!("Invalid type")
+					}
+				}))
 			})(input)?,
 			Op::ANEWARRAY => map(be_cp, |v| Inst::Array(ArrayInst::NewRef(v)))(input)?,
 			Op::MULTIANEWARRAY => map(tuple((be_cp, be_u8)), |(class, dimensions)| {

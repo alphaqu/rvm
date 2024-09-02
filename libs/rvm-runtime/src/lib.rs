@@ -5,20 +5,19 @@
 #![feature(fn_traits)]
 
 use ahash::HashMap;
+pub use object::*;
 use parking_lot::{Mutex, RwLock};
+use rvm_core::Id;
 use std::sync::Arc;
 use std::thread::spawn;
 use std::time::Instant;
-
-pub use object::*;
-use rvm_core::{Id, MethodDescriptor};
+use tracing::debug;
 pub use value::*;
 
 use crate::engine::Engine;
 use crate::gc::GarbageCollector;
 use crate::native::JNILinker;
 
-mod bind;
 pub mod engine;
 pub mod error;
 pub mod gc;
@@ -58,7 +57,11 @@ impl Runtime {
 	pub fn gc(runtime: Arc<Runtime>) {
 		spawn(move || {
 			let mut gc = runtime.gc.lock();
-			gc.gc();
+			let statistics = gc.gc();
+			debug!(
+				"GC Complete: removed {} objects, {} remaining",
+				statistics.objects_cleared, statistics.objects_remaining
+			);
 		});
 	}
 

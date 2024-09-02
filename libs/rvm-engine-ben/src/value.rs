@@ -2,7 +2,6 @@ use derive_more::From;
 use rvm_core::{CastKindError, Kind, StackKind};
 use rvm_runtime::{AnyValue, Reference};
 use std::fmt::{Display, Formatter};
-use std::mem::transmute;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq, From)]
@@ -152,86 +151,85 @@ impl StackValue {
 		}
 	}
 }
-
-#[derive(Copy, Clone)]
-#[repr(transparent)]
-pub struct RawLocal(u32);
-
-pub trait Local {
-	const V: usize;
-	fn to_raw(self) -> [RawLocal; Self::V];
-	fn from_raw(value: [RawLocal; Self::V]) -> Self;
-}
-
-macro_rules! transmute_impl {
-	($TY:ty, $ITY:ty) => {
-		impl Local for $TY {
-			const V: usize = 1;
-			fn to_raw(self) -> [RawLocal; 1] {
-				[RawLocal(unsafe { transmute::<$TY, $ITY>(self) } as u32)]
-			}
-
-			fn from_raw([value]: [RawLocal; 1]) -> Self {
-				unsafe { transmute::<$ITY, $TY>(value.0 as $ITY) }
-			}
-		}
-	};
-}
-
-transmute_impl!(i8, u8);
-transmute_impl!(i16, u16);
-transmute_impl!(i32, u32);
-transmute_impl!(u16, u16);
-transmute_impl!(f32, u32);
-impl Local for Reference {
-	const V: usize = 2;
-
-	fn to_raw(self) -> [RawLocal; 2] {
-		let v: u64 = self.0 as usize as u64;
-		[RawLocal((v >> 32) as u32), RawLocal(v as u32)]
-	}
-
-	fn from_raw([v0, v1]: [RawLocal; 2]) -> Self {
-		unsafe {
-			let value = ((v0.0 as u64) << 32) | (v1.0 as u64);
-			Reference(value as usize as *mut u8)
-		}
-	}
-}
-
-impl Local for bool {
-	const V: usize = 1;
-
-	fn to_raw(self) -> [RawLocal; 1] {
-		[RawLocal(self as u8 as u32)]
-	}
-
-	fn from_raw([value]: [RawLocal; 1]) -> Self {
-		value.0 != 0
-	}
-}
-
-impl Local for f64 {
-	const V: usize = 2;
-
-	fn to_raw(self) -> [RawLocal; 2] {
-		i64::to_raw(unsafe { transmute(self) })
-	}
-
-	fn from_raw(value: [RawLocal; 2]) -> Self {
-		unsafe { transmute(i64::from_raw(value)) }
-	}
-}
-
-impl Local for i64 {
-	const V: usize = 2;
-
-	fn to_raw(self) -> [RawLocal; 2] {
-		let v: u64 = unsafe { transmute(self) };
-		[RawLocal((v >> 32) as u32), RawLocal(v as u32)]
-	}
-
-	fn from_raw([v0, v1]: [RawLocal; 2]) -> Self {
-		unsafe { transmute(((v0.0 as u64) << 32) | (v1.0 as u64)) }
-	}
-}
+//#[derive(Copy, Clone)]
+// #[repr(transparent)]
+// pub struct RawLocal(u32);
+//
+// pub trait Local {
+// 	const V: usize;
+// 	fn to_raw(self) -> [RawLocal; Self::V];
+// 	fn from_raw(value: [RawLocal; Self::V]) -> Self;
+// }
+//
+// macro_rules! transmute_impl {
+// 	($TY:ty, $ITY:ty) => {
+// 		impl Local for $TY {
+// 			const V: usize = 1;
+// 			fn to_raw(self) -> [RawLocal; 1] {
+// 				[RawLocal(unsafe { transmute::<$TY, $ITY>(self) } as u32)]
+// 			}
+//
+// 			fn from_raw([value]: [RawLocal; 1]) -> Self {
+// 				unsafe { transmute::<$ITY, $TY>(value.0 as $ITY) }
+// 			}
+// 		}
+// 	};
+// }
+//
+// transmute_impl!(i8, u8);
+// transmute_impl!(i16, u16);
+// transmute_impl!(i32, u32);
+// transmute_impl!(u16, u16);
+// transmute_impl!(f32, u32);
+// impl Local for Reference {
+// 	const V: usize = 2;
+//
+// 	fn to_raw(self) -> [RawLocal; 2] {
+// 		let v: u64 = self.0 as usize as u64;
+// 		[RawLocal((v >> 32) as u32), RawLocal(v as u32)]
+// 	}
+//
+// 	fn from_raw([v0, v1]: [RawLocal; 2]) -> Self {
+// 		unsafe {
+// 			let value = ((v0.0 as u64) << 32) | (v1.0 as u64);
+// 			Reference(value as usize as *mut u8)
+// 		}
+// 	}
+// }
+//
+// impl Local for bool {
+// 	const V: usize = 1;
+//
+// 	fn to_raw(self) -> [RawLocal; 1] {
+// 		[RawLocal(self as u8 as u32)]
+// 	}
+//
+// 	fn from_raw([value]: [RawLocal; 1]) -> Self {
+// 		value.0 != 0
+// 	}
+// }
+//
+// impl Local for f64 {
+// 	const V: usize = 2;
+//
+// 	fn to_raw(self) -> [RawLocal; 2] {
+// 		i64::to_raw(unsafe { transmute(self) })
+// 	}
+//
+// 	fn from_raw(value: [RawLocal; 2]) -> Self {
+// 		unsafe { transmute(i64::from_raw(value)) }
+// 	}
+// }
+//
+// impl Local for i64 {
+// 	const V: usize = 2;
+//
+// 	fn to_raw(self) -> [RawLocal; 2] {
+// 		let v: u64 = unsafe { transmute(self) };
+// 		[RawLocal((v >> 32) as u32), RawLocal(v as u32)]
+// 	}
+//
+// 	fn from_raw([v0, v1]: [RawLocal; 2]) -> Self {
+// 		unsafe { transmute(((v0.0 as u64) << 32) | (v1.0 as u64)) }
+// 	}
+// }

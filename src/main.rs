@@ -3,11 +3,8 @@ use std::path::Path;
 use std::sync::Arc;
 use std::thread::Builder;
 
-use inkwell::context::Context;
-
 use rvm_core::{init, ObjectType, Type};
 use rvm_engine_ben::BenBinding;
-use rvm_object::{Class, DynValue, MethodIdentifier};
 use rvm_runtime::engine::ThreadConfig;
 use rvm_runtime::Runtime;
 

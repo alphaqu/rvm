@@ -23,7 +23,7 @@ impl Display for CallTask {
 
 impl CallTask {
 	pub fn new(inst: &InvokeInst, class: &InstanceClass) -> CallTask {
-		let (name_and_type, name, is_interface) = match inst.value.get(&class.cp) {
+		let (name_and_type, name, _is_interface) = match inst.value.get(&class.cp) {
 			Some(method) => {
 				let name_and_type = method.name_and_type.get(&class.cp).unwrap();
 				let target = method.class.get(&class.cp).unwrap();

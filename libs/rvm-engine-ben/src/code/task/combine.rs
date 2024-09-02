@@ -1,10 +1,10 @@
-use num_traits::{Bounded, Num, Signed};
+use num_traits::{Bounded, PrimInt, Signed};
 use std::fmt::{Display, Formatter};
-use std::ops::Add;
 use std::ops::Div;
 use std::ops::Mul;
 use std::ops::Rem;
 use std::ops::Sub;
+use std::ops::{Add, Shl, Shr};
 
 use rvm_core::PrimitiveType;
 use rvm_reader::MathInst;
@@ -113,7 +113,7 @@ impl CombineTask {
 			V::div(v0, v1)
 		}
 
-		match self.op {
+		match &self.op {
 			CombineTaskOperation::Add => {
 				impl_for_types!(frame, self, v0, v1, v0.wrapping_add(v1), v0.add(v1));
 			}
@@ -129,8 +129,9 @@ impl CombineTask {
 			CombineTaskOperation::Rem => {
 				impl_for_types!(frame, self, v0, v1, v0.wrapping_rem(v1), v0.rem(v1));
 			}
-			_ => {
-				todo!()
+
+			task => {
+				todo!("{task:?}")
 			}
 		}
 	}

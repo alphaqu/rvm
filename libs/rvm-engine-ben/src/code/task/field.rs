@@ -35,7 +35,7 @@ impl FieldTask {
 		let source = source.name.get(&class.cp).unwrap();
 		let field = field.name_and_type.get(&class.cp).unwrap();
 		let field_name = field.name.get(&class.cp).unwrap();
-		let field_descriptor = field.descriptor.get(&class.cp).unwrap();
+		let _field_descriptor = field.descriptor.get(&class.cp).unwrap();
 		FieldTask {
 			source: ObjectType(source.to_string()),
 			field_name: field_name.to_string(),

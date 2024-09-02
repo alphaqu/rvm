@@ -7,7 +7,7 @@ use libloading::os::windows as imp;
 use libloading::Library;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
-use std::ffi::{CString, OsStr};
+use std::ffi::CString;
 use std::path::Path;
 use tracing::{debug, trace};
 

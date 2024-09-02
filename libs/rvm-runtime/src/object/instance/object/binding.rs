@@ -1,5 +1,5 @@
-use crate::{AnyArray, AnyInstance, AnyValue, Class, Returnable, Runtime};
-use rvm_core::{CastKindError, CastTypeError, Id, ObjectType, Type, Typed};
+use crate::{AnyInstance, AnyValue, Class, Returnable, Runtime};
+use rvm_core::{CastTypeError, Id, ObjectType, Type, Typed};
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 

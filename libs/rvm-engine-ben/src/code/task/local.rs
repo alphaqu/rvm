@@ -1,4 +1,4 @@
-use std::fmt::{Debug, Display, Formatter, Write};
+use std::fmt::{Debug, Display, Formatter};
 
 use rvm_core::StackKind;
 use rvm_reader::LocalInst;

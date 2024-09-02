@@ -1,4 +1,4 @@
-use std::fmt::{Display, Formatter, Write};
+use std::fmt::{Display, Formatter};
 
 use rvm_core::StackKind;
 use rvm_reader::ReturnInst;
@@ -18,7 +18,7 @@ impl ReturnTask {
 
 impl Display for ReturnTask {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-		write!(f, "RETURN ", )?;
+		write!(f, "RETURN ",)?;
 		match self.kind {
 			None => {
 				write!(f, "void")

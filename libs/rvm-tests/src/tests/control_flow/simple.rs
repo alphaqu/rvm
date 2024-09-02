@@ -28,8 +28,6 @@ fn test() -> Result<(), std::io::Error> {
 		)],
 	)?;
 
-	const SAMPLES: usize = 4;
-
 	for i in 0..8i32 {
 		for j in 0..8i32 {
 			let pow = java_bind_method!(runtime fn Main:pow(base: i32, power: i32) -> i32);

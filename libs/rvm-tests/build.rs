@@ -2,8 +2,8 @@
 #![feature(exit_status_error)]
 
 use std::env::vars;
-use std::fs::{create_dir_all, metadata, read, read_dir, File};
-use std::path::{Path, PathBuf};
+use std::fs::{metadata, read_dir, File};
+use std::path::PathBuf;
 use std::process::Command;
 
 fn main() {
@@ -13,7 +13,7 @@ fn main() {
 	bytecode_dir.push("bytecode");
 
 	let mut paths = vec![];
-	walk_dir(PathBuf::from("src/testing"), &mut paths);
+	walk_dir(PathBuf::from("src"), &mut paths);
 
 	// Check if it needs recompiling
 	let mut needs_recompile = false;
@@ -39,7 +39,7 @@ fn main() {
 					match class_file.modified() {
 						Ok(class_modified) => {
 							if java_file <= class_modified {
-								println!("cargo:warning=Skipping {path:?} because {class_path:?} exists.");
+								//println!("cargo:warning=Skipping {path:?} because {class_path:?} exists.");
 								continue;
 							}
 						}
@@ -60,7 +60,7 @@ fn main() {
 		needs_recompile = true;
 		break;
 	}
-	println!("cargo:warning=needs_recompile: {needs_recompile}");
+	//println!("cargo:warning=needs_recompile: {needs_recompile}");
 
 	if !needs_recompile {
 		return;
@@ -101,7 +101,9 @@ fn main() {
 
 	let string = String::from_utf8(process.output().unwrap().stderr).unwrap();
 	if !string.trim().is_empty() {
-		panic!("ERROR: {}", string);
+		for string in string.split("\n") {
+			println!("cargo:warning=JAVAC: {string}",);
+		}
 	}
 	status.exit_ok().expect("javac not successful");
 }

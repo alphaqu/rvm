@@ -46,7 +46,7 @@ pub fn spawn(
 
 							out = executor
 								.execute(&ty, &method, parameters)
-								.wrap_err("Running in thread")
+								.wrap_err_with(|| format!("Running in thread \"{}\"", config.name))
 								.unwrap();
 							return;
 						}
@@ -56,8 +56,6 @@ pub fn spawn(
 					}
 				}
 			}
-
-			debug!("{:?}: Finished", config.name);
 		});
 
 		out

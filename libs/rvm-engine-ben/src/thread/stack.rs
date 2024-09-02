@@ -59,7 +59,7 @@ impl ThreadStack {
 
 	pub fn visit_frames_mut(&mut self, mut func: impl FnMut(&mut Frame)) {
 		debug!("Visiting thread frames");
-		let mut ptr = &mut self.stack as *mut [u8] as *mut Frame;
+		let ptr = &mut self.stack as *mut [u8] as *mut Frame;
 		let mut pos = 0;
 		loop {
 			unsafe {

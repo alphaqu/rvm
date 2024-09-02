@@ -1,5 +1,5 @@
 use rvm_core::Kind;
-use rvm_runtime::{Reference, Value};
+use rvm_runtime::Reference;
 
 pub trait ReturnValue {
 	fn kind() -> Option<Kind>;

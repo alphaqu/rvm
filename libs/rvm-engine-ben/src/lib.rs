@@ -1,5 +1,3 @@
-#![feature(pointer_byte_offsets)]
-#![feature(generic_const_exprs)]
 #![feature(let_chains)]
 
 use std::ffi::c_void;
@@ -8,12 +6,10 @@ use std::sync::{Arc, RwLock};
 
 use tracing::{debug, info};
 
-use rvm_core::{Id, MethodAccessFlags, MethodDescriptor, ObjectType, Storage, StorageValue, Type};
-use rvm_reader::{Code, ConstantPool};
+use rvm_core::{Id, MethodAccessFlags, MethodDescriptor, Storage, StorageValue};
+use rvm_reader::ConstantPool;
 use rvm_runtime::engine::{Engine, ThreadConfig, ThreadHandle};
-use rvm_runtime::{
-	Class, InstanceClass, Method, MethodBinding, MethodCode, MethodIdentifier, Runtime,
-};
+use rvm_runtime::{Class, Method, MethodBinding, MethodCode, MethodIdentifier, Runtime};
 
 use crate::method::JavaMethod;
 use crate::thread::spawn;
@@ -153,9 +149,9 @@ impl Engine for BenBinding {
 
 	fn compile_method(
 		&self,
-		runtime: &Pin<&Runtime>,
-		method: &Method,
-		cp: &Arc<ConstantPool>,
+		_runtime: &Pin<&Runtime>,
+		_method: &Method,
+		_cp: &Arc<ConstantPool>,
 	) -> *const c_void {
 		todo!()
 	}

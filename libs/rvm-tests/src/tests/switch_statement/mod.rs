@@ -1,8 +1,3 @@
-use crate::{compile, launch};
-use rvm_core::MethodDescriptor;
-use rvm_macro::java_desc;
-use rvm_runtime::{java_bind_method, java_binding, MethodIdentifier};
-
 //#[test]
 //fn basic_switch() {
 //	let runtime = launch(1024, vec![]);

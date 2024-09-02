@@ -1,5 +1,7 @@
 use nom::bytes::complete::take;
 use nom::combinator::{map, map_opt};
+use nom::error::context;
+use nom::multi::length_count;
 use nom::number::complete::{be_u16, be_u32};
 use nom::sequence::tuple;
 
@@ -116,6 +118,12 @@ pub enum AttributeInfo {
 }
 
 impl AttributeInfo {
+	pub fn parse_list<'a>(input: &'a [u8], constant_pool: &ConstantPool) -> IResult<'a, Vec<Self>> {
+		context(
+			"Attributes",
+			length_count(be_u16, |input| AttributeInfo::parse(input, constant_pool)),
+		)(input)
+	}
 	pub fn parse<'a>(input: &'a [u8], constant_pool: &ConstantPool) -> IResult<'a, Self> {
 		let (input, info) = map_opt(be_u16, |index| constant_pool.raw_get(index))(input)?;
 		let (input, length) = be_u32(input)?;
@@ -125,9 +133,12 @@ impl AttributeInfo {
 				"ConstantValue" => map(be_u16, |constant_index| AttributeInfo::ConstantValue {
 					constant_index,
 				})(input),
-				"Code" => map(
-					|input| Code::parse(input, constant_pool),
-					|code| AttributeInfo::CodeAttribute { code },
+				"Code" => context(
+					"Code",
+					map(
+						|input| Code::parse(input, constant_pool),
+						|code| AttributeInfo::CodeAttribute { code },
+					),
 				)(input),
 				_ => map(take(length), |_| AttributeInfo::AnnotationDefault)(input),
 			},

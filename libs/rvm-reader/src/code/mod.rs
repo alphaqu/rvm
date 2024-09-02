@@ -3,10 +3,12 @@ use nom::number::streaming::{be_u16, be_u32};
 
 use crate::attribute::{AttributeException, AttributeInfo};
 pub use crate::code::inst::*;
+pub use crate::code::op::*;
 use crate::consts::ConstantPool;
 use crate::IResult;
 
 mod inst;
+mod op;
 
 pub struct Code {
 	pub max_stack: u16,

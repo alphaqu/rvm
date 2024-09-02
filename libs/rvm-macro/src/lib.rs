@@ -6,7 +6,8 @@ use std::fmt::Write;
 use syn::__private::ToTokens;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
-use syn::{parenthesized, parse, token, Ident, Token, Type};
+use syn::{parenthesized, parse, token, Token, Type};
+
 //macro_rules! java_descriptor {
 // 	(()) => {"V"};
 // 	(bool) => {"Z"};
@@ -140,8 +141,8 @@ impl Desc {
 	}
 }
 struct FuncDesc {
-	pub token: Token!(fn),
-	pub paren_token: token::Paren,
+	pub _token: Token!(fn),
+	pub _paren_token: token::Paren,
 	pub parameters: Punctuated<Desc, Token![,]>,
 	pub output: FuncReturn,
 }
@@ -183,14 +184,15 @@ impl Parse for FuncDesc {
 	fn parse(input: ParseStream) -> syn::Result<Self> {
 		let content;
 		Ok(FuncDesc {
-			token: input.parse()?,
-			paren_token: parenthesized!(content in input),
+			_token: input.parse()?,
+			_paren_token: parenthesized!(content in input),
 			parameters: content.parse_terminated(Desc::parse, Token![,])?,
 			output: input.parse()?,
 		})
 	}
 }
 
+#[allow(dead_code)]
 enum FuncReturn {
 	Default,
 	Type(Token![->], Box<Desc>),

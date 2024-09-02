@@ -1,15 +1,13 @@
+use std::error::Error;
+use std::fmt::{Debug, Display, Formatter, Write};
+
 pub use descriptor::*;
 pub use flags::*;
 pub use kind::*;
-pub use op::*;
-use std::error::Error;
-use std::fmt::{Debug, Display, Formatter, Write};
-use thiserror::Error;
 
 mod descriptor;
 mod flags;
 mod kind;
-mod op;
 
 /// A Type holds concrete information about the type we are handling.
 /// [Kind] is similar, but has no idea what the concrete implementation is.

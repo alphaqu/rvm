@@ -1,7 +1,7 @@
 use crate::{ClassMethodManager, FieldData, ObjectFieldLayout};
 use eyre::Context;
 use rvm_core::{Id, ObjectType, Type};
-use rvm_reader::{ClassConst, ClassInfo, ConstantPool};
+use rvm_reader::{ClassInfo, ConstantPool};
 use std::sync::Arc;
 
 use crate::object::{Class, ClassLoader};

@@ -1,16 +1,13 @@
 use either::Either;
-use eyre::{bail, Context, ContextCompat, Report};
+use eyre::{bail, Context, ContextCompat};
 use std::borrow::Cow;
 use std::sync::Arc;
-use tracing::{debug, info, trace, warn};
+use tracing::{debug, info, trace};
 
-use rvm_core::{Id, Kind, MethodAccessFlags, MethodDescriptor, ObjectType, Type};
-use rvm_reader::JumpKind;
+use rvm_core::{Id, MethodAccessFlags, MethodDescriptor, ObjectType, Type};
 use rvm_runtime::engine::Thread;
 use rvm_runtime::gc::{AllocationError, GcMarker, GcSweeper, RootProvider};
-use rvm_runtime::{
-	AnyValue, Class, MethodBinding, MethodCode, MethodIdentifier, Reference, Runtime,
-};
+use rvm_runtime::{AnyValue, Class, MethodBinding, MethodIdentifier, Reference, Runtime};
 
 use crate::code::{CallTask, CallType, Task};
 use crate::thread::{ThreadFrame, ThreadStack};
@@ -85,7 +82,7 @@ impl<'a> Executor<'a> {
 		match result {
 			Ok(object) => {
 				self.runner.gc_attempts = 0;
-				return Ok(Some(*object));
+				Ok(Some(*object))
 			}
 			Err(AllocationError::OutOfHeap) => {
 				self.runner.gc_attempts += 1;
@@ -96,7 +93,7 @@ impl<'a> Executor<'a> {
 				GcSweeper::wait_until_gc(self);
 				trace!("Forcing gc, and trying again.");
 				// try this instruction again, if we fail 5 time, we blow up.
-				return Ok(None);
+				Ok(None)
 			}
 			Err(error) => {
 				bail!(error);
@@ -168,7 +165,7 @@ impl<'f> JavaScope<'f> {
 						}
 					}
 				}
-				Task::Return(v) => {
+				Task::Return(_return) => {
 					let output = method.returns.map(|kind| {
 						let value = frame.pop();
 						value.convert(kind).unwrap()

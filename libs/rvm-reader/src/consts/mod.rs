@@ -6,7 +6,6 @@ use nom::multi::length_data;
 use nom::number::complete::{be_f32, be_f64, be_i32, be_i64, be_u16, be_u8};
 use nom::sequence::pair;
 use nom::Needed;
-use tracing::trace;
 
 pub use crate::consts::class::ClassConst;
 pub use crate::consts::field::FieldConst;
@@ -221,11 +220,7 @@ impl ConstantInfo {
 			18 => panic!("InvokeDynamic is not supported"),
 			19 => panic!("Module is not supported"),
 			20 => panic!("Package is not supported"),
-			opcode => {
-				return Err(nom::Err::Incomplete(Needed::Unknown));
-				panic!("Unknown {opcode}");
-				return Ok((input, ConstantInfo::Unknown));
-			}
+			_ => Err(nom::Err::Incomplete(Needed::Unknown)),
 		}
 	}
 }

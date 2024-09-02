@@ -1,8 +1,5 @@
 #![feature(exit_status_error)]
-#![feature(io_error_other)]
 #![feature(try_blocks)]
-#![feature(pin_macro)]
-#![feature(unchecked_math)]
 
 use std::fs::read;
 use std::io::Result;
@@ -14,7 +11,6 @@ use walkdir::WalkDir;
 use rvm_engine_ben::BenBinding;
 use rvm_runtime::Runtime;
 
-mod testing;
 #[cfg(test)]
 mod tests;
 

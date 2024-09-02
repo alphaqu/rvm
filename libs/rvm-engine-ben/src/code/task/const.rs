@@ -39,7 +39,7 @@ impl ConstTask {
 			ConstInst::Long(v) => ConstTask::Long(*v),
 			ConstInst::Float(v) => ConstTask::Float(*v),
 			ConstInst::Double(v) => ConstTask::Double(*v),
-			ConstInst::Ldc { id, cat2 } => {
+			ConstInst::Ldc { id, cat2: _ } => {
 				let info = class.cp.raw_get(*id).unwrap();
 				match info {
 					ConstantInfo::Integer(value) => ConstTask::Int(value.bytes),

@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use rvm_core::{Kind, MethodDescriptor};
 
-use crate::{AnyValue, Reference, Runtime, Value};
+use crate::{AnyValue, Reference, Runtime};
 
 #[derive(Clone)]
 pub struct MethodBinding {
@@ -56,7 +56,7 @@ impl MethodBinding {
 		macro_rules! param {
 			($($V:ty),*) => {
 				unsafe {
-					let f = transmute::<_, extern "C" fn(*const Runtime, $($V),*) -> usize>(self.function);
+					let f = transmute::<extern "C" fn(), extern "C" fn(*const Runtime, $($V),*) -> usize>(self.function);
 					let mut i = 0usize;
 					f(
 						runtime_ptr,
@@ -69,6 +69,7 @@ impl MethodBinding {
 		}
 
 		let value = match parameters.len() {
+			#[allow(unused)]
 			0 => param!(),
 			1 => param!(usize),
 			2 => param!(usize, usize),

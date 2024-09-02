@@ -1,5 +1,4 @@
 use eyre::Context;
-use nom::error::VerboseErrorKind;
 use parking_lot::RwLock;
 use std::io::{Cursor, Read};
 use std::sync::Arc;
@@ -84,25 +83,7 @@ impl ClassLoader {
 	/// Loads a java class to the JVM and injects it to the class table by locking it.
 	#[instrument(skip_all)]
 	pub fn load_class(&self, data: &[u8]) -> eyre::Result<Id<Class>> {
-		let info = match ClassInfo::parse(data) {
-			Ok((_, info)) => info,
-			Err(error) => {
-				match error {
-					nom::Err::Incomplete(e) => {}
-					nom::Err::Failure(e) | nom::Err::Error(e) => {
-						for (input, error) in e.errors {
-							match error {
-								VerboseErrorKind::Context(ctx) => {}
-								VerboseErrorKind::Char(char) => {}
-								VerboseErrorKind::Nom(nom) => {}
-							}
-							println!("{:?}", error);
-						}
-					}
-				}
-				panic!();
-			}
-		};
+		let info = ClassInfo::parse_complete(data).wrap_err("Failed to parse .class file")?;
 		let class = InstanceClass::parse(info, self)?;
 
 		debug!("Parsed class {}", class.ty);

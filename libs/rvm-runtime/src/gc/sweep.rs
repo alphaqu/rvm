@@ -128,5 +128,3 @@ impl GcMarker {
 		}
 	}
 }
-
-pub struct GcRemapper {}

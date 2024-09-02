@@ -6,8 +6,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use crate::{
-	read_arr, write_arr, AnyValue, Castable, Class, Reference, ReferenceKind, Returnable, Runtime,
-	Value,
+	read_arr, write_arr, AnyValue, Castable, Class, Reference, ReferenceKind, Runtime, Value,
 };
 
 #[derive(Copy, Clone)]

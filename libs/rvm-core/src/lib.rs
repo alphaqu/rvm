@@ -6,7 +6,6 @@ use std::sync::Once;
 use tracing::Level;
 use tracing_subscriber::filter;
 use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::util::SubscriberInitExt;
 
 pub use storage::*;
 pub use ty::*;

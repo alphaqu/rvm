@@ -3,6 +3,7 @@
 use bitflags::bitflags;
 
 bitflags! {
+	#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 	pub struct FieldAccessFlags: u16 {
 		const PUBLIC = 0x0001;
 		const PRIVATE = 0x0002;
@@ -14,6 +15,8 @@ bitflags! {
 		const SYNTHETIC = 0x1000;
 		const ENUM = 0x4000;
 	}
+
+	#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 	pub struct MethodAccessFlags: u16 {
 		const PUBLIC = 0x0001;
 		const PRIVATE = 0x0002;
@@ -29,6 +32,7 @@ bitflags! {
 		const SYNTHETIC = 0x1000;
 	}
 
+	#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 	pub struct ClassAccessFlags: u16 {
 		const PUBLIC = 0x0001;
 		const FINAL = 0x0010;
@@ -40,6 +44,7 @@ bitflags! {
 		const ENUM = 0x4000;
 	}
 
+	#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 	pub struct InnerClassAccessFlags: u16 {
 		const PUBLIC = 0x0001;
 		const PRIVATE = 0x0002;

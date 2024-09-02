@@ -1,10 +1,10 @@
 use std::fmt::{Display, Formatter};
 
-pub use combine::{CombineTask, CombineTaskOperation, CombineTaskType};
-pub use local::{LocalTask, LocalTaskKind};
+pub use combine::CombineTask;
+pub use local::LocalTask;
 pub use r#const::ConstTask;
 pub use r#return::ReturnTask;
-use rvm_reader::{ArrayInst, Inst, JumpInst, LocalInst, MathInst};
+use rvm_reader::{ArrayInst, Inst, LocalInst, MathInst};
 use rvm_runtime::InstanceClass;
 
 use crate::code::task::array::{

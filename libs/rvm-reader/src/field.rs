@@ -1,12 +1,11 @@
 use nom::combinator::map_opt;
-use nom::multi::length_count;
 use nom::number::complete::be_u16;
 
 use rvm_core::FieldAccessFlags;
 
-use crate::{ConstPtr, IResult, UTF8Const};
 use crate::attribute::AttributeInfo;
 use crate::consts::ConstantPool;
+use crate::{ConstPtr, IResult, UTF8Const};
 
 //field_info {
 //     u16             access_flags;
@@ -27,8 +26,7 @@ impl FieldInfo {
 		let (input, access_flags) = map_opt(be_u16, FieldAccessFlags::from_bits)(input)?;
 		let (input, name_index) = be_u16(input)?;
 		let (input, descriptor_index) = be_u16(input)?;
-		let (input, attribute_info) =
-			length_count(be_u16, |input| AttributeInfo::parse(input, constant_pool))(input)?;
+		let (input, attribute_info) = AttributeInfo::parse_list(input, constant_pool)?;
 
 		Ok((
 			input,

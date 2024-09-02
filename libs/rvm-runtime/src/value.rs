@@ -1,4 +1,4 @@
-use rvm_core::{Kind, Type};
+use rvm_core::Kind;
 use std::ptr::{read, write};
 use std::sync::Arc;
 

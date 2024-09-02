@@ -1,10 +1,14 @@
-public class ArrayTest {
+package testing.array;
+
+public class ArrayTest extends Object {
 	public static int[] singleArray(int value) {
 		int[] ints = {
 				value
 		};
+
 		return ints;
 	}
+
 
 	public static Object[] singleRefArray() {
 		Object[] ints = {

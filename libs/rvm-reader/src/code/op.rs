@@ -1,33 +1,17 @@
-use std::mem::transmute;
+use std::error::Error;
+use std::fmt::{Display, Formatter};
 
-macro_rules! impl_op {
-	($( $NAME:ident = $NUM:literal ),*) => {
-		#[repr(u8)]
-		#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
-		pub enum Op2 {
-			$(
-				$NAME = $NUM
-			),*
-		}
-	};
-}
+use nom::combinator::map_res;
+use nom::number::complete::be_u8;
+use num_derive::FromPrimitive;
+use num_traits::FromPrimitive;
 
-impl_op!(
-	NOP = 0,
-	ACONST_NULL = 1,
-	ICONST_M1 = 2,
-	ICONST_0 = 3,
-	ICONST_1 = 4,
-	ICONST_2 = 5,
-	ICONST_3 = 6,
-	ICONST_4 = 7,
-	ICONST_5 = 8,
-	LCONST_0 = 9,
-	LCONST_1 = 10
-);
+use crate::IResult;
+
 /// Java instructions
+#[allow(non_camel_case_types)]
 #[repr(u8)]
-#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, FromPrimitive)]
 pub enum Op {
 	NOP = 0,
 	ACONST_NULL = 1,
@@ -234,10 +218,18 @@ pub enum Op {
 }
 
 impl Op {
-	pub fn parse(value: u8) -> Op {
-		match value {
-			_ => {}
-		}
-		unsafe { transmute(value) }
+	pub fn parse_op(input: &[u8]) -> IResult<Op> {
+		map_res(be_u8, |u8| Op::from_u8(u8).ok_or(WrongOpError(u8)))(input)
 	}
 }
+
+#[derive(Debug)]
+pub struct WrongOpError(u8);
+
+impl Display for WrongOpError {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		write!(f, "Could not recognize java instruction {}", self.0)
+	}
+}
+
+impl Error for WrongOpError {}

@@ -1,6 +1,5 @@
 use std::ops::Deref;
 
-use ahash::HashMapExt;
 use nom::ToUsize;
 
 use rvm_core::{FieldAccessFlags, Type};

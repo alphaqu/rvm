@@ -1,78 +1,217 @@
-use rvm_core::MethodDescriptor;
-use rvm_macro::java_desc;
-use rvm_runtime::{java_bind_method, java_binding, MethodBinding, MethodIdentifier};
+use std::ops::{Deref, DerefMut};
+use std::sync::Arc;
 
-use crate::{compile, launch};
+use rvm_core::ObjectType;
+use rvm_runtime::{bind, AnyInstance, Instance, InstanceBinding, Runtime, TypedField};
 
-//#[test]
-//fn interface() {
-//	let runtime = launch(1024, vec![]);
-//
-//	compile(
-//		&runtime,
-//		&[
-//			("InterfaceTest.java", include_str!("InterfaceTest.java")),
-//			("Fruit.java", include_str!("Fruit.java")),
-//			("Assert.java", include_str!("../Assert.java")),
-//		],
-//	)
-//	.unwrap();
-//
-//	let (binding, identifier) = java_binding!(
-//		fn yes(value: bool) {
-//			println!("{value}");
-//		}
-//	);
-//	println!("{identifier:?}");
-//	runtime.bindings.write().insert(identifier, binding);
-//	let java = java_bind_method!(runtime fn tests::object::InterfaceTest:hi());
-//	let i = java();
-//}
+use crate::{launch, load_sdk};
 
-#[test]
-fn extend_test() {
-	let runtime = launch(1024, vec![]);
+#[derive(Clone, Copy)]
+pub struct Animal;
 
-	compile(
-		&runtime,
-		&[
-			("ObjectTest.java", include_str!("ObjectTest.java")),
-			("ExtendTest.java", include_str!("ExtendTest.java")),
-			("Assert.java", include_str!("../Assert.java")),
+impl InstanceBinding for Animal {
+	fn ty() -> ObjectType {
+		ObjectType("testing/object/Animal".to_string())
+	}
+
+	fn bind(_: &AnyInstance) -> Self {
+		Animal {}
+	}
+}
+
+#[derive(Clone, Copy)]
+pub struct SimpleObject {
+	value: TypedField<i32>,
+}
+
+impl InstanceBinding for SimpleObject {
+	fn ty() -> ObjectType {
+		ObjectType("testing/object/SimpleObject".to_string())
+	}
+
+	fn bind(instance: &AnyInstance) -> Self {
+		SimpleObject {
+			value: instance.field_named("value").unwrap().typed(),
+		}
+	}
+}
+
+#[derive(Clone, Copy)]
+pub struct ExtendedObject {
+	base: SimpleObject,
+	another_field: TypedField<i64>,
+}
+
+impl InstanceBinding for ExtendedObject {
+	fn ty() -> ObjectType {
+		ObjectType("testing/object/ExtendedObject".to_string())
+	}
+
+	fn bind(instance: &AnyInstance) -> Self {
+		ExtendedObject {
+			base: SimpleObject::bind(instance),
+			another_field: instance.field_named("anotherField").unwrap().typed(),
+		}
+	}
+}
+impl Deref for ExtendedObject {
+	type Target = SimpleObject;
+
+	fn deref(&self) -> &Self::Target {
+		&self.base
+	}
+}
+
+impl DerefMut for ExtendedObject {
+	fn deref_mut(&mut self) -> &mut Self::Target {
+		&mut self.base
+	}
+}
+
+pub struct ObjectTests;
+bind!("testing/object" {
+	ObjectTests {
+		createSimple() -> Instance<SimpleObject>,
+		createSimpleNumbered(number: i32) -> Instance<SimpleObject>,
+		createExtended() -> Instance<ExtendedObject>,
+		casting(object: Instance<ExtendedObject>) -> Instance<SimpleObject>,
+		getSimpleField(instance: Instance<SimpleObject>) -> i32,
+		setSimpleField(instance: Instance<SimpleObject>, number: i32),
+		simpleInvocation(instance: Instance<SimpleObject>) -> i32,
+		interfaceCall(instance: Instance<Animal>) -> i32
+	}
+});
+
+fn runtime() -> Arc<Runtime> {
+	let runtime = launch(
+		1024,
+		vec![
+			"testing/object/Animal.class",
+			"testing/object/ObjectTests.class",
+			"testing/object/SimpleObject.class",
+			"testing/object/ExtendedObject.class",
+			"testing/object/Dog.class",
 		],
-	)
-	.unwrap();
-
-	let java = java_bind_method!(runtime fn tests::object::ExtendTest:create());
-	let i = java();
+	);
+	load_sdk(&runtime);
+	runtime
 }
 
 #[test]
-fn new_test() {
-	let runtime = launch(1024, vec![]);
+pub fn create() {
+	let runtime = runtime();
+	let id = runtime.cl.resolve_class(&SimpleObject::ty().into());
 
-	compile(
-		&runtime,
-		&[("ObjectTest.java", include_str!("ObjectTest.java"))],
-	)
-	.unwrap();
-	let java =
-		java_bind_method!(runtime fn tests::object::ObjectTest:simpleTest(value: i32) -> i32);
-	let i = java(69);
-	assert_eq!(i, 69)
+	let create = ObjectTests::createSimple(&runtime);
+
+	let instance = create();
+	assert_eq!(instance.untyped().class_id(), id)
 }
 
 #[test]
-fn gc_test() {
-	let runtime = launch(1024, vec![]);
+pub fn create_numbered() {
+	let runtime = runtime();
 
-	compile(
-		&runtime,
-		&[("ObjectTest.java", include_str!("ObjectTest.java"))],
-	)
-	.unwrap();
+	let create = ObjectTests::createSimpleNumbered(&runtime);
 
-	let java = java_bind_method!(runtime fn ObjectTest:gcTest(value: i32) -> i32);
-	let i = java(64);
-	assert_eq!(i, 64)
+	let instance = create(69);
+	assert_eq!(*instance.value, 69);
+}
+
+#[test]
+pub fn get_field() {
+	let runtime = runtime();
+	let id = runtime.cl.resolve_class(&SimpleObject::ty().into());
+
+	let mut instance = runtime.alloc_object(id).typed::<SimpleObject>();
+	*instance.value = 420;
+
+	let get_field = ObjectTests::getSimpleField(&runtime);
+
+	let output = get_field(instance.clone());
+	assert_eq!(output, 420);
+}
+
+#[test]
+pub fn set_field() {
+	let runtime = runtime();
+	let id = runtime.cl.resolve_class(&SimpleObject::ty().into());
+
+	let instance = runtime.alloc_object(id).typed::<SimpleObject>();
+	assert_eq!(*instance.value, 0);
+
+	let set_field = ObjectTests::setSimpleField(&runtime);
+	set_field(instance.clone(), 420);
+	assert_eq!(*instance.value, 420);
+}
+
+#[test]
+pub fn basic_instance_method() {
+	let runtime = runtime();
+	let id = runtime.cl.resolve_class(&SimpleObject::ty().into());
+
+	let instance = runtime.alloc_object(id).typed::<SimpleObject>();
+	assert_eq!(*instance.value, 0);
+
+	let invocation = ObjectTests::simpleInvocation(&runtime);
+	let i = invocation(instance);
+	assert_eq!(i, 640);
+}
+
+#[test]
+pub fn create_extended() {
+	let runtime = runtime();
+	let id = runtime.cl.resolve_class(&ExtendedObject::ty().into());
+
+	let create_extended = ObjectTests::createExtended(&runtime);
+
+	let instance = create_extended();
+	assert_eq!(instance.class_id(), id);
+	assert_eq!(*instance.another_field, 500);
+	assert_eq!(*instance.value, 400);
+
+	let instance = instance.cast_to::<SimpleObject>();
+	assert_eq!(*instance.value, 400);
+}
+
+#[test]
+pub fn basic_override() {
+	let runtime = runtime();
+
+	let create_extended = ObjectTests::createExtended(&runtime);
+	let simple_invocation = ObjectTests::simpleInvocation(&runtime);
+
+	let instance = create_extended();
+
+	let i = simple_invocation(instance.cast_to::<SimpleObject>());
+
+	assert_eq!(i, 640 + 400);
+}
+
+#[test]
+pub fn casting() {
+	let runtime = runtime();
+	let id = runtime.cl.resolve_class(&ExtendedObject::ty().into());
+	let mut instance = runtime.alloc_object(id).typed::<ExtendedObject>();
+	*instance.value = 500;
+
+	let cast = ObjectTests::casting(&runtime);
+
+	let instance = cast(instance);
+
+	assert_eq!(*instance.value, 500);
+}
+
+#[test]
+pub fn interface_call() {
+	let runtime = runtime();
+
+	let id = runtime.cl.resolve_class(&ExtendedObject::ty().into());
+	let instance = runtime.alloc_object(id).typed::<ExtendedObject>();
+
+	let cast = ObjectTests::interfaceCall(&runtime);
+
+	let instance = cast(instance.cast_to::<Animal>());
+
+	assert_eq!(instance, 49);
 }

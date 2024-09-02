@@ -1,10 +1,9 @@
 mod binding;
 mod field;
 
-use rvm_core::{Id, Kind, ObjectType, StorageValue, Type};
-use std::marker::PhantomData;
+use rvm_core::{Id, Kind, StorageValue};
 use std::mem::size_of;
-use std::ops::{Deref, DerefMut, Index};
+use std::ops::Deref;
 use std::println;
 use std::sync::Arc;
 
@@ -13,7 +12,7 @@ pub use field::{DynField, TypedField};
 
 use crate::{
 	read_arr, write_arr, AnyValue, Castable, Class, Field, InstanceClass, Reference, ReferenceKind,
-	Returnable, Runtime, Value,
+	Runtime, Value,
 };
 
 #[derive(Copy, Clone)]

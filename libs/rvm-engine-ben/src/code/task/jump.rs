@@ -1,8 +1,9 @@
-use crate::code::{JavaScope, ReturnTask};
-use crate::thread::ThreadFrame;
+use std::fmt::{Display, Formatter};
+
 use rvm_reader::{JumpInst, JumpKind};
 use rvm_runtime::Reference;
-use std::fmt::{Display, Formatter};
+
+use crate::code::JavaScope;
 
 #[derive(Debug)]
 pub struct JumpTask {

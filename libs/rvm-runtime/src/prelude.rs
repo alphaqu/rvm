@@ -32,6 +32,7 @@ macro_rules! java_bind_method {
 		 {
 			 let value = |$($name: $pty),*| $(-> $ret)? {
 			// just so jetbrains ides have colors
+			#[allow(non_snake_case)]
 			fn $method() {}
 			let thread = $runtime.engine.create_thread($runtime.clone(), rvm_runtime::engine::ThreadConfig {
 				name: "run".to_string(),

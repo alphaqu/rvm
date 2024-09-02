@@ -1,10 +1,10 @@
-use crate::{launch, load_sdk};
-use rvm_core::{Kind, MethodDescriptor, PrimitiveType, Type};
-use rvm_runtime::{
-	bind, AnyValue, Array, Castable, CastableExt, MethodBinding, Reference, Runtime,
-};
 use std::mem::transmute;
 use std::sync::Arc;
+
+use rvm_core::{MethodDescriptor, PrimitiveType, Type};
+use rvm_runtime::{bind, MethodBinding, Runtime};
+
+use crate::{launch, load_sdk};
 
 pub struct RniTests;
 bind!("testing/rni" {

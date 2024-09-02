@@ -1,7 +1,22 @@
-use rvm_core::PrimitiveType;
-use rvm_runtime::{java_bind_method, Array, Reference};
+use std::sync::Arc;
 
-use crate::{compile, launch};
+use rvm_core::PrimitiveType;
+use rvm_runtime::{bind, Array, Reference};
+
+use crate::{launch, load_sdk};
+
+pub struct ArrayTest;
+
+bind!("testing/array" {
+	ArrayTest {
+		singleArray(value: i32) -> Array<i32>,
+		singleRefArray() -> Array<Reference>,
+		setValue(array: Array<i32>, index: i32, value: i32),
+		getValue(array: Array<i32>, index: i32) -> i32,
+		setValueRef(array: Array<Reference>, index: i32, value: Reference),
+		getValueRef(array: Array<Reference>, index: i32) -> Reference
+	}
+});
 
 #[test]
 fn primitive() {
@@ -29,15 +44,10 @@ fn primitive() {
 
 #[test]
 fn creation() {
-	let runtime = launch(1024, vec![]);
+	let runtime = launch(1024, vec!["testing/array/ArrayTest.class"]);
+	load_sdk(&runtime);
 
-	compile(
-		&runtime,
-		&[("ArrayTest.java", include_str!("ArrayTest.java"))],
-	)
-	.unwrap();
-
-	let java_set = java_bind_method!(runtime fn ArrayTest:singleArray(value: i32) -> Array<i32>);
+	let java_set = ArrayTest::singleArray(&runtime);
 
 	let array = java_set(420);
 	assert_eq!(array.length(), 1);
@@ -46,24 +56,18 @@ fn creation() {
 
 #[test]
 fn setter() {
-	let runtime = launch(1024, vec![]);
+	let runtime = launch(1024, vec!["testing/array/ArrayTest.class"]);
+	load_sdk(&runtime);
 
-	compile(
-		&runtime,
-		&[("ArrayTest.java", include_str!("ArrayTest.java"))],
-	)
-	.unwrap();
-
-	let java_set =
-		java_bind_method!(runtime fn ArrayTest:setValue(array: Array<i32>, index: i32, value: i32));
+	let java_set = ArrayTest::setValue(&runtime);
 
 	let short = runtime
 		.gc
 		.lock()
 		.allocate_array(PrimitiveType::Int, 3)
 		.unwrap();
-	let mut array = Array::new(short);
 
+	let array = Array::new(short);
 	assert_eq!(array.get(0), Some(0));
 
 	java_set(array, 0, 69);
@@ -78,45 +82,34 @@ fn setter() {
 
 #[test]
 fn getter() {
-	let runtime = launch(1024, vec![]);
-
-	compile(
-		&runtime,
-		&[("ArrayTest.java", include_str!("ArrayTest.java"))],
-	)
-	.unwrap();
-
-	let java_get =
-		java_bind_method!(runtime fn ArrayTest:getValue(array: Array<i32>, index: i32) -> i32);
+	let runtime = launch(1024, vec!["testing/array/ArrayTest.class"]);
+	load_sdk(&runtime);
 
 	let short = runtime
 		.gc
 		.lock()
 		.allocate_array(PrimitiveType::Int, 3)
 		.unwrap();
+
 	let mut array = Array::new(short);
 
-	assert_eq!(java_get(array, 0), 0);
+	let get_value = ArrayTest::getValue(&runtime);
+	assert_eq!(get_value(array, 0), 0);
 	array.set(0, 342);
-	assert_eq!(java_get(array, 0), 342);
+	assert_eq!(get_value(array, 0), 342);
 	array.set(0, 69);
-	assert_eq!(java_get(array, 0), 69);
+	assert_eq!(get_value(array, 0), 69);
 }
 
 #[test]
-fn refArrays() {
-	let runtime = launch(1024, vec![]);
+fn ref_arrays() {
+	let runtime = launch(1024, vec!["testing/array/ArrayTest.class"]);
+	load_sdk(&runtime);
 
-	compile(
-		&runtime,
-		&[("ArrayTest.java", include_str!("ArrayTest.java"))],
-	)
-	.unwrap();
+	let java_create = ArrayTest::singleRefArray(&runtime);
+	let java_get = ArrayTest::getValueRef(&runtime);
+	let java_set = ArrayTest::setValueRef(&runtime);
 
-	let java_create = java_bind_method!(runtime fn ArrayTest:singleRefArray() -> Array<Reference>);
-
-	let java_get = java_bind_method!(runtime fn ArrayTest:getValueRef(array: Array<Reference>, index: i32) -> Reference);
-	let java_set = java_bind_method!(runtime fn ArrayTest:setValueRef(array: Array<Reference>, index: i32, value: Reference));
 	let array = java_create();
 
 	let reference = **array;

@@ -1,10 +1,10 @@
-mod args;
-mod ret;
+use rvm_runtime::{ClassLoader, Reference, Value};
 
 use crate::args::Args;
 use crate::ret::ReturnValue;
-use rvm_runtime::{ClassLoader, MethodBinding, Reference, Runtime, Value};
-use std::sync::Arc;
+
+mod args;
+mod ret;
 
 pub unsafe trait JavaBinder {
 	fn load_class(binder: &Binder, cl: &ClassLoader);
@@ -13,13 +13,13 @@ pub unsafe trait JavaBinder {
 pub struct JavaField<V: Value> {}
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use rvm_core::{ArrayType, FieldAccessFlags, Kind, MethodDescriptor, ObjectType, Type};
-	use rvm_reader::ConstantPool;
+	use rvm_core::{FieldAccessFlags, Kind, MethodDescriptor, ObjectType, Type};
 	use rvm_runtime::{
-		Array, Class, ClassMethodManager, Field, FieldData, InstanceClass, Method, MethodCode,
+		Array, Class, ClassMethodManager, FieldData, InstanceClass, Method, MethodCode,
 		MethodIdentifier, ObjectFieldLayout,
 	};
+
+	use super::*;
 
 	pub struct JavaString {
 		hi: JavaField<Array<i8>>,
