@@ -66,6 +66,7 @@ fn add_doubles() {
 		}
 	}
 }
+
 //fn test_op<V: Clone + Debug + PartialEq + Copy + Display + FromStr>(
 // 	values: Vec<V>,
 // 	name: &str,

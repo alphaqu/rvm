@@ -175,7 +175,7 @@ impl<'f> JavaScope<'f> {
 				}
 				Task::Nop => {}
 				Task::Const(v) => v.exec(frame),
-				Task::Combine(v) => v.exec(frame),
+				Task::Combine(v) => v.exec(frame).wrap_err_with(|| format!("Combine {}", v))?,
 				Task::Local(v) => v.exec(frame),
 				Task::Jump(task) => {
 					task.exec(self);

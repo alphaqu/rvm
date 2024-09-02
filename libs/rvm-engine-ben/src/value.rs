@@ -25,26 +25,42 @@ impl Display for StackValue {
 	}
 }
 
-impl StackValue {
-	pub fn to_int(self) -> Result<i32, CastKindError> {
-		match self {
-			StackValue::Int(value) => Ok(value),
-			_ => Err(CastKindError {
-				expected: Kind::Int,
-				found: self.kind().kind(),
-			}),
+macro_rules! to_impl {
+	($($METHOD_NAME:ident $KIND:ident $TY:ty),*) => {
+		impl StackValue {
+			$(
+				pub fn $METHOD_NAME(self) -> Result<$TY, CastKindError> {
+					match self {
+						StackValue::$KIND(value) => Ok(value),
+						_ => Err(CastKindError {
+							expected: Kind::$KIND,
+							found: self.kind().kind(),
+						}),
+					}
+				}
+			)*
 		}
-	}
 
-	pub fn to_ref(self) -> Result<Reference, CastKindError> {
-		match self {
-			StackValue::Reference(value) => Ok(value),
-			_ => Err(CastKindError {
-				expected: Kind::Reference,
-				found: self.kind().kind(),
-			}),
-		}
-	}
+		$(
+			impl TryInto<$TY> for StackValue {
+				type Error = CastKindError;
+
+				fn try_into(self) -> Result<$TY, Self::Error> {
+					self.$METHOD_NAME()
+				}
+			}
+		)*
+	};
+}
+
+to_impl!(
+	to_int Int i32,
+	to_long Long i64,
+	to_float Float f32,
+	to_double Double f64,
+	to_ref Reference Reference
+);
+impl StackValue {
 	pub fn kind(&self) -> StackKind {
 		match self {
 			StackValue::Int(_) => StackKind::Int,

@@ -1,4 +1,5 @@
 #![feature(let_chains)]
+#![feature(int_roundings)]
 
 use std::ffi::c_void;
 use std::pin::Pin;
