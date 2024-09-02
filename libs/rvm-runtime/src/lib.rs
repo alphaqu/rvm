@@ -5,10 +5,10 @@
 #![feature(fn_traits)]
 
 use ahash::HashMap;
+use parking_lot::{Mutex, RwLock};
 use std::sync::Arc;
 use std::thread::spawn;
-
-use parking_lot::{Mutex, RwLock};
+use std::time::Instant;
 
 pub use object::*;
 use rvm_core::{Id, MethodDescriptor};
@@ -39,6 +39,7 @@ pub struct Runtime {
 	pub gc: Mutex<GarbageCollector>,
 	pub bindings: RwLock<HashMap<MethodIdentifier, MethodBinding>>,
 	pub linker: Mutex<JNILinker>,
+	pub started: Instant,
 }
 
 impl Runtime {
@@ -50,6 +51,7 @@ impl Runtime {
 			gc: Mutex::new(GarbageCollector::new(heap_size)),
 			bindings: Default::default(),
 			linker: Mutex::new(JNILinker::new()),
+			started: Instant::now(),
 		}
 	}
 

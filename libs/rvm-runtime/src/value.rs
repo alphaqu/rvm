@@ -1,12 +1,32 @@
-use rvm_core::Kind;
+use rvm_core::{Kind, Type};
 use std::ptr::{read, write};
 use std::sync::Arc;
 
 use crate::object::Reference;
 use crate::Runtime;
+pub trait Castable {
+	fn cast_from(runtime: &Arc<Runtime>, value: AnyValue) -> Self;
+}
+
+pub trait CastableExt<V> {
+	fn cast_into(self, runtime: &Arc<Runtime>) -> V;
+}
+
+impl<V: Castable> CastableExt<V> for AnyValue {
+	fn cast_into(self, runtime: &Arc<Runtime>) -> V {
+		V::cast_from(runtime, self)
+	}
+}
 
 pub trait Returnable {
 	fn from_value(runtime: &Arc<Runtime>, value: Option<AnyValue>) -> Self;
+}
+
+impl<C: Castable> Returnable for C {
+	fn from_value(runtime: &Arc<Runtime>, value: Option<AnyValue>) -> Self {
+		let value = value.unwrap();
+		C::cast_from(runtime, value)
+	}
 }
 
 impl Returnable for () {
@@ -25,7 +45,7 @@ pub trait Value: Sized + Copy {
 	fn kind() -> Kind;
 	unsafe fn write(ptr: *mut u8, value: Self);
 	unsafe fn read(ptr: *mut u8) -> Self;
-	unsafe fn cast(ptr: *mut u8) -> *mut Self {
+	unsafe fn cast_pointer(ptr: *mut u8) -> *mut Self {
 		ptr as *mut Self
 	}
 }
@@ -45,9 +65,9 @@ pub enum AnyValue {
 
 macro_rules! impl_from {
 	($TY:ty, $KIND:ident) => {
-		impl Returnable for $TY {
-			fn from_value(_: &Arc<Runtime>, value: Option<AnyValue>) -> Self {
-				value.unwrap().try_into().unwrap()
+		impl Castable for $TY {
+			fn cast_from(_: &Arc<Runtime>, value: AnyValue) -> Self {
+				value.try_into().unwrap()
 			}
 		}
 

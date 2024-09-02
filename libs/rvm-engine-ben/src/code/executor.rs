@@ -1,5 +1,6 @@
 use either::Either;
 use eyre::{bail, Context, ContextCompat, Report};
+use std::borrow::Cow;
 use std::sync::Arc;
 use tracing::{debug, info, trace, warn};
 
@@ -284,6 +285,7 @@ impl<'a> Executor<'a> {
 			.engine
 			.compile_method(&self.runtime, method_class, method_id);
 
+		let returns = desc.returns.as_ref().map(|v| v.kind());
 		Ok(match &*method {
 			BenMethod::Java(java) => {
 				let is_method_static = java.flags.contains(MethodAccessFlags::STATIC);
@@ -320,12 +322,20 @@ impl<'a> Executor<'a> {
 					cursor: 0,
 				})
 			}
-			BenMethod::Binding(binding) => Scope::Return(binding.call(&inputs.parameters)),
+			BenMethod::Binding(binding) => {
+				Scope::Return(binding.call(&self.runtime, &inputs.parameters, returns))
+			}
 			BenMethod::Native(native, desc) => {
 				let mut linker = self.runtime.linker.lock();
 				Scope::Return(linker.get(native, |function| unsafe {
 					trace!("Calling native function");
-					MethodBinding::new(function, desc.clone()).call(&inputs.parameters)
+
+					let binding = match function {
+						Either::Left(left) => Cow::Owned(MethodBinding::new(left, desc.clone())),
+						Either::Right(right) => Cow::Borrowed(right),
+					};
+
+					binding.call(&self.runtime, &inputs.parameters, returns)
 				}))
 			}
 		})

@@ -12,7 +12,7 @@ pub use binding::{Instance, InstanceBinding};
 pub use field::{DynField, TypedField};
 
 use crate::{
-	read_arr, write_arr, AnyValue, Class, Field, InstanceClass, Reference, ReferenceKind,
+	read_arr, write_arr, AnyValue, Castable, Class, Field, InstanceClass, Reference, ReferenceKind,
 	Returnable, Runtime, Value,
 };
 
@@ -124,7 +124,7 @@ impl InstanceReference {
 
 	pub unsafe fn get_mut_ptr<V: Value>(&self, offset: usize) -> *mut V {
 		let data = self.fields().add(offset);
-		V::cast(data)
+		V::cast_pointer(data)
 	}
 
 	pub unsafe fn get_any(&self, offset: usize, kind: Kind) -> AnyValue {
@@ -232,15 +232,15 @@ impl AnyInstance {
 		Instance::try_new(self).expect("Wrong type!")
 	}
 }
-impl Returnable for InstanceReference {
-	fn from_value(runtime: &Arc<Runtime>, value: Option<AnyValue>) -> Self {
-		let reference = Reference::from_value(runtime, value);
+impl Castable for InstanceReference {
+	fn cast_from(runtime: &Arc<Runtime>, value: AnyValue) -> Self {
+		let reference = Reference::cast_from(runtime, value);
 		InstanceReference::new(reference)
 	}
 }
-impl Returnable for AnyInstance {
-	fn from_value(runtime: &Arc<Runtime>, value: Option<AnyValue>) -> Self {
-		let reference = InstanceReference::from_value(runtime, value);
+impl Castable for AnyInstance {
+	fn cast_from(runtime: &Arc<Runtime>, value: AnyValue) -> Self {
+		let reference = InstanceReference::cast_from(runtime, value);
 		AnyInstance::new(runtime.clone(), reference)
 	}
 }

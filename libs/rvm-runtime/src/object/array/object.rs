@@ -6,7 +6,8 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use crate::{
-	read_arr, write_arr, AnyValue, Class, Reference, ReferenceKind, Returnable, Runtime, Value,
+	read_arr, write_arr, AnyValue, Castable, Class, Reference, ReferenceKind, Returnable, Runtime,
+	Value,
 };
 
 #[derive(Copy, Clone)]
@@ -168,6 +169,10 @@ impl AnyArray {
 			}
 		}
 	}
+
+	pub fn typed<V: Value>(self) -> Array<V> {
+		Array::new(self)
+	}
 }
 
 #[derive(Copy, Clone)]
@@ -221,9 +226,9 @@ impl<V: Value> Array<V> {
 	}
 }
 
-impl<V: Value> Returnable for Array<V> {
-	fn from_value(runtime: &Arc<Runtime>, value: Option<AnyValue>) -> Self {
-		let reference = Reference::from_value(runtime, value);
+impl<V: Value> Castable for Array<V> {
+	fn cast_from(runtime: &Arc<Runtime>, value: AnyValue) -> Self {
+		let reference = Reference::cast_from(runtime, value);
 		Array::new(reference.to_array().unwrap())
 	}
 }

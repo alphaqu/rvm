@@ -3,11 +3,16 @@ use std::sync::Arc;
 
 use rvm_core::{Kind, MethodDescriptor};
 
-use crate::{AnyValue, Reference, Value};
+use crate::{AnyValue, Reference, Runtime, Value};
 
 #[derive(Clone)]
 pub struct MethodBinding {
-	function: extern "system" fn(),
+	function: extern "C" fn(),
+	signature: Option<MethodSignature>,
+}
+
+#[derive(Clone)]
+pub struct MethodSignature {
 	parameters: Vec<Kind>,
 	returns: Option<Kind>,
 }
@@ -15,21 +20,46 @@ pub struct MethodBinding {
 impl MethodBinding {
 	/// # Safety
 	/// Caller must ensure the function follows the signature of decs, else some UB might happen.
-	pub unsafe fn new(function: extern "system" fn(), desc: MethodDescriptor) -> MethodBinding {
+	pub unsafe fn new(function: extern "C" fn(), desc: MethodDescriptor) -> MethodBinding {
 		MethodBinding {
 			function,
-			parameters: desc.parameters.iter().map(|v| v.kind()).collect(),
-			returns: desc.returns.map(|v| v.kind()),
+			signature: Some(MethodSignature {
+				parameters: desc.parameters.iter().map(|v| v.kind()).collect(),
+				returns: desc.returns.map(|v| v.kind()),
+			}),
 		}
 	}
 
-	pub fn call(&self, parameters: &[AnyValue]) -> Option<AnyValue> {
+	pub fn call(
+		&self,
+		runtime: &Arc<Runtime>,
+		parameters: &[AnyValue],
+		returns: Option<Kind>,
+	) -> Option<AnyValue> {
+		if let Some(signature) = &self.signature {
+			assert_eq!(returns, signature.returns);
+			assert_eq!(
+				signature.parameters.len(),
+				parameters.len(),
+				"Parameter count missmatch"
+			);
+			for (i, kind) in signature.parameters.iter().enumerate() {
+				assert_eq!(
+					parameters[i].kind(),
+					*kind,
+					"Parameter {i} kind does not match"
+				);
+			}
+		}
+
+		let runtime_ptr = Arc::into_raw(runtime.clone());
 		macro_rules! param {
 			($($V:ty),*) => {
 				unsafe {
-					let f = transmute::<_, extern "C" fn($($V),*) -> usize>(self.function);
+					let f = transmute::<_, extern "C" fn(*const Runtime, $($V),*) -> usize>(self.function);
 					let mut i = 0usize;
 					f(
+						runtime_ptr,
 						$(
 						self.param((&mut i) as &mut $V, parameters),
 						)*
@@ -38,7 +68,7 @@ impl MethodBinding {
 			};
 		}
 
-		let value = match self.parameters.len() {
+		let value = match parameters.len() {
 			0 => param!(),
 			1 => param!(usize),
 			2 => param!(usize, usize),
@@ -51,17 +81,23 @@ impl MethodBinding {
 			}
 		};
 
-		self.returns
-			.map(|returns| Self::convert_from(value, returns))
+		unsafe {
+			// We decrement our strong reference count
+			Arc::from_raw(runtime_ptr);
+		}
+
+		returns.map(|returns| Self::convert_from(value, returns))
 	}
 
 	unsafe fn param(&self, idx: &mut usize, parameters: &[AnyValue]) -> usize {
 		let index = *idx;
 		*idx += 1;
-		let kind = self.parameters[index];
 		let value = parameters[index];
-		if value.kind() != kind {
-			panic!("Missmatched types, {} != {}", value.kind(), kind);
+		if let Some(signature) = &self.signature {
+			let kind = signature.parameters[index];
+			if value.kind() != kind {
+				panic!("Missmatched types, {} != {}", value.kind(), kind);
+			}
 		}
 		Self::convert_to(value)
 	}
