@@ -1,12 +1,13 @@
 use std::fmt::{Display, Formatter};
 
-use rvm_core::ObjectType;
+use rvm_core::{MethodDescriptor, ObjectType};
 use rvm_reader::{ConstPtr, InterfaceConst, InvokeInst, InvokeInstKind};
 use rvm_runtime::{InstanceClass, MethodIdentifier};
 
 #[derive(Debug, Clone)]
 pub struct CallTask {
 	pub method: MethodIdentifier,
+	pub method_descriptor: MethodDescriptor,
 	pub object: ObjectType,
 	pub ty: CallType,
 }
@@ -44,9 +45,11 @@ impl CallTask {
 			}
 		};
 
+		let identifier = MethodIdentifier::new(name_and_type, &class.cp);
 		CallTask {
-			method: MethodIdentifier::new(name_and_type, &class.cp),
-			object: ObjectType(name.to_string()),
+			method_descriptor: MethodDescriptor::parse(&identifier.descriptor).unwrap(),
+			method: identifier,
+			object: ObjectType::new(name.to_string()),
 			ty: match inst.kind {
 				InvokeInstKind::Dynamic => todo!(),
 				InvokeInstKind::Interface(_) => CallType::Interface,

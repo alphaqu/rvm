@@ -20,7 +20,7 @@ mod tests;
 pub fn load_sdk(runtime: &Runtime) {
 	let vec = read("../../rt.zip").unwrap();
 	runtime
-		.cl
+		.classes
 		.load_jar(&vec, |v| v == "java/lang/Object.class")
 		.unwrap();
 }
@@ -67,17 +67,18 @@ pub fn simple_launch(tests: Vec<SimpleClassTest>) {
 	load_test_core(&runtime);
 
 	for test in tests {
-		let ty = ObjectType(test.name);
+		let ty = ObjectType::new(test.name);
 		for method in test.methods {
 			let _ = runtime.simple_run(
 				ty.clone(),
 				MethodIdentifier {
-					name: method.name,
+					name: method.name.into(),
 					descriptor: MethodDescriptor {
 						parameters: method.parameters.iter().map(|(v, _)| v.clone()).collect(),
 						returns: method.returns.as_ref().map(|(v, _)| v.clone()),
 					}
-					.to_string(),
+					.to_string()
+					.into(),
 				},
 				method.parameters.iter().map(|(_, v)| *v).collect(),
 			);
@@ -93,7 +94,7 @@ pub fn launch(heap_size: usize, files: Vec<&str>) -> Arc<Runtime> {
 	for x in files {
 		let x1 = x.borrow();
 		runtime
-			.cl
+			.classes
 			.load_class(&read(format!("bytecode/{x1}")).unwrap())
 			.unwrap();
 	}
@@ -139,7 +140,7 @@ pub fn compile(runtime: &Runtime, sources: &[(&str, &str)]) -> Result<()> {
 
 			if entry.path().extension().and_then(|x| x.to_str()) == Some("class") {
 				runtime
-					.cl
+					.classes
 					.load_class(&std::fs::read(entry.path())?)
 					.unwrap();
 			}
@@ -155,14 +156,14 @@ pub fn compile(runtime: &Runtime, sources: &[(&str, &str)]) -> Result<()> {
 
 pub fn sample<F, R>(message: &str, times: usize, f: F) -> Vec<R>
 where
-	F: Fn(usize) -> R,
+	F: Fn() -> R,
 {
 	let mut nanos = 0;
 	let mut results = Vec::with_capacity(times);
 
 	for i in 0..times {
 		let start = Instant::now();
-		results.push(std::hint::black_box(f(i)));
+		results.push(std::hint::black_box(f()));
 		nanos += start.elapsed().as_nanos();
 	}
 

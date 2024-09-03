@@ -26,62 +26,63 @@ impl JNIFunction {
 
 	pub fn call(
 		&self,
-		runtime: &Arc<Runtime>,
+		runtime: &Runtime,
 		parameters: &[AnyValue],
 		returns: Option<Kind>,
 	) -> Option<AnyValue> {
-		if let Some(signature) = &self.signature {
-			assert_eq!(returns, signature.returns);
-			assert_eq!(
-				signature.parameters.len(),
-				parameters.len(),
-				"Parameter count missmatch"
-			);
-			for (i, kind) in signature.parameters.iter().enumerate() {
-				assert_eq!(
-					parameters[i].kind(),
-					*kind,
-					"Parameter {i} kind does not match"
-				);
-			}
-		}
-
-		let runtime_ptr = Arc::into_raw(runtime.clone());
-		macro_rules! param {
-			($($V:ty),*) => {
-				unsafe {
-					let f = transmute::<extern "C" fn(), extern "C" fn(*const Runtime, $($V),*) -> usize>(self.function);
-					let mut i = 0usize;
-					f(
-						runtime_ptr,
-						$(
-						self.param((&mut i) as &mut $V, parameters),
-						)*
-					)
-				}
-			};
-		}
-
-		let value = match parameters.len() {
-			#[allow(unused)]
-			0 => param!(),
-			1 => param!(usize),
-			2 => param!(usize, usize),
-			3 => param!(usize, usize, usize),
-			4 => param!(usize, usize, usize, usize),
-			5 => param!(usize, usize, usize, usize, usize),
-			6 => param!(usize, usize, usize, usize, usize, usize),
-			_ => {
-				panic!()
-			}
-		};
-
-		unsafe {
-			// We decrement our strong reference count
-			Arc::from_raw(runtime_ptr);
-		}
-
-		returns.map(|returns| Self::convert_from(value, returns))
+		todo!("JNIEnv is blocking")
+		//if let Some(signature) = &self.signature {
+		// 			assert_eq!(returns, signature.returns);
+		// 			assert_eq!(
+		// 				signature.parameters.len(),
+		// 				parameters.len(),
+		// 				"Parameter count missmatch"
+		// 			);
+		// 			for (i, kind) in signature.parameters.iter().enumerate() {
+		// 				assert_eq!(
+		// 					parameters[i].kind(),
+		// 					*kind,
+		// 					"Parameter {i} kind does not match"
+		// 				);
+		// 			}
+		// 		}
+		//
+		// 		let runtime_ptr = Arc::into_raw(runtime.clone());
+		// 		macro_rules! param {
+		// 			($($V:ty),*) => {
+		// 				unsafe {
+		// 					let f = transmute::<extern "C" fn(), extern "C" fn(*const Runtime, $($V),*) -> usize>(self.function);
+		// 					let mut i = 0usize;
+		// 					f(
+		// 						runtime_ptr,
+		// 						$(
+		// 						self.param((&mut i) as &mut $V, parameters),
+		// 						)*
+		// 					)
+		// 				}
+		// 			};
+		// 		}
+		//
+		// 		let value = match parameters.len() {
+		// 			#[allow(unused)]
+		// 			0 => param!(),
+		// 			1 => param!(usize),
+		// 			2 => param!(usize, usize),
+		// 			3 => param!(usize, usize, usize),
+		// 			4 => param!(usize, usize, usize, usize),
+		// 			5 => param!(usize, usize, usize, usize, usize),
+		// 			6 => param!(usize, usize, usize, usize, usize, usize),
+		// 			_ => {
+		// 				panic!()
+		// 			}
+		// 		};
+		//
+		// 		unsafe {
+		// 			// We decrement our strong reference count
+		// 			Arc::from_raw(runtime_ptr);
+		// 		}
+		//
+		// 		returns.map(|returns| Self::convert_from(value, returns))
 	}
 
 	unsafe fn param(&self, idx: &mut usize, parameters: &[AnyValue]) -> usize {

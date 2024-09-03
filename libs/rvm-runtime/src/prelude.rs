@@ -12,13 +12,10 @@ pub struct TestMethodCall<R: Returnable> {
 }
 
 impl<R: Returnable> TestMethodCall<R> {
-	pub fn call(self, runtime: &Arc<Runtime>) -> R {
-		let thread = runtime.engine.create_thread(
-			runtime.clone(),
-			ThreadConfig {
-				name: "run".to_string(),
-			},
-		);
+	pub fn call(self, runtime: &Runtime) -> R {
+		let thread = runtime.create_thread(ThreadConfig {
+			name: "run".to_string(),
+		});
 		thread.run(self.ty, self.desc, self.parameters);
 		let value = thread.join();
 		let dyn_value = value.expect("Thread failed to run");
@@ -34,16 +31,16 @@ macro_rules! java_bind_method {
 			// just so jetbrains ides have colors
 			#[allow(non_snake_case)]
 			fn $method() {}
-			let thread = $runtime.engine.create_thread($runtime.clone(), rvm_runtime::engine::ThreadConfig {
+			let thread = $runtime.create_thread(rvm_runtime::engine::ThreadConfig {
 				name: "run".to_string(),
 			});
 
 
 			thread.run(
-				rvm_core::ObjectType(::core::stringify!($class).to_string().replace("::", "/")),
+				rvm_core::ObjectType::new(::core::stringify!($class).to_string().replace("::", "/")),
 				rvm_runtime::MethodIdentifier {
-					name: ::core::stringify!($method).to_string(),
-					descriptor: rvm_macro::java_desc!(fn($($pty),*) $(-> $ret)?).to_string(),
+					name: ::core::stringify!($method).to_string().into(),
+					descriptor: rvm_macro::java_desc!(fn($($pty),*) $(-> $ret)?).to_string().into(),
 				},
 				vec![
 					$(
@@ -90,10 +87,10 @@ macro_rules! bind {
 
 					move |$($PARAM_NAME: $PARAM),*| {
 						let call = rvm_runtime::prelude::TestMethodCall::<rvm_runtime::bind_return!($($RETURNS)?)> {
-							ty: rvm_core::ObjectType(class.clone()),
+							ty: rvm_core::ObjectType::new(class.clone()),
 							desc: rvm_runtime::MethodIdentifier {
-								name: stringify!($METHOD).to_string(),
-								descriptor: rvm_macro::java_desc!(fn($($PARAM),*) $(-> $RETURNS)?).to_string(),
+								name: stringify!($METHOD).to_string().into(),
+								descriptor: rvm_macro::java_desc!(fn($($PARAM),*) $(-> $RETURNS)?).to_string().into(),
 							},
 							parameters: vec![$($PARAM_NAME.into()),*],
 							_returns: Default::default(),

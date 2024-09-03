@@ -11,6 +11,7 @@ use crate::value::StackValue;
 pub struct ArrayCreateTask(pub PrimitiveType);
 
 impl ArrayCreateTask {
+	#[inline(always)]
 	pub fn exec(&self, runtime: &Runtime, frame: &mut ThreadFrame) {
 		let length = frame.pop().to_int().unwrap();
 		let array = runtime.gc.lock().allocate_array(self.0, length).unwrap();
@@ -31,13 +32,14 @@ impl ArrayCreateRefTask {
 	pub fn new(ptr: &ConstPtr<ClassConst>, obj: &InstanceClass) -> ArrayCreateRefTask {
 		let class = ptr.get(&obj.cp).unwrap();
 		let name = class.name.get(&obj.cp).unwrap();
-		ArrayCreateRefTask(ObjectType(name.to_string()))
+		ArrayCreateRefTask(ObjectType::new(name.to_string()))
 	}
 
+	#[inline(always)]
 	pub fn exec(&self, runtime: &Runtime, frame: &mut ThreadFrame) {
 		let length = frame.pop().to_int().unwrap();
 
-		let id = runtime.cl.resolve_class(&Type::Object(self.0.clone()));
+		let id = runtime.classes.resolve(&Type::Object(self.0.clone()));
 		let array = runtime.gc.lock().allocate_ref_array(id, length).unwrap();
 
 		frame.push(StackValue::Reference(*array));
@@ -54,6 +56,7 @@ impl Display for ArrayCreateRefTask {
 pub struct ArrayLengthTask;
 
 impl ArrayLengthTask {
+	#[inline(always)]
 	pub fn exec(&self, frame: &mut ThreadFrame) {
 		let reference = frame.pop().to_ref().unwrap();
 		let option = reference.to_array();
@@ -73,6 +76,7 @@ impl Display for ArrayLengthTask {
 pub struct ArrayLoadTask(pub Kind);
 
 impl ArrayLoadTask {
+	#[inline(always)]
 	pub fn exec(&self, frame: &mut ThreadFrame) {
 		let index = frame.pop().to_int().unwrap();
 
@@ -97,6 +101,7 @@ impl Display for ArrayLoadTask {
 pub struct ArrayStoreTask(pub Kind);
 
 impl ArrayStoreTask {
+	#[inline(always)]
 	pub fn exec(&self, frame: &mut ThreadFrame) {
 		let value = frame.pop();
 		let value = value.convert(self.0).expect("unable to conver");

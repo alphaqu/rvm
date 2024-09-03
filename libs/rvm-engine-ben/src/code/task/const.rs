@@ -54,6 +54,7 @@ impl ConstTask {
 		}
 	}
 
+	#[inline(always)]
 	pub fn exec(&self, frame: &mut ThreadFrame) {
 		match self {
 			ConstTask::Null => {

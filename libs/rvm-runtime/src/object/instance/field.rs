@@ -27,18 +27,18 @@ impl FieldData {
 }
 
 #[derive(Clone)]
-pub struct ObjectFieldLayout {
+pub struct ClassFields {
 	pub fields_size: u32,
 	pub ref_fields: u16,
 	fields: Storage<String, Field>,
 }
 
-impl ObjectFieldLayout {
+impl ClassFields {
 	pub fn new(
 		fields: &[FieldData],
-		super_fields: Option<&ObjectFieldLayout>,
+		super_fields: Option<&ClassFields>,
 		static_layout: bool,
-	) -> ObjectFieldLayout {
+	) -> ClassFields {
 		let mut output: Vec<(usize, Field, String)> = vec![];
 		if let Some(fields) = super_fields {
 			for (id, name, field) in fields.fields.iter_keys_unordered() {
@@ -98,7 +98,7 @@ impl ObjectFieldLayout {
 			storage.insert(name, field);
 		}
 
-		ObjectFieldLayout {
+		ClassFields {
 			fields_size,
 			ref_fields: ref_fields as u16,
 			fields: storage,
@@ -106,7 +106,7 @@ impl ObjectFieldLayout {
 	}
 }
 
-impl Deref for ObjectFieldLayout {
+impl Deref for ClassFields {
 	type Target = Storage<String, Field>;
 
 	fn deref(&self) -> &Self::Target {

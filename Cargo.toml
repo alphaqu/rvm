@@ -25,3 +25,6 @@ members = [
     "./libs/rvm-macro",
     "./libs/rvm-tests",
 ]
+
+[profile.dev]
+opt-level = 1

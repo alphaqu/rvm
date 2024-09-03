@@ -10,7 +10,7 @@ pub trait InstanceBinding {
 }
 
 impl<B: InstanceBinding> Returnable for Instance<B> {
-	fn from_value(runtime: &Arc<Runtime>, value: Option<AnyValue>) -> Self {
+	fn from_value(runtime: &Runtime, value: Option<AnyValue>) -> Self {
 		let instance = AnyInstance::from_value(runtime, value);
 		Instance::try_new(instance).unwrap()
 	}
@@ -32,7 +32,7 @@ impl<B: InstanceBinding> Instance<B> {
 	pub fn try_new(instance: AnyInstance) -> Result<Self, CastTypeError> {
 		let target_class = instance
 			.runtime
-			.cl
+			.classes
 			.get_named(&B::ty().into())
 			.expect("Class is not found loaded");
 
@@ -62,13 +62,13 @@ impl<B: InstanceBinding> Instance<B> {
 	}
 }
 impl<B: InstanceBinding> ToJava for Instance<B> {
-	fn to_java(self, runtime: &Arc<Runtime>) -> eyre::Result<AnyValue> {
+	fn to_java(self, runtime: &Runtime) -> eyre::Result<AnyValue> {
 		self.instance.to_java(runtime)
 	}
 }
 
 impl<B: InstanceBinding> FromJava for Instance<B> {
-	fn from_java(value: AnyValue, runtime: &Arc<Runtime>) -> eyre::Result<Self> {
+	fn from_java(value: AnyValue, runtime: &Runtime) -> eyre::Result<Self> {
 		let instance = AnyInstance::from_java(value, runtime)?;
 		Ok(Self::try_new(instance)?)
 	}

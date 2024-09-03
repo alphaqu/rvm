@@ -1,3 +1,5 @@
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
 use crossbeam::channel::{unbounded, Receiver, Sender};
@@ -13,15 +15,19 @@ pub(super) fn new_sweeper() -> (GcSweeperHandle, GcSweeper) {
 	let parker: Parker = Default::default();
 	let unparker = parker.unparker().clone();
 
+	let should_yield: Arc<AtomicBool> = Arc::new(Default::default());
+
 	let (sender, receiver) = unbounded();
 	(
 		GcSweeperHandle {
 			unparker,
 			complete_parker,
 			sender,
+			should_yield: should_yield.clone(),
 		},
 		GcSweeper {
 			receiver,
+			should_yield: should_yield.clone(),
 			parker,
 			complete: complete_unparker,
 		},
@@ -32,12 +38,15 @@ pub struct GcSweeperHandle {
 	pub(super) unparker: Unparker,
 	pub(super) complete_parker: Parker,
 	pub(super) sender: Sender<bool>,
+	pub(super) should_yield: Arc<AtomicBool>,
 }
 
 impl GcSweeperHandle {
 	pub(super) fn start(&self, mark: bool) {
+		self.should_yield.store(true, Ordering::Relaxed);
 		self.sender.send(mark).unwrap();
 		self.complete_parker.park();
+		self.should_yield.store(false, Ordering::Relaxed);
 	}
 
 	pub(super) fn start_marking(&self) {
@@ -58,14 +67,18 @@ impl GcSweeperHandle {
 pub struct GcSweeper {
 	// Gives which mark
 	pub(super) receiver: Receiver<bool>,
+	pub(super) should_yield: Arc<AtomicBool>,
 	pub(super) parker: Parker,
 	pub(super) complete: Unparker,
 }
 
 impl GcSweeper {
 	pub fn yield_gc(roots: &mut impl RootProvider) {
-		if let Ok(mark) = roots.sweeper().receiver.try_recv() {
-			Self::gc(mark, roots);
+		let sweeper = roots.sweeper();
+		if sweeper.should_yield.load(Ordering::Relaxed) {
+			if let Ok(mark) = sweeper.receiver.try_recv() {
+				Self::gc(mark, roots);
+			}
 		}
 	}
 

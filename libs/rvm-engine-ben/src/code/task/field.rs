@@ -37,16 +37,17 @@ impl FieldTask {
 		let field_name = field.name.get(&class.cp).unwrap();
 		let _field_descriptor = field.descriptor.get(&class.cp).unwrap();
 		FieldTask {
-			source: ObjectType(source.to_string()),
+			source: ObjectType::new(source.to_string()),
 			field_name: field_name.to_string(),
 			instance: inst.instance,
 			kind: inst.kind,
 		}
 	}
 
-	pub fn exec(&self, runtime: &Arc<Runtime>, frame: &mut ThreadFrame) {
-		let id = runtime.cl.resolve_class(&Type::Object(self.source.clone()));
-		let arc = runtime.cl.get(id);
+	#[inline(always)]
+	pub fn exec(&self, runtime: &Runtime, frame: &mut ThreadFrame) {
+		let id = runtime.classes.resolve(&Type::Object(self.source.clone()));
+		let arc = runtime.classes.get(id);
 		match &*arc {
 			Class::Object(object) => {
 				let id = object.fields.get_id(&self.field_name).unwrap();

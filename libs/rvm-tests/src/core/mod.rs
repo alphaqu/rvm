@@ -6,7 +6,7 @@ pub fn load_test_core(runtime: &Runtime) {
 	runtime.bindings.bind(
 		"core/Assert",
 		"yes",
-		MethodBinding::new(|runtime, value: bool| {
+		MethodBinding::new(|_, value: bool| {
 			assert!(value);
 		}),
 	);

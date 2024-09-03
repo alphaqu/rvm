@@ -71,7 +71,7 @@ impl Reference {
 		}
 	}
 
-	pub fn ty(&self, runtime: &Arc<Runtime>) -> Type {
+	pub fn ty(&self, runtime: &Runtime) -> Type {
 		match self.reference_kind() {
 			None => {
 				// When its null, its just a regular untyped object

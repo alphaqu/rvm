@@ -1,4 +1,4 @@
-use crate::{ClassMethodManager, FieldData, ObjectFieldLayout};
+use crate::{ClassFields, ClassMethods, FieldData};
 use eyre::Context;
 use rvm_core::{Id, ObjectType, Type};
 use rvm_reader::{ClassInfo, ConstantPool};
@@ -22,13 +22,13 @@ pub struct InstanceClass {
 	pub ty: ObjectType,
 
 	pub super_class: Option<ClassRef>,
+	pub interfaces: Vec<ClassRef>,
 
 	pub cp: Arc<ConstantPool>,
-	pub fields: ObjectFieldLayout,
-	pub static_fields: ObjectFieldLayout,
-	pub methods: ClassMethodManager,
+	pub fields: ClassFields,
+	pub static_fields: ClassFields,
 
-	pub interfaces: Vec<ClassRef>,
+	pub methods: ClassMethods,
 }
 
 unsafe impl Send for InstanceClass {}
@@ -41,10 +41,10 @@ impl InstanceClass {
 			.constant_pool
 			.get(info.super_class)
 			.and_then(|v| info.constant_pool.get(v.name))
-			.map(|v| ObjectType(v.to_string()));
+			.map(|v| ObjectType::new(v.to_string()));
 		let super_id = super_class
 			.as_ref()
-			.map(|v| cl.resolve_class(&Type::Object(v.clone())));
+			.map(|v| cl.resolve(&Type::Object(v.clone())));
 
 		let super_object = super_id.map(|super_id| cl.get(super_id));
 		let super_fields = super_object
@@ -67,8 +67,10 @@ impl InstanceClass {
 				let class = v.get(&info.constant_pool).unwrap();
 				let class_name = class.name.get(&info.constant_pool).unwrap();
 
-				let object_type = ObjectType(class_name.to_string());
-				let id = cl.resolve_class(&object_type.clone().into());
+				let object_type = ObjectType::new(class_name.to_string());
+
+				&Type::Object(object_type.clone());
+				let id = cl.resolve(&object_type.clone().into());
 				ClassRef {
 					ty: object_type,
 					id,
@@ -78,17 +80,17 @@ impl InstanceClass {
 
 		Ok(InstanceClass {
 			id: Id::null(),
-			ty: ObjectType(name.to_string()),
+			ty: ObjectType::new(name.to_string()),
 			super_class: super_class.map(|v| ClassRef {
 				ty: v,
 				id: super_id.unwrap(),
 			}),
 			interfaces,
-			methods: ClassMethodManager::parse(info.methods, &info.constant_pool)
+			methods: ClassMethods::parse(info.methods, &info.constant_pool)
 				.wrap_err_with(|| format!("in CLASS \"{}\"", name.as_str()))?,
 			//static_object: unsafe { ObjectData::new(fields.size(true) as usize) },
-			fields: ObjectFieldLayout::new(&fields, super_fields, false),
-			static_fields: ObjectFieldLayout::new(&fields, None, true),
+			fields: ClassFields::new(&fields, super_fields, false),
+			static_fields: ClassFields::new(&fields, None, true),
 			cp: Arc::new(info.constant_pool),
 		})
 	}

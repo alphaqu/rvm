@@ -29,7 +29,7 @@ impl ClassLoader {
 		self.classes.read().get_id(ty)
 	}
 
-	pub fn resolve_class(&self, desc: &Type) -> Id<Class> {
+	pub fn resolve(&self, desc: &Type) -> Id<Class> {
 		// if its in the match the lock wont get dropped
 		let option = self.classes.read().get_id(desc);
 		match option {
@@ -50,7 +50,7 @@ impl ClassLoader {
 						let mut component_id = None;
 						if let Kind::Reference = value.component().kind() {
 							// ensure loaded
-							component_id = Some(self.resolve_class(&value.component()));
+							component_id = Some(self.resolve(&value.component()));
 						}
 
 						Class::Array(ArrayClass::new((*value.component()).clone(), component_id))

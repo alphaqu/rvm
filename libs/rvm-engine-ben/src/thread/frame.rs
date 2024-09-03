@@ -96,16 +96,22 @@ impl Frame {
 
 	pub fn push(&mut self, value: StackValue) {
 		self.set_stack_value(self.stack_pos, value);
-		self.stack_pos += 1;
+		unsafe {
+			self.stack_pos = self.stack_pos.unchecked_add(1);
+		}
 	}
 
 	pub fn pop(&mut self) -> StackValue {
 		if self.stack_pos == 0 {
 			panic!("Stack underflow")
 		}
-		self.stack_pos -= 1;
 
-		unsafe { self.get_stack_mut().add(self.stack_pos as usize).read() }
+		//self.stack_pos -= 1;
+
+		unsafe {
+			self.stack_pos = self.stack_pos.unchecked_sub(1);
+			self.get_stack_mut().add(self.stack_pos as usize).read()
+		}
 	}
 
 	// DEBUG

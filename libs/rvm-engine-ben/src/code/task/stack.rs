@@ -38,6 +38,7 @@ impl StackTask {
 		}
 	}
 
+	#[inline(always)]
 	pub fn exec(&self, frame: &mut ThreadFrame) {
 		match self {
 			StackTask::Dup => {

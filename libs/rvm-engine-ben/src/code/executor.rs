@@ -12,14 +12,14 @@ use rvm_core::{Id, MethodAccessFlags, MethodDescriptor, ObjectType, Type};
 use rvm_runtime::engine::Thread;
 use rvm_runtime::gc::{AllocationError, GcMarker, GcSweeper, RootProvider};
 use rvm_runtime::native::{JNIFunction, JNIFunctionSignature};
-use rvm_runtime::{AnyValue, Class, MethodBinding, MethodIdentifier, Reference, Runtime};
+use rvm_runtime::{AnyValue, Class, Method, MethodBinding, MethodIdentifier, Reference, Runtime};
 
 /// The executor is where the java code actually executes.
 pub struct Executor<'a> {
 	pub thread: Thread,
 	pub stack: &'a mut ThreadStack,
 	pub engine: Arc<BenEngine>,
-	pub runtime: Arc<Runtime>,
+	pub runtime: Runtime,
 
 	pub runner: ExecutorRunner,
 }
@@ -40,67 +40,6 @@ impl ExecutorRunner {
 	}
 }
 
-impl<'a> Executor<'a> {
-	pub fn prepare_task(&mut self) {
-		GcSweeper::yield_gc(self);
-	}
-
-	pub fn finalize_task(&mut self) {
-		if self.runner.last_return.is_some() {
-			panic!("Return was never consumed by the caller.");
-		}
-	}
-
-	pub fn call_method<'f>(
-		&mut self,
-		task: &CallTask,
-		parameter_getter: impl FnMut() -> StackValue,
-	) -> eyre::Result<Either<Option<AnyValue>, JavaScope<'f>>> {
-		// When we first call, the output will be None, it will push a frame onto the stack and start running that method.
-		// When that method returns, it will set the output to Some(Option<Value>) and pop itself out of the stack.
-		// We will come back here (because we never incremented the pointer) and see that our output is now Some.
-		// We push that return value (if it exists) and continue running.
-
-		// TODO caller validation??
-		Ok(match self.runner.last_return.take() {
-			None => {
-				let scope =
-					self.create_scope(&task.object, &task.method, task.ty, parameter_getter)?;
-				match scope {
-					Scope::Java(java) => Either::Right(java),
-					Scope::Return(value) => Either::Left(value),
-				}
-			}
-			Some(value) => Either::Left(value),
-		})
-	}
-	pub fn new_object(&mut self, id: Id<Class>) -> eyre::Result<Option<Reference>> {
-		let class = self.runtime.cl.get(id);
-		let object = class.as_instance().unwrap();
-		let result = self.runtime.gc.lock().allocate_instance(id, object);
-
-		match result {
-			Ok(object) => {
-				self.runner.gc_attempts = 0;
-				Ok(Some(*object))
-			}
-			Err(AllocationError::OutOfHeap) => {
-				self.runner.gc_attempts += 1;
-				if self.runner.gc_attempts > 5 {
-					bail!(AllocationError::OutOfHeap);
-				}
-				Runtime::gc(self.runtime.clone());
-				GcSweeper::wait_until_gc(self);
-				trace!("Forcing gc, and trying again.");
-				// try this instruction again, if we fail 5 time, we blow up.
-				Ok(None)
-			}
-			Err(error) => {
-				bail!(error);
-			}
-		}
-	}
-}
 pub enum MethodScopeResult<'f> {
 	MoveInto(JavaScope<'f>),
 	Finish(Option<AnyValue>),
@@ -108,8 +47,8 @@ pub enum MethodScopeResult<'f> {
 pub struct JavaScope<'f> {
 	pub(crate) frame: ThreadFrame<'f>,
 	method: Arc<BenMethod>,
-	name: String,
-	desc: MethodDescriptor,
+	class_id: Id<Class>,
+	method_id: Id<Method>,
 	pub(crate) cursor: usize,
 }
 
@@ -139,10 +78,10 @@ impl<'f> JavaScope<'f> {
 				Task::New(object) => {
 					let id = executor
 						.runtime
-						.cl
-						.resolve_class(&Type::Object(object.class_name.clone()));
+						.classes
+						.resolve(&Type::Object(object.class_name.clone()));
 
-					match executor.new_object(id).unwrap() {
+					match executor.new_object(id)? {
 						Some(object) => {
 							frame.push(StackValue::Reference(object));
 						}
@@ -216,7 +155,7 @@ impl MethodInputs {
 		desc: &MethodDescriptor,
 		mut parameter_getter: impl FnMut() -> StackValue,
 	) -> eyre::Result<MethodInputs> {
-		let mut parameters = Vec::new();
+		let mut parameters = Vec::with_capacity(desc.parameters.len());
 		for (i, v) in desc.parameters.iter().enumerate().rev() {
 			let stack_value = parameter_getter();
 			let kind = v.kind();
@@ -245,23 +184,88 @@ enum Scope<'f> {
 }
 
 impl<'a> Executor<'a> {
+	pub fn prepare_task(&mut self) {
+		GcSweeper::yield_gc(self);
+	}
+
+	pub fn finalize_task(&mut self) {
+		if self.runner.last_return.is_some() {
+			panic!("Return was never consumed by the caller.");
+		}
+	}
+
+	pub fn call_method<'f>(
+		&mut self,
+		task: &CallTask,
+		parameter_getter: impl FnMut() -> StackValue,
+	) -> eyre::Result<Either<Option<AnyValue>, JavaScope<'f>>> {
+		// When we first call, the output will be None, it will push a frame onto the stack and start running that method.
+		// When that method returns, it will set the output to Some(Option<Value>) and pop itself out of the stack.
+		// We will come back here (because we never incremented the pointer) and see that our output is now Some.
+		// We push that return value (if it exists) and continue running.
+
+		// TODO caller validation??
+		Ok(match self.runner.last_return.take() {
+			None => {
+				let scope = self.create_scope(
+					&task.object,
+					&task.method,
+					&task.method_descriptor,
+					task.ty,
+					parameter_getter,
+				)?;
+				match scope {
+					Scope::Java(java) => Either::Right(java),
+					Scope::Return(value) => Either::Left(value),
+				}
+			}
+			Some(value) => Either::Left(value),
+		})
+	}
+	pub fn new_object(&mut self, id: Id<Class>) -> eyre::Result<Option<Reference>> {
+		let class = self.runtime.classes.get(id);
+		let object = class.as_instance().unwrap();
+		let result = self.runtime.gc.lock().allocate_instance(id, object);
+
+		match result {
+			Ok(object) => {
+				self.runner.gc_attempts = 0;
+				Ok(Some(*object))
+			}
+			Err(AllocationError::OutOfHeap) => {
+				self.runner.gc_attempts += 1;
+				if self.runner.gc_attempts > 5 {
+					bail!(AllocationError::OutOfHeap);
+				}
+				self.runtime.gc();
+				GcSweeper::wait_until_gc(self);
+				trace!("Forcing gc, and trying again.");
+				// try this instruction again, if we fail 5 time, we blow up.
+				Ok(None)
+			}
+			Err(error) => {
+				bail!(error);
+			}
+		}
+	}
 	fn create_scope<'f>(
 		&mut self,
 		ty: &ObjectType,
 		method_ident: &MethodIdentifier,
+		method_descriptor: &MethodDescriptor,
 		call_ty: CallType,
 		parameter_getter: impl FnMut() -> StackValue,
 	) -> eyre::Result<Scope<'f>> {
-		debug!("Creating frame for {ty:?} {method_ident:?}");
+		trace!(target: "exe",  "Creating frame for {ty:?} {method_ident:?}");
 
-		let desc = MethodDescriptor::parse(&method_ident.descriptor).wrap_err_with(|| {
-			format!("Parsing method descriptor \"{}\"", method_ident.descriptor)
-		})?;
-		let inputs = MethodInputs::flush_from(call_ty, &desc, parameter_getter)
-			.wrap_err_with(|| format!("Method inputs for {desc}"))?;
+		//let desc = MethodDescriptor::parse(&method_ident.descriptor).wrap_err_with(|| {
+		//	format!("Parsing method descriptor \"{}\"", method_ident.descriptor)
+		//})?;
+		let inputs = MethodInputs::flush_from(call_ty, method_descriptor, parameter_getter)
+			.wrap_err_with(|| format!("Method inputs for {method_descriptor}"))?;
 
 		let class_id = if call_ty.is_static() || call_ty.is_special() {
-			self.runtime.cl.resolve_class(&Type::Object(ty.clone()))
+			self.runtime.classes.resolve(&Type::Object(ty.clone()))
 		} else {
 			let reference = inputs.instance.unwrap();
 			let class_object = reference.to_instance().unwrap();
@@ -273,7 +277,7 @@ impl<'a> Executor<'a> {
 			.resolve_method(&self.runtime, class_id, method_ident)
 			.wrap_err_with(|| {
 				format!(
-					"Could not resolve method \"{}{desc:?}\" error",
+					"Could not resolve method \"{}{method_descriptor:?}\" error",
 					method_ident.name
 				)
 			})?;
@@ -282,13 +286,12 @@ impl<'a> Executor<'a> {
 			.engine
 			.compile_method(&self.runtime, method_class, method_id);
 
-		let returns = desc.returns.as_ref().map(|v| v.kind());
 		Ok(match &*method {
 			BenMethod::Java(java) => {
 				let is_method_static = java.flags.contains(MethodAccessFlags::STATIC);
 				if call_ty.is_static() != is_method_static {
 					bail!(
-						"Method invocation ({call_ty:?}) is not compatible with {} method \"{}{desc:?}\"",
+						"Method invocation ({call_ty:?}) is not compatible with {} method \"{}{method_descriptor:?}\"",
 						if is_method_static {
 							"static"
 						} else {
@@ -314,8 +317,8 @@ impl<'a> Executor<'a> {
 				Scope::Java(JavaScope {
 					frame,
 					method,
-					name: method_ident.name.clone(),
-					desc,
+					class_id,
+					method_id,
 					cursor: 0,
 				})
 			}
@@ -342,7 +345,11 @@ impl<'a> Executor<'a> {
 						},
 					);
 
-					jni_function.call(&self.runtime, &inputs.parameters, returns)
+					jni_function.call(
+						&self.runtime,
+						&inputs.parameters,
+						method_descriptor.returns.as_ref().map(|v| v.kind()),
+					)
 				}))
 			}
 		})
@@ -355,9 +362,13 @@ impl<'a> Executor<'a> {
 	) -> eyre::Result<Option<AnyValue>> {
 		info!("Starting execution with {parameters:?}");
 		let scope = self
-			.create_scope(ty, method, CallType::Static, || {
-				StackValue::from_any(parameters.pop().expect("Not enough parameters"))
-			})
+			.create_scope(
+				ty,
+				method,
+				&MethodDescriptor::parse(&method.descriptor).unwrap(),
+				CallType::Static,
+				|| StackValue::from_any(parameters.pop().expect("Not enough parameters")),
+			)
 			.wrap_err("Creating bootstrapping scope")?;
 
 		let mut scopes = match scope {
@@ -384,8 +395,11 @@ impl<'a> Executor<'a> {
 				Err(mut error) => {
 					// Unravel
 					for scope in scopes {
+						let class = self.runtime.classes.get(scope.class_id);
+						let method = class.as_instance().unwrap().methods.get(scope.method_id);
+
 						error =
-							error.wrap_err(format!("In method: {}{:?}", scope.name, scope.desc));
+							error.wrap_err(format!("In method: {}{:?}", method.name, method.desc));
 						self.stack.finish(scope.frame);
 					}
 					return Err(error);

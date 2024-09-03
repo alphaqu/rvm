@@ -20,7 +20,7 @@ impl NewTask {
 		let class_data = inst.class.get(&class.cp).unwrap();
 		let name = class_data.name.get(&class.cp).unwrap();
 		NewTask {
-			class_name: ObjectType(name.to_string()),
+			class_name: ObjectType::new(name.to_string()),
 		}
 	}
 }

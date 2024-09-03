@@ -13,7 +13,7 @@ mod frame;
 mod stack;
 
 pub fn spawn(
-	runtime: Arc<Runtime>,
+	runtime: Runtime,
 	config: ThreadConfig,
 	size: usize,
 	engine: Arc<BenEngine>,

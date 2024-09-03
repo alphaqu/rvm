@@ -1,4 +1,4 @@
-package testing.array;
+package tests.array;
 
 public class ArrayTest extends Object {
 	public static int[] singleArray(int value) {
@@ -19,8 +19,7 @@ public class ArrayTest extends Object {
 	}
 
 	public static int[][] multiArray(int value) {
-		int[][] ints = new int[4][4];
-		return ints;
+		return new int[4][4];
 	}
 
 	public static void setValue(int[] array, int index, int value) {

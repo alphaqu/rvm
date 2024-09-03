@@ -7,7 +7,7 @@ use crate::{launch, load_sdk};
 
 pub struct ArrayTest;
 
-bind!("testing/array" {
+bind!("tests/array" {
 	ArrayTest {
 		singleArray(value: i32) -> Array<i32>,
 		singleRefArray() -> Array<Reference>,
@@ -44,7 +44,7 @@ fn primitive() {
 
 #[test]
 fn creation() {
-	let runtime = launch(1024, vec!["testing/array/ArrayTest.class"]);
+	let runtime = launch(1024, vec!["tests/array/ArrayTest.class"]);
 	load_sdk(&runtime);
 
 	let java_set = ArrayTest::singleArray(&runtime);
@@ -56,7 +56,7 @@ fn creation() {
 
 #[test]
 fn setter() {
-	let runtime = launch(1024, vec!["testing/array/ArrayTest.class"]);
+	let runtime = launch(1024, vec!["tests/array/ArrayTest.class"]);
 	load_sdk(&runtime);
 
 	let java_set = ArrayTest::setValue(&runtime);
@@ -82,7 +82,7 @@ fn setter() {
 
 #[test]
 fn getter() {
-	let runtime = launch(1024, vec!["testing/array/ArrayTest.class"]);
+	let runtime = launch(1024, vec!["tests/array/ArrayTest.class"]);
 	load_sdk(&runtime);
 
 	let short = runtime
@@ -103,7 +103,7 @@ fn getter() {
 
 #[test]
 fn ref_arrays() {
-	let runtime = launch(1024, vec!["testing/array/ArrayTest.class"]);
+	let runtime = launch(1024, vec!["tests/array/ArrayTest.class"]);
 	load_sdk(&runtime);
 
 	let java_create = ArrayTest::singleRefArray(&runtime);

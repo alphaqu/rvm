@@ -15,7 +15,7 @@ use crate::Runtime;
 use crate::{Method, MethodIdentifier};
 
 pub trait Engine: Send + Sync {
-	fn create_thread(&self, runtime: Arc<Runtime>, config: ThreadConfig) -> ThreadHandle;
+	fn create_thread(&self, runtime: Runtime, config: ThreadConfig) -> ThreadHandle;
 
 	fn compile_method(
 		&self,
@@ -39,7 +39,7 @@ pub struct ThreadHandle {
 
 impl ThreadHandle {
 	pub fn new(
-		runtime: Arc<Runtime>,
+		runtime: Runtime,
 		config: ThreadConfig,
 		func: impl FnOnce(Thread) -> Option<AnyValue> + Send + 'static,
 	) -> ThreadHandle {

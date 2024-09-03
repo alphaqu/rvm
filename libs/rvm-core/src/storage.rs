@@ -1,12 +1,11 @@
+use ahash::{HashMap, HashMapExt};
+use num_traits::ToPrimitive;
+use num_traits::{Bounded, NumCast, PrimInt};
 use std::borrow::Borrow;
 use std::cmp::Ordering;
-use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
-
-use num_traits::ToPrimitive;
-use num_traits::{Bounded, NumCast, PrimInt};
 
 pub struct Storage<K: Hash + Eq + Debug, V: StorageValue, O = V> {
 	lookup: HashMap<K, Id<V>>,

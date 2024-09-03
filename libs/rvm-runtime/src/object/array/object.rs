@@ -176,11 +176,11 @@ impl AnyArray {
 		Array::new(self)
 	}
 
-	pub fn ty(&self, runtime: &Arc<Runtime>) -> Type {
+	pub fn ty(&self, runtime: &Runtime) -> Type {
 		let component_ty = match self.component_kind() {
 			Kind::Reference => {
 				let id = self.component_class().unwrap();
-				runtime.cl.get(id).cloned_ty()
+				runtime.classes.get(id).cloned_ty()
 			}
 			Kind::Boolean => Type::Primitive(PrimitiveType::Boolean),
 			Kind::Char => Type::Primitive(PrimitiveType::Char),
@@ -197,13 +197,13 @@ impl AnyArray {
 }
 
 impl ToJava for AnyArray {
-	fn to_java(self, runtime: &Arc<Runtime>) -> eyre::Result<AnyValue> {
+	fn to_java(self, runtime: &Runtime) -> eyre::Result<AnyValue> {
 		self.reference.to_java(runtime)
 	}
 }
 
 impl FromJava for AnyArray {
-	fn from_java(value: AnyValue, runtime: &Arc<Runtime>) -> eyre::Result<Self> {
+	fn from_java(value: AnyValue, runtime: &Runtime) -> eyre::Result<Self> {
 		let reference = Reference::from_java(value, runtime)?;
 		Ok(reference.to_array().ok_or_else(|| CastTypeError {
 			expected: ArrayType::ObjectArray().into(),
@@ -270,13 +270,13 @@ impl<V: Value> Array<V> {
 }
 
 impl<V: Value> ToJava for Array<V> {
-	fn to_java(self, runtime: &Arc<Runtime>) -> eyre::Result<AnyValue> {
+	fn to_java(self, runtime: &Runtime) -> eyre::Result<AnyValue> {
 		self.array.to_java(runtime)
 	}
 }
 
 impl<V: Value> FromJava for Array<V> {
-	fn from_java(value: AnyValue, runtime: &Arc<Runtime>) -> eyre::Result<Self> {
+	fn from_java(value: AnyValue, runtime: &Runtime) -> eyre::Result<Self> {
 		let any_array = AnyArray::from_java(value, runtime)?;
 		Ok(Array::try_new(any_array).ok_or_else(|| CastTypeError {
 			expected: ArrayType::ObjectArray().into(),
@@ -292,7 +292,7 @@ impl<V: Value + JavaTyped> JavaTyped for Array<V> {
 }
 
 impl<V: Value> Castable for Array<V> {
-	fn cast_from(runtime: &Arc<Runtime>, value: AnyValue) -> Self {
+	fn cast_from(runtime: &Runtime, value: AnyValue) -> Self {
 		let reference = Reference::cast_from(runtime, value);
 		Array::new(reference.to_array().unwrap())
 	}

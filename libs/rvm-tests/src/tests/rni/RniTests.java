@@ -1,4 +1,4 @@
-package testing.rni;
+package tests.rni;
 
 public class RniTests {
 

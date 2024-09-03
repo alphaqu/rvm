@@ -26,13 +26,13 @@ fn run() {
 
 	let runtime = Arc::new(Runtime::new(1024 * 1024, engine));
 	runtime
-		.cl
+		.classes
 		.load_jar(include_bytes!("../rt.zip"), |v| {
 			v == "java/lang/Object.class"
 		})
 		.unwrap();
 	runtime
-		.cl
+		.classes
 		.load_jar(include_bytes!("../unnamed.jar"), |v| true)
 		.unwrap();
 	for jar in std::env::args().skip(1) {
@@ -40,10 +40,13 @@ fn run() {
 
 		match path.extension().and_then(|x| x.to_str()) {
 			Some("jar") | Some("zip") => {
-				runtime.cl.load_jar(&read(path).unwrap(), |_| true).unwrap();
+				runtime
+					.classes
+					.load_jar(&read(path).unwrap(), |_| true)
+					.unwrap();
 			}
 			Some("class") => {
-				runtime.cl.load_class(&read(path).unwrap()).unwrap();
+				runtime.classes.load_class(&read(path).unwrap()).unwrap();
 			}
 			other => {
 				panic!("Unrecognised extension {other:?}");
@@ -51,12 +54,9 @@ fn run() {
 		}
 	}
 
-	let handle = runtime.engine.create_thread(
-		runtime.clone(),
-		ThreadConfig {
-			name: "Hi".to_string(),
-		},
-	);
+	let handle = runtime.create_thread(ThreadConfig {
+		name: "Hi".to_string(),
+	});
 
 	handle.run(
 		ObjectType("Main".to_string()),

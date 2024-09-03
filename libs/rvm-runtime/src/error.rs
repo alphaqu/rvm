@@ -48,7 +48,7 @@ pub struct TraceEntry {
 
 impl TraceEntry {
 	fn fmt(&self, f: &mut String, runtime: &Runtime) -> std::fmt::Result {
-		let class = runtime.cl.get(self.class);
+		let class = runtime.classes.get(self.class);
 
 		match &*class {
 			Class::Object(object) => {

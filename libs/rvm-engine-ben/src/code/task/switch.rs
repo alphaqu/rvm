@@ -20,6 +20,7 @@ impl SwitchTableTask {
 		}
 	}
 
+	#[inline(always)]
 	pub fn exec(&self, frame: &mut ThreadFrame) -> i32 {
 		let value = frame.pop().to_int().unwrap();
 		let idx = if value < self.low || value > self.high {

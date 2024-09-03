@@ -32,7 +32,7 @@ impl BenEngine {
 		method: &MethodIdentifier,
 	) -> Option<(Id<Class>, Id<Method>)> {
 		loop {
-			let class = runtime.cl.get(class_id);
+			let class = runtime.classes.get(class_id);
 
 			let instance_class = class.as_instance().unwrap();
 
@@ -66,7 +66,7 @@ impl BenEngine {
 		}
 		drop(methods);
 
-		let arc = runtime.cl.get(id);
+		let arc = runtime.classes.get(id);
 		let instance = arc.as_instance().unwrap();
 		let method = instance.methods.get(method_id);
 		debug!(target: "ben", "Compiling method {}.{}{}", instance.ty, method.name, method.desc);
@@ -80,20 +80,20 @@ impl BenEngine {
 			None => {
 				if method.flags.contains(MethodAccessFlags::NATIVE) {
 					let identifier = MethodIdentifier {
-						name: method.name.clone(),
-						descriptor: method.desc.to_string(),
+						name: method.name.clone().into(),
+						descriptor: method.desc.to_string().into(),
 					};
 
 					info!("Trying to find {identifier:?}");
 					if let Some(binding) =
 						runtime
 							.bindings
-							.get_binding(&instance.ty.0, &method.name, &method.desc)
+							.get_binding(&instance.ty, &method.name, &method.desc)
 					{
 						BenMethod::Binding(binding)
 					} else {
 						let name =
-							format!("Java_{}_{}", instance.ty.0.replace('/', "_"), method.name);
+							format!("Java_{}_{}", instance.ty.replace('/', "_"), method.name);
 						BenMethod::Native(name, method.desc.clone())
 					}
 				} else {
@@ -142,8 +142,8 @@ impl BenBinding {
 }
 
 impl Engine for BenBinding {
-	fn create_thread(&self, runtime: Arc<Runtime>, config: ThreadConfig) -> ThreadHandle {
-		spawn(runtime, config, 1024 * 8, self.engine.clone())
+	fn create_thread(&self, runtime: Runtime, config: ThreadConfig) -> ThreadHandle {
+		spawn(runtime, config, 1024 * 1024, self.engine.clone())
 	}
 
 	fn compile_method(

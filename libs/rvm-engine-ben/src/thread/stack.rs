@@ -28,7 +28,7 @@ impl ThreadStack {
 
 	pub fn create<'f>(&mut self, stack_size: u16, local_size: u16) -> ThreadFrame<'f> {
 		let frame_size = Frame::get_size(stack_size, local_size);
-		trace!("Allocating ThreadFrame ({}+{frame_size})", self.data_pos);
+		trace!(target: "exe", "Allocating ThreadFrame ({}+{frame_size})", self.data_pos);
 		if self.data_pos + frame_size >= self.data_size {
 			panic!("Java Stack out of space");
 		}
@@ -53,7 +53,7 @@ impl ThreadStack {
 		}
 		let frame_size = frame.size();
 		self.data_pos -= frame_size;
-		trace!("Finishing ThreadFrame ({}+{frame_size})", self.data_pos);
+		trace!(target: "exe", "Finishing ThreadFrame ({}+{frame_size})", self.data_pos);
 		frame.finished = true;
 	}
 

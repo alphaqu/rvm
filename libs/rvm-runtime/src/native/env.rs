@@ -16,7 +16,7 @@
 // 		};
 // 	}
 //
-// 	pub fn new(runtime: Arc<Runtime>) -> JNI {
+// 	pub fn new(runtime: Runtime) -> JNI {
 // 		let mut runtime = Arc::as_ptr(&runtime);
 // 		let env = Box::into_raw(Box::new(JNINativeInterface_ {
 // 			reserved0: unsafe { transmute(runtime) },

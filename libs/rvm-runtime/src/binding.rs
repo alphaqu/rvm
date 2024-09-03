@@ -89,8 +89,7 @@ pub struct RustBinderInner {
 }
 
 pub struct MethodBinding {
-	function:
-		Box<dyn Fn(&Arc<Runtime>, Vec<AnyValue>) -> eyre::Result<Option<AnyValue>> + Send + Sync>,
+	function: Box<dyn Fn(&Runtime, Vec<AnyValue>) -> eyre::Result<Option<AnyValue>> + Send + Sync>,
 	signature: MethodDescriptor,
 }
 
@@ -148,22 +147,21 @@ impl MethodBinding {
 
 	pub fn new<I, O, F>(function: F) -> Self
 	where
-		F: Fn(&Arc<Runtime>, I) -> O + Send + Sync + 'static,
+		F: Fn(&Runtime, I) -> O + Send + Sync + 'static,
 		I: FromJavaMulti + JavaTypedMulti,
 		O: ToJavaMulti + JavaTypedMulti,
 	{
-		let function = move |runtime: &Arc<Runtime>,
-		                     values: Vec<AnyValue>|
-		      -> eyre::Result<Option<AnyValue>> {
-			let input = I::from_vec(values, runtime)?;
-			let output = function(runtime, input);
-			let result = output.to_vec(runtime)?;
-			if result.len() > 1 {
-				panic!("Trying to return more than 1 value");
-			}
+		let function =
+			move |runtime: &Runtime, values: Vec<AnyValue>| -> eyre::Result<Option<AnyValue>> {
+				let input = I::from_vec(values, runtime)?;
+				let output = function(runtime, input);
+				let result = output.to_vec(runtime)?;
+				if result.len() > 1 {
+					panic!("Trying to return more than 1 value");
+				}
 
-			Ok(single_or_none(result))
-		};
+				Ok(single_or_none(result))
+			};
 
 		let input_types = I::java_type_multi();
 		let output_type = single_or_none(O::java_type_multi());
@@ -179,7 +177,7 @@ impl MethodBinding {
 
 	pub fn call(
 		&self,
-		runtime: &Arc<Runtime>,
+		runtime: &Runtime,
 		parameters: Vec<AnyValue>,
 	) -> eyre::Result<Option<AnyValue>> {
 		(self.function)(runtime, parameters)

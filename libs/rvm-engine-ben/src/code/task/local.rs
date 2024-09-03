@@ -48,6 +48,7 @@ impl LocalTask {
 		}
 	}
 
+	#[inline(always)]
 	pub fn exec(&self, frame: &mut ThreadFrame) {
 		let idx = self.idx;
 

@@ -1,9 +1,11 @@
-use std::error::Error;
-use std::fmt::{Debug, Display, Formatter, Write};
-
 pub use descriptor::*;
 pub use flags::*;
 pub use kind::*;
+use std::borrow::Borrow;
+use std::error::Error;
+use std::fmt::{Debug, Display, Formatter, Write};
+use std::ops::Deref;
+use std::sync::Arc;
 
 mod descriptor;
 mod flags;
@@ -154,31 +156,45 @@ impl Display for PrimitiveType {
 }
 
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
-pub struct ObjectType(pub String);
+pub struct ObjectType(Arc<str>);
 
 impl ObjectType {
 	#[allow(non_snake_case)]
 	pub fn Object() -> ObjectType {
-		ObjectType("java/lang/Object".to_string())
+		ObjectType::new("java/lang/Object")
+	}
+
+	pub fn new<V>(value: V) -> ObjectType
+	where
+		Arc<str>: From<V>,
+	{
+		ObjectType(Arc::from(value))
 	}
 
 	pub fn parse(string: &str) -> Option<ObjectType> {
 		Self::parse_len(string).map(|(v, _)| v)
 	}
+
 	pub fn parse_len(string: &str) -> Option<(ObjectType, usize)> {
 		if string.as_bytes()[0] != b'L' {
 			return None;
 		}
 
 		let end = string.find(';')?;
-		Some((ObjectType(string[1..end].to_string()), end + 1))
+		Some((ObjectType::new(&string[1..end]), end + 1))
 	}
 
 	pub fn kind(&self) -> Kind {
 		Kind::Reference
 	}
 }
+impl Deref for ObjectType {
+	type Target = str;
 
+	fn deref(&self) -> &Self::Target {
+		&self.0
+	}
+}
 impl Debug for ObjectType {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		f.write_str(&self.0)
@@ -187,13 +203,13 @@ impl Debug for ObjectType {
 
 impl From<String> for ObjectType {
 	fn from(value: String) -> Self {
-		ObjectType(value)
+		ObjectType::new(value)
 	}
 }
 
 impl From<&'static str> for ObjectType {
 	fn from(value: &'static str) -> Self {
-		ObjectType(value.to_string())
+		ObjectType::new(value.to_string())
 	}
 }
 

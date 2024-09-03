@@ -8,14 +8,15 @@ use rvm_runtime::{bind, MethodBinding, Runtime};
 use crate::{launch, load_sdk};
 
 pub struct RniTests;
-bind!("testing/rni" {
+
+bind!("tests/rni" {
 	RniTests {
 		test(number_1: i32, number_2: i64, number_3: i32) -> i64
 	}
 });
 
 fn runtime() -> Arc<Runtime> {
-	let runtime = launch(1024, vec!["testing/rni/RniTests.class"]);
+	let runtime = launch(1024, vec!["tests/rni/RniTests.class"]);
 	load_sdk(&runtime);
 	runtime
 }
@@ -25,7 +26,7 @@ pub fn basic() {
 	let runtime = runtime();
 
 	runtime.bindings.bind(
-		"testing/rni/RniTests",
+		"tests/rni/RniTests",
 		"testNative",
 		MethodBinding::new(
 			|_, (number_1, number_2, number_3): (i32, i64, i32)| -> i64 {

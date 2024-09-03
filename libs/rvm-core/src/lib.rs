@@ -19,6 +19,7 @@ pub fn init() {
 	START.call_once(|| {
 		let filter = filter::Targets::new()
 			.with_default(Level::TRACE)
+			.with_target("exe", Level::DEBUG)
 			.with_target("gc", Level::INFO)
 			.with_target("exec", Level::INFO);
 		let layered = tracing_subscriber::registry()

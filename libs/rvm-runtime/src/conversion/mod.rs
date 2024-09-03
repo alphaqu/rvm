@@ -6,29 +6,29 @@ use rvm_core::{CastKindError, Kind, ObjectType, PrimitiveType, Type};
 use std::sync::Arc;
 
 //pub trait ToJavaType {
-//	fn java_type(&self, runtime: &Arc<Runtime>) -> Type;
+//	fn java_type(&self, runtime: &Runtime) -> Type;
 //	fn java_type_static() -> Type;
 //}
 pub trait JavaTyped {
 	fn java_type() -> Type;
 }
 pub trait ToJava: Sized {
-	fn to_java(self, runtime: &Arc<Runtime>) -> eyre::Result<AnyValue>;
+	fn to_java(self, runtime: &Runtime) -> eyre::Result<AnyValue>;
 }
 
 pub trait FromJava: Sized {
-	fn from_java(value: AnyValue, runtime: &Arc<Runtime>) -> eyre::Result<Self>;
+	fn from_java(value: AnyValue, runtime: &Runtime) -> eyre::Result<Self>;
 }
 
 macro_rules! impl_simple {
 	($KIND:ident $($JAVA_TY:block)? $TY:ty) => {
 		impl ToJava for $TY {
-			fn to_java(self, _: &Arc<Runtime>) -> eyre::Result<AnyValue> {
+			fn to_java(self, _: &Runtime) -> eyre::Result<AnyValue> {
 				Ok(AnyValue::$KIND(self))
 			}
 		}
 		impl FromJava for $TY {
-			fn from_java(value: AnyValue, _: &Arc<Runtime>) -> eyre::Result<Self> {
+			fn from_java(value: AnyValue, _: &Runtime) -> eyre::Result<Self> {
 				match value {
 					AnyValue::$KIND(v) => Ok(v),
 					_ => Err(CastKindError {
@@ -42,7 +42,7 @@ macro_rules! impl_simple {
 
 		$(
 			impl JavaTyped for $TY {
-				//fn java_type(&self, _: &Arc<Runtime>) -> Type {
+				//fn java_type(&self, _: &Runtime) -> Type {
 				//	Self::java_type_static()
 				//}
 

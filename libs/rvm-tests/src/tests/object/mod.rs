@@ -11,7 +11,7 @@ pub struct Animal;
 
 impl InstanceBinding for Animal {
 	fn ty() -> ObjectType {
-		ObjectType("testing/object/Animal".to_string())
+		ObjectType::new("testing/object/Animal")
 	}
 
 	fn bind(_: &AnyInstance) -> Self {
@@ -26,7 +26,7 @@ pub struct SimpleObject {
 
 impl InstanceBinding for SimpleObject {
 	fn ty() -> ObjectType {
-		ObjectType("testing/object/SimpleObject".to_string())
+		ObjectType::new("testing/object/SimpleObject")
 	}
 
 	fn bind(instance: &AnyInstance) -> Self {
@@ -44,7 +44,7 @@ pub struct ExtendedObject {
 
 impl InstanceBinding for ExtendedObject {
 	fn ty() -> ObjectType {
-		ObjectType("testing/object/ExtendedObject".to_string())
+		ObjectType::new("testing/object/ExtendedObject")
 	}
 
 	fn bind(instance: &AnyInstance) -> Self {
@@ -100,7 +100,7 @@ fn runtime() -> Arc<Runtime> {
 #[test]
 pub fn create() {
 	let runtime = runtime();
-	let id = runtime.cl.resolve_class(&SimpleObject::ty().into());
+	let id = runtime.classes.resolve(&SimpleObject::ty().into());
 
 	let create = ObjectTests::createSimple(&runtime);
 
@@ -121,7 +121,7 @@ pub fn create_numbered() {
 #[test]
 pub fn get_field() {
 	let runtime = runtime();
-	let id = runtime.cl.resolve_class(&SimpleObject::ty().into());
+	let id = runtime.classes.resolve(&SimpleObject::ty().into());
 
 	let mut instance = runtime.alloc_object(id).typed::<SimpleObject>();
 	*instance.value = 420;
@@ -135,7 +135,7 @@ pub fn get_field() {
 #[test]
 pub fn set_field() {
 	let runtime = runtime();
-	let id = runtime.cl.resolve_class(&SimpleObject::ty().into());
+	let id = runtime.classes.resolve(&SimpleObject::ty().into());
 
 	let instance = runtime.alloc_object(id).typed::<SimpleObject>();
 	assert_eq!(*instance.value, 0);
@@ -148,7 +148,7 @@ pub fn set_field() {
 #[test]
 pub fn basic_instance_method() {
 	let runtime = runtime();
-	let id = runtime.cl.resolve_class(&SimpleObject::ty().into());
+	let id = runtime.classes.resolve(&SimpleObject::ty().into());
 
 	let instance = runtime.alloc_object(id).typed::<SimpleObject>();
 	assert_eq!(*instance.value, 0);
@@ -161,7 +161,7 @@ pub fn basic_instance_method() {
 #[test]
 pub fn create_extended() {
 	let runtime = runtime();
-	let id = runtime.cl.resolve_class(&ExtendedObject::ty().into());
+	let id = runtime.classes.resolve(&ExtendedObject::ty().into());
 
 	let create_extended = ObjectTests::createExtended(&runtime);
 
@@ -191,7 +191,7 @@ pub fn basic_override() {
 #[test]
 pub fn casting() {
 	let runtime = runtime();
-	let id = runtime.cl.resolve_class(&ExtendedObject::ty().into());
+	let id = runtime.classes.resolve(&ExtendedObject::ty().into());
 	let mut instance = runtime.alloc_object(id).typed::<ExtendedObject>();
 	*instance.value = 500;
 
@@ -206,7 +206,7 @@ pub fn casting() {
 pub fn interface_call() {
 	let runtime = runtime();
 
-	let id = runtime.cl.resolve_class(&ExtendedObject::ty().into());
+	let id = runtime.classes.resolve(&ExtendedObject::ty().into());
 	let instance = runtime.alloc_object(id).typed::<ExtendedObject>();
 
 	let cast = ObjectTests::interfaceCall(&runtime);
