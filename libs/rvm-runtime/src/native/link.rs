@@ -44,7 +44,7 @@ impl JNILinker {
 		&mut self,
 		name: &str,
 		func: impl FnOnce(Either<extern "C" fn(), &MethodBinding>) -> V,
-	) -> V {
+	) -> Option<V> {
 		let symbol = match self.symbols.entry(name.to_string()) {
 			Entry::Occupied(entry) => entry.into_mut(),
 			Entry::Vacant(entry) => unsafe {
@@ -60,14 +60,14 @@ impl JNILinker {
 						}
 					}
 
-					panic!("Could not find link for \"{name}\"")
+					return None;
 				}
 			},
 		};
 
-		func(match symbol {
+		Some(func(match symbol {
 			JNISymbol::Library(symbol) => Either::Left(**symbol),
 			JNISymbol::Rust(binding) => Either::Right(binding),
-		})
+		}))
 	}
 }

@@ -16,14 +16,14 @@ pub struct ThreadStack {
 }
 
 impl ThreadStack {
-	pub fn new(size: usize, func: impl FnOnce(&mut ThreadStack)) {
+	pub fn new<T>(size: usize, func: impl FnOnce(&mut ThreadStack) -> T) -> T {
 		debug!("Allocating new thread stack ({size}B)");
 		alloca_zeroed(size + STACK_HEADER_SIZE, |v| unsafe {
 			let stacks: &mut ThreadStack = transmute(v.as_mut_ptr());
 			stacks.data_size = size;
 			stacks.data_pos = 0;
-			func(stacks);
-		});
+			func(stacks)
+		})
 	}
 
 	pub fn create<'f>(&mut self, stack_size: u16, local_size: u16) -> ThreadFrame<'f> {

@@ -1,4 +1,4 @@
-package testing.math;
+package tests.math;
 
 public class MathTests {
 	public static int add(int left, int right) {

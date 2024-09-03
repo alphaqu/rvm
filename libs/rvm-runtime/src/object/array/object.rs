@@ -269,6 +269,20 @@ impl<V: Value> Array<V> {
 	}
 }
 
+impl<V: Value> Value for Array<V> {
+	fn kind() -> Kind {
+		Kind::Reference
+	}
+
+	unsafe fn write(ptr: *mut u8, value: Self) {
+		Reference::write(ptr, value.reference)
+	}
+
+	unsafe fn read(ptr: *mut u8) -> Self {
+		let reference = Reference::read(ptr);
+		Array::new(AnyArray::new(reference))
+	}
+}
 impl<V: Value> ToJava for Array<V> {
 	fn to_java(self, runtime: &Runtime) -> eyre::Result<AnyValue> {
 		self.array.to_java(runtime)

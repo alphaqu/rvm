@@ -240,6 +240,10 @@ impl AnyInstance {
 		}
 	}
 
+	pub fn runtime(&self) -> &Runtime {
+		&self.runtime
+	}
+
 	pub fn class(&self) -> &InstanceClass {
 		self.class.as_instance().unwrap()
 	}

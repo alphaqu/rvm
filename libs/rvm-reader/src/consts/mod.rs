@@ -1,11 +1,11 @@
-use std::fmt::{Debug, Formatter};
-use std::marker::PhantomData;
-
 use nom::combinator::{map, map_res};
 use nom::multi::length_data;
 use nom::number::complete::{be_f32, be_f64, be_i32, be_i64, be_u16, be_u8};
 use nom::sequence::pair;
 use nom::Needed;
+use std::fmt::{Debug, Formatter};
+use std::marker::PhantomData;
+use std::ops::Index;
 
 pub use crate::consts::class::ClassConst;
 pub use crate::consts::field::FieldConst;
@@ -106,6 +106,13 @@ impl ConstantPool {
 		} else {
 			None
 		}
+	}
+}
+impl<V: Constant> Index<ConstPtr<V>> for ConstantPool {
+	type Output = V;
+
+	fn index(&self, index: ConstPtr<V>) -> &Self::Output {
+		self.get(index).unwrap()
 	}
 }
 

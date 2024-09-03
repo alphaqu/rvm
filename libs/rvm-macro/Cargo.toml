@@ -6,6 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+rvm-core = { path = "../rvm-core" }
+rvm-reader = { path = "../rvm-reader" }
+
 syn = { version = "2.0.28", features = ["full"] }
 proc-macro-error = { version = "1" }
 proc-macro2 = "1.0.86"

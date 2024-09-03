@@ -19,45 +19,44 @@ pub fn spawn(
 	engine: Arc<BenEngine>,
 ) -> ThreadHandle {
 	ThreadHandle::new(runtime.clone(), config, move |thread| {
-		let mut out = None;
-
 		let config = thread.config.clone();
-		ThreadStack::new(size, |stack| {
-			let span = span!(Level::DEBUG, "vm-thread");
-			let _enter = span.enter();
+		let output =
+			ThreadStack::new(size, |stack| {
+				let span = span!(Level::DEBUG, "vm-thread");
+				let _enter = span.enter();
 
-			loop {
-				if let Ok(command) = thread.receiver.recv() {
-					match command {
-						ThreadCommand::Run {
-							ty,
-							method,
-							parameters,
-						} => {
-							debug!("Running {ty:?} {method:?}");
+				loop {
+					if let Ok(command) = thread.receiver.recv() {
+						match command {
+							ThreadCommand::Run {
+								ty,
+								method,
+								parameters,
+							} => {
+								debug!("Running {ty:?} {method:?}");
 
-							let executor = Executor {
-								thread,
-								stack,
-								engine,
-								runtime,
-								runner: ExecutorRunner::new(),
-							};
+								let executor = Executor {
+									thread,
+									stack,
+									engine,
+									runtime,
+									runner: ExecutorRunner::new(),
+								};
 
-							out = executor
-								.execute(&ty, &method, parameters)
-								.wrap_err_with(|| format!("Running in thread \"{}\"", config.name))
-								.unwrap();
-							return;
-						}
-						ThreadCommand::Exit => {
-							return;
+								let result =
+									executor.execute(&ty, &method, parameters).wrap_err_with(
+										|| format!("Running in thread \"{}\"", config.name),
+									)?;
+								return Ok(result);
+							}
+							ThreadCommand::Exit => {
+								return Ok(None);
+							}
 						}
 					}
 				}
-			}
-		});
+			});
 
-		out
+		output
 	})
 }

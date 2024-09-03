@@ -1,4 +1,4 @@
-package testing.object;
+package tests.object;
 
 public class ObjectTests {
 	public static SimpleObject createSimple() {

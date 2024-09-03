@@ -15,7 +15,7 @@ bind!("tests/rni" {
 	}
 });
 
-fn runtime() -> Arc<Runtime> {
+fn runtime() -> Runtime {
 	let runtime = launch(1024, vec!["tests/rni/RniTests.class"]);
 	load_sdk(&runtime);
 	runtime

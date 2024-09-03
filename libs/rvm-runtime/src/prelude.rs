@@ -79,7 +79,7 @@ macro_rules! bind {
 			#[allow(unused, non_snake_case)]
 			impl $CLASS {
 				$(
-				pub fn $METHOD(runtime: &Arc<rvm_runtime::Runtime>) -> impl Fn($($PARAM),*) $(-> $RETURNS)? {
+				pub fn $METHOD(runtime: &rvm_runtime::Runtime) -> impl Fn($($PARAM),*) $(-> $RETURNS)? {
 					let runtime = runtime.clone();
 					let mut class = $PACKAGE.to_string();
 					class.push('/');

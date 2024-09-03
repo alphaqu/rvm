@@ -1,8 +1,14 @@
 use rvm_macro::{jni_binding, jni_method};
-use rvm_runtime::{MethodBinding, MethodIdentifier, Runtime};
+use rvm_runtime::{
+	ClassSource, DirectoryClassSource, JarClassSource, MethodBinding, MethodIdentifier, Runtime,
+};
+use std::path::PathBuf;
 use std::sync::Arc;
 
-pub fn load_test_core(runtime: &Runtime) {
+pub fn load_test_sdk(runtime: &Runtime) {
+	runtime.classes.add_source(Box::new(
+		DirectoryClassSource::new(PathBuf::from("bytecode")).unwrap(),
+	));
 	runtime.bindings.bind(
 		"core/Assert",
 		"yes",
@@ -10,6 +16,23 @@ pub fn load_test_core(runtime: &Runtime) {
 			assert!(value);
 		}),
 	);
+
+	macro_rules! assert_bind {
+		($TY:ty) => {
+			runtime.bindings.bind(
+				"core/Assert",
+				"eq",
+				MethodBinding::new(|_, (left, right): ($TY, $TY)| {
+					assert_eq!(left, right);
+				}),
+			);
+		};
+	}
+
+	assert_bind!(i32);
+	assert_bind!(i64);
+	assert_bind!(f32);
+	assert_bind!(f64);
 }
 
 pub struct AssertBindings {}

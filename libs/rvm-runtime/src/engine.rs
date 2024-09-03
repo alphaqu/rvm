@@ -1,8 +1,8 @@
 use std::ffi::c_void;
 use std::pin::Pin;
 use std::sync::Arc;
-use std::thread;
 use std::thread::{spawn, JoinHandle};
+use std::{panic, thread};
 
 use crossbeam::channel::{unbounded, Receiver, Sender};
 
@@ -33,7 +33,7 @@ pub struct Thread {
 
 pub struct ThreadHandle {
 	data: Arc<ThreadConfig>,
-	handle: JoinHandle<Option<AnyValue>>,
+	handle: JoinHandle<eyre::Result<Option<AnyValue>>>,
 	sender: Sender<ThreadCommand>,
 }
 
@@ -41,7 +41,7 @@ impl ThreadHandle {
 	pub fn new(
 		runtime: Runtime,
 		config: ThreadConfig,
-		func: impl FnOnce(Thread) -> Option<AnyValue> + Send + 'static,
+		func: impl FnOnce(Thread) -> eyre::Result<Option<AnyValue>> + Send + 'static,
 	) -> ThreadHandle {
 		let data = Arc::new(config);
 		let (sender, receiver) = unbounded();
@@ -63,8 +63,13 @@ impl ThreadHandle {
 		}
 	}
 
-	pub fn join(self) -> thread::Result<Option<AnyValue>> {
-		self.handle.join()
+	pub fn join(self) -> eyre::Result<Option<AnyValue>> {
+		match self.handle.join() {
+			Ok(value) => value,
+			Err(err) => {
+				panic::resume_unwind(err);
+			}
+		}
 	}
 
 	pub fn name(&self) -> &str {

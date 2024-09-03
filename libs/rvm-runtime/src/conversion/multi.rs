@@ -6,8 +6,18 @@ use std::sync::Arc;
 pub trait FromJavaMulti: Sized {
 	fn from_vec(vec: Vec<AnyValue>, runtime: &Runtime) -> eyre::Result<Self>;
 }
+
 pub trait ToJavaMulti: Sized {
 	fn to_vec(self, runtime: &Runtime) -> eyre::Result<Vec<AnyValue>>;
+}
+fn single_or_none<V>(mut vec: Vec<V>) -> Option<V> {
+	match vec.len() {
+		0 => None,
+		1 => vec.pop(),
+		_ => {
+			panic!("Trying to return more than 1 value");
+		}
+	}
 }
 
 pub trait JavaTypedMulti {

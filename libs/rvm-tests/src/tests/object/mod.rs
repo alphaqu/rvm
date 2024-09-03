@@ -1,100 +1,10 @@
-use std::ops::{Deref, DerefMut};
-use std::sync::Arc;
+use rvm_runtime::{InstanceBinding, Runtime};
 
-use rvm_core::ObjectType;
-use rvm_runtime::{bind, AnyInstance, Instance, InstanceBinding, Runtime, TypedField};
+use crate::bindings::tests::object::{Animal, ExtendedObject, ObjectTests, SimpleObject};
+use crate::launch2;
 
-use crate::{launch, load_sdk};
-
-#[derive(Clone, Copy)]
-pub struct Animal;
-
-impl InstanceBinding for Animal {
-	fn ty() -> ObjectType {
-		ObjectType::new("testing/object/Animal")
-	}
-
-	fn bind(_: &AnyInstance) -> Self {
-		Animal {}
-	}
-}
-
-#[derive(Clone, Copy)]
-pub struct SimpleObject {
-	value: TypedField<i32>,
-}
-
-impl InstanceBinding for SimpleObject {
-	fn ty() -> ObjectType {
-		ObjectType::new("testing/object/SimpleObject")
-	}
-
-	fn bind(instance: &AnyInstance) -> Self {
-		SimpleObject {
-			value: instance.field_named("value").unwrap().typed(),
-		}
-	}
-}
-
-#[derive(Clone, Copy)]
-pub struct ExtendedObject {
-	base: SimpleObject,
-	another_field: TypedField<i64>,
-}
-
-impl InstanceBinding for ExtendedObject {
-	fn ty() -> ObjectType {
-		ObjectType::new("testing/object/ExtendedObject")
-	}
-
-	fn bind(instance: &AnyInstance) -> Self {
-		ExtendedObject {
-			base: SimpleObject::bind(instance),
-			another_field: instance.field_named("anotherField").unwrap().typed(),
-		}
-	}
-}
-impl Deref for ExtendedObject {
-	type Target = SimpleObject;
-
-	fn deref(&self) -> &Self::Target {
-		&self.base
-	}
-}
-
-impl DerefMut for ExtendedObject {
-	fn deref_mut(&mut self) -> &mut Self::Target {
-		&mut self.base
-	}
-}
-
-pub struct ObjectTests;
-bind!("testing/object" {
-	ObjectTests {
-		createSimple() -> Instance<SimpleObject>,
-		createSimpleNumbered(number: i32) -> Instance<SimpleObject>,
-		createExtended() -> Instance<ExtendedObject>,
-		casting(object: Instance<ExtendedObject>) -> Instance<SimpleObject>,
-		getSimpleField(instance: Instance<SimpleObject>) -> i32,
-		setSimpleField(instance: Instance<SimpleObject>, number: i32),
-		simpleInvocation(instance: Instance<SimpleObject>) -> i32,
-		interfaceCall(instance: Instance<Animal>) -> i32
-	}
-});
-
-fn runtime() -> Arc<Runtime> {
-	let runtime = launch(
-		1024,
-		vec![
-			"testing/object/Animal.class",
-			"testing/object/ObjectTests.class",
-			"testing/object/SimpleObject.class",
-			"testing/object/ExtendedObject.class",
-			"testing/object/Dog.class",
-		],
-	);
-	load_sdk(&runtime);
-	runtime
+fn runtime() -> Runtime {
+	launch2(1024)
 }
 
 #[test]
@@ -102,20 +12,20 @@ pub fn create() {
 	let runtime = runtime();
 	let id = runtime.classes.resolve(&SimpleObject::ty().into());
 
-	let create = ObjectTests::createSimple(&runtime);
+	let instance = ObjectTests::createSimple(&runtime).unwrap();
 
-	let instance = create();
 	assert_eq!(instance.untyped().class_id(), id)
 }
 
 #[test]
 pub fn create_numbered() {
-	let runtime = runtime();
+	for i in 0..100 {
+		let runtime = runtime();
 
-	let create = ObjectTests::createSimpleNumbered(&runtime);
+		let instance = ObjectTests::createSimpleNumbered(&runtime, 69).unwrap();
 
-	let instance = create(69);
-	assert_eq!(*instance.value, 69);
+		assert_eq!(*instance.value, 69);
+	}
 }
 
 #[test]
@@ -126,9 +36,7 @@ pub fn get_field() {
 	let mut instance = runtime.alloc_object(id).typed::<SimpleObject>();
 	*instance.value = 420;
 
-	let get_field = ObjectTests::getSimpleField(&runtime);
-
-	let output = get_field(instance.clone());
+	let output = ObjectTests::getSimpleField(&runtime, instance.clone()).unwrap();
 	assert_eq!(output, 420);
 }
 
@@ -140,8 +48,7 @@ pub fn set_field() {
 	let instance = runtime.alloc_object(id).typed::<SimpleObject>();
 	assert_eq!(*instance.value, 0);
 
-	let set_field = ObjectTests::setSimpleField(&runtime);
-	set_field(instance.clone(), 420);
+	ObjectTests::setSimpleField(&runtime, instance.clone(), 420).unwrap();
 	assert_eq!(*instance.value, 420);
 }
 
@@ -153,8 +60,7 @@ pub fn basic_instance_method() {
 	let instance = runtime.alloc_object(id).typed::<SimpleObject>();
 	assert_eq!(*instance.value, 0);
 
-	let invocation = ObjectTests::simpleInvocation(&runtime);
-	let i = invocation(instance);
+	let i = ObjectTests::simpleInvocation(&runtime, instance).unwrap();
 	assert_eq!(i, 640);
 }
 
@@ -163,11 +69,9 @@ pub fn create_extended() {
 	let runtime = runtime();
 	let id = runtime.classes.resolve(&ExtendedObject::ty().into());
 
-	let create_extended = ObjectTests::createExtended(&runtime);
-
-	let instance = create_extended();
+	let instance = ObjectTests::createExtended(&runtime).unwrap();
 	assert_eq!(instance.class_id(), id);
-	assert_eq!(*instance.another_field, 500);
+	assert_eq!(*instance.anotherField, 500);
 	assert_eq!(*instance.value, 400);
 
 	let instance = instance.cast_to::<SimpleObject>();
@@ -176,14 +80,9 @@ pub fn create_extended() {
 
 #[test]
 pub fn basic_override() {
-	let runtime = runtime();
-
-	let create_extended = ObjectTests::createExtended(&runtime);
-	let simple_invocation = ObjectTests::simpleInvocation(&runtime);
-
-	let instance = create_extended();
-
-	let i = simple_invocation(instance.cast_to::<SimpleObject>());
+	let runtime = launch2(1024);
+	let reference = ObjectTests::createExtended(&runtime).unwrap();
+	let i = ObjectTests::simpleInvocation(&runtime, reference.cast_to::<SimpleObject>()).unwrap();
 
 	assert_eq!(i, 640 + 400);
 }
@@ -195,9 +94,7 @@ pub fn casting() {
 	let mut instance = runtime.alloc_object(id).typed::<ExtendedObject>();
 	*instance.value = 500;
 
-	let cast = ObjectTests::casting(&runtime);
-
-	let instance = cast(instance);
+	let instance = ObjectTests::casting(&runtime, instance).unwrap();
 
 	assert_eq!(*instance.value, 500);
 }
@@ -209,9 +106,7 @@ pub fn interface_call() {
 	let id = runtime.classes.resolve(&ExtendedObject::ty().into());
 	let instance = runtime.alloc_object(id).typed::<ExtendedObject>();
 
-	let cast = ObjectTests::interfaceCall(&runtime);
-
-	let instance = cast(instance.cast_to::<Animal>());
+	let instance = ObjectTests::interfaceCall(&runtime, instance.cast_to::<Animal>()).unwrap();
 
 	assert_eq!(instance, 49);
 }

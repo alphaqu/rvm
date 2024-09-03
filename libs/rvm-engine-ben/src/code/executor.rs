@@ -329,28 +329,33 @@ impl<'a> Executor<'a> {
 			),
 			BenMethod::Native(native, desc) => {
 				let mut linker = self.runtime.linker.lock();
-				Scope::Return(linker.get(native, |function| unsafe {
-					trace!("Calling native function");
+				let option = linker
+					.get(native, |function| unsafe {
+						trace!("Calling native function");
 
-					let desc = desc.clone();
+						let desc = desc.clone();
 
-					let Either::Left(value) = function else {
-						panic!("Cringe");
-					};
-					let jni_function = JNIFunction::new(
-						value,
-						JNIFunctionSignature {
-							parameters: desc.parameters.iter().map(|v| v.kind()).collect(),
-							returns: desc.returns.map(|v| v.kind()),
-						},
-					);
+						let Either::Left(value) = function else {
+							panic!("Cringe");
+						};
+						let jni_function = JNIFunction::new(
+							value,
+							JNIFunctionSignature {
+								parameters: desc.parameters.iter().map(|v| v.kind()).collect(),
+								returns: desc.returns.map(|v| v.kind()),
+							},
+						);
 
-					jni_function.call(
-						&self.runtime,
-						&inputs.parameters,
-						method_descriptor.returns.as_ref().map(|v| v.kind()),
-					)
-				}))
+						jni_function.call(
+							&self.runtime,
+							&inputs.parameters,
+							method_descriptor.returns.as_ref().map(|v| v.kind()),
+						)
+					})
+					.wrap_err_with(|| {
+						format!("Could not find native function link for {native}{desc:?}")
+					})?;
+				Scope::Return(option)
 			}
 		})
 	}

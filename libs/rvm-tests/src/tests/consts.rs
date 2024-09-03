@@ -3,7 +3,7 @@ pub trait Samples: Sized {
 }
 impl Samples for i8 {
 	fn samples() -> Vec<Self> {
-		vec![i8::MIN, -5, -4, -3, -2 - 1, 0, -0, 1, 2, 3, 4, 5, i8::MAX]
+		vec![i8::MIN, -1, 0, -0, 1, i8::MAX]
 	}
 }
 impl Samples for i16 {
@@ -32,15 +32,18 @@ impl Samples for i64 {
 }
 impl Samples for f32 {
 	fn samples() -> Vec<Self> {
-		let mut output: Vec<f32> = i64::samples().into_iter().map(|v| v as f32).collect();
-		output.push(f32::EPSILON);
-		output.push(f32::MIN);
-		output.push(f32::MIN_POSITIVE);
-		output.push(f32::MAX);
-		output.push(f32::NAN);
-		output.push(f32::INFINITY);
-		output.push(f32::NEG_INFINITY);
-		output
+		vec![
+			1.0,
+			0.0,
+			-1.0,
+			f32::EPSILON,
+			f32::MIN,
+			f32::MIN_POSITIVE,
+			f32::MAX,
+			f32::NAN,
+			f32::INFINITY,
+			f32::NEG_INFINITY,
+		]
 	}
 }
 

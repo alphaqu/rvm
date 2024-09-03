@@ -9,6 +9,51 @@ pub struct MethodDescriptor {
 }
 
 impl MethodDescriptor {
+	pub fn jni_short_name(class_name: &str, method_name: &str) -> String {
+		Self::jni_name(class_name, method_name, None)
+	}
+
+	pub fn jni_long_name(class_name: &str, method_name: &str, arguments: &[Type]) -> String {
+		Self::jni_name(class_name, method_name, Some(arguments))
+	}
+	fn jni_name(class_name: &str, method_name: &str, signature: Option<&[Type]>) -> String {
+		let mut out = String::new();
+		out.push_str("Java_");
+
+		let push_mangled = |out: &mut String, string: &str| {
+			for char in string.chars() {
+				if char == '/' {
+					out.push('_')
+				} else if char == '_' {
+					out.push_str("_1")
+				} else if char == ';' {
+					out.push_str("_2")
+				} else if char == '[' {
+					out.push_str("_3")
+				} else if char == '<' || char == '>' {
+					// THIS IS NOT JNI SPECC!!!
+					out.push_str("_");
+				} else if char.is_ascii_alphanumeric() {
+					out.push(char);
+				} else {
+					panic!("Unsupported rn {char}!!")
+				}
+			}
+		};
+
+		push_mangled(&mut out, class_name);
+		out.push('_');
+		push_mangled(&mut out, method_name);
+
+		if let Some(arguments) = signature {
+			out.push_str("__");
+			for argument in arguments {
+				push_mangled(&mut out, &format!("{argument}"));
+			}
+		}
+		out
+	}
+
 	pub fn parse(desc: &str) -> Option<MethodDescriptor> {
 		let end = desc.find(')')?;
 		let mut remaining = &desc[1..end];

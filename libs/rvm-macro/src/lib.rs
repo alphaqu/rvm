@@ -5,6 +5,12 @@ extern crate proc_macro;
 
 use proc_macro::TokenStream;
 use proc_macro_error::proc_macro_error;
+use rvm_reader::ClassInfo;
+use std::env::vars;
+use std::fs::read;
+use std::path::PathBuf;
+use syn::parse::Parse;
+use syn::{parse, ItemStruct};
 //macro_rules! java_descriptor {
 // 	(()) => {"V"};
 // 	(bool) => {"Z"};

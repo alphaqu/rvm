@@ -1,4 +1,4 @@
-package testing.object;
+package tests.object;
 
 public class ExtendedObject extends SimpleObject implements Animal {
 	public long anotherField;

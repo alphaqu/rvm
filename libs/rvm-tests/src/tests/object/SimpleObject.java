@@ -1,4 +1,4 @@
-package testing.object;
+package tests.object;
 
 public class SimpleObject extends Object {
 	public int value;

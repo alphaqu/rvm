@@ -28,7 +28,7 @@ impl RustBinder {
 	) -> Option<Arc<MethodBinding>> {
 		let inner = self.methods.read();
 
-		let short_name = MethodBinding::jni_short_name(class_name, method_name);
+		let short_name = MethodDescriptor::jni_short_name(class_name, method_name);
 		if let Some(Some(binding)) = inner.short_names.get(&short_name) {
 			if &binding.signature == descriptor {
 				return Some(binding.clone());
@@ -36,7 +36,7 @@ impl RustBinder {
 		}
 
 		let long_name =
-			MethodBinding::jni_long_name(class_name, method_name, &descriptor.parameters);
+			MethodDescriptor::jni_long_name(class_name, method_name, &descriptor.parameters);
 		if let Some(binding) = inner.long_names.get(&long_name) {
 			if &binding.signature == descriptor {
 				return Some(binding.clone());
@@ -50,9 +50,9 @@ impl RustBinder {
 
 		let binding = Arc::new(binding);
 
-		let short_name = MethodBinding::jni_short_name(class_name, method_name);
+		let short_name = MethodDescriptor::jni_short_name(class_name, method_name);
 		let long_name =
-			MethodBinding::jni_long_name(class_name, method_name, &binding.signature.parameters);
+			MethodDescriptor::jni_long_name(class_name, method_name, &binding.signature.parameters);
 
 		match inner.short_names.entry(short_name) {
 			Entry::Occupied(mut value) => {
@@ -103,48 +103,6 @@ fn single_or_none<V>(mut vec: Vec<V>) -> Option<V> {
 	}
 }
 impl MethodBinding {
-	pub fn jni_short_name(class_name: &str, method_name: &str) -> String {
-		Self::jni_name(class_name, method_name, None)
-	}
-
-	pub fn jni_long_name(class_name: &str, method_name: &str, arguments: &[Type]) -> String {
-		Self::jni_name(class_name, method_name, Some(arguments))
-	}
-	fn jni_name(class_name: &str, method_name: &str, signature: Option<&[Type]>) -> String {
-		let mut out = String::new();
-		out.push_str("Java_");
-
-		let push_mangled = |out: &mut String, string: &str| {
-			for char in string.chars() {
-				if char == '/' {
-					out.push('_')
-				} else if char == '_' {
-					out.push_str("_1")
-				} else if char == ';' {
-					out.push_str("_2")
-				} else if char == '[' {
-					out.push_str("_3")
-				} else if char.is_ascii_alphanumeric() {
-					out.push(char);
-				} else {
-					panic!("Unsupported rn {char}!!")
-				}
-			}
-		};
-
-		push_mangled(&mut out, class_name);
-		out.push('_');
-		push_mangled(&mut out, method_name);
-
-		if let Some(arguments) = signature {
-			out.push_str("__");
-			for argument in arguments {
-				push_mangled(&mut out, &format!("{argument}"));
-			}
-		}
-		out
-	}
-
 	pub fn new<I, O, F>(function: F) -> Self
 	where
 		F: Fn(&Runtime, I) -> O + Send + Sync + 'static,

@@ -100,4 +100,9 @@ impl ClassInfo {
 			},
 		))
 	}
+
+	pub fn full_name(&self) -> String {
+		let class = self.constant_pool.get(self.this_class).unwrap();
+		self.constant_pool.get(class.name).unwrap().to_string()
+	}
 }

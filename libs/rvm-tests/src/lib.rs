@@ -1,28 +1,31 @@
 #![feature(exit_status_error)]
 #![feature(try_blocks)]
 
+use crate::core::load_test_sdk;
+use eyre::Context;
+use rvm_core::{MethodDescriptor, ObjectType, Type};
+use rvm_engine_ben::BenBinding;
+use rvm_runtime::{AnyValue, ClassSource, JarClassSource, MethodIdentifier, Runtime};
 use std::borrow::Borrow;
 use std::fs::read;
 use std::io::Result;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 use std::time::Instant;
-
-use crate::core::load_test_core;
-use rvm_core::{MethodDescriptor, ObjectType, Type};
-use rvm_engine_ben::BenBinding;
-use rvm_runtime::{AnyValue, MethodIdentifier, Runtime};
 use walkdir::WalkDir;
 
+pub use bindings::*;
+mod bindings;
 mod core;
 #[cfg(test)]
 mod tests;
 
+static RT_ZIP: LazyLock<Arc<JarClassSource>> = LazyLock::new(|| {
+	let data = read("../../rt.zip").unwrap();
+	Arc::new(JarClassSource::new(data).unwrap())
+});
+
 pub fn load_sdk(runtime: &Runtime) {
-	let vec = read("../../rt.zip").unwrap();
-	runtime
-		.classes
-		.load_jar(&vec, |v| v == "java/lang/Object.class")
-		.unwrap();
+	runtime.classes.add_source(Box::new(RT_ZIP.clone()));
 }
 
 pub struct SimpleClassTest {
@@ -61,36 +64,45 @@ pub fn simple_launch(tests: Vec<SimpleClassTest>) {
 	let mut classes: Vec<String> = tests.iter().map(|v| format!("{}.class", v.name)).collect();
 
 	// Core
-	classes.push("core/Assert.class".to_string());
-
 	let runtime = launch(1024, classes.iter().map(|v| v.as_str()).collect());
-	load_test_core(&runtime);
 
 	for test in tests {
 		let ty = ObjectType::new(test.name);
 		for method in test.methods {
-			let _ = runtime.simple_run(
-				ty.clone(),
-				MethodIdentifier {
-					name: method.name.into(),
-					descriptor: MethodDescriptor {
-						parameters: method.parameters.iter().map(|(v, _)| v.clone()).collect(),
-						returns: method.returns.as_ref().map(|(v, _)| v.clone()),
-					}
-					.to_string()
-					.into(),
-				},
-				method.parameters.iter().map(|(_, v)| *v).collect(),
-			);
+			runtime
+				.simple_run(
+					ty.clone(),
+					MethodIdentifier {
+						name: method.name.clone().into(),
+						descriptor: MethodDescriptor {
+							parameters: method.parameters.iter().map(|(v, _)| v.clone()).collect(),
+							returns: method.returns.as_ref().map(|(v, _)| v.clone()),
+						}
+						.to_string()
+						.into(),
+					},
+					method.parameters.iter().map(|(_, v)| *v).collect(),
+				)
+				.wrap_err_with(|| format!("Failed to run {}", method.name))
+				.unwrap();
 		}
 	}
 }
-
-pub fn launch(heap_size: usize, files: Vec<&str>) -> Arc<Runtime> {
+pub fn launch2(heap_size: usize) -> Runtime {
 	rvm_core::init();
-	let runtime = Arc::new(Runtime::new(heap_size, Box::new(BenBinding::new())));
+	let runtime = Runtime::new(heap_size, Box::new(BenBinding::new()));
 
 	load_sdk(&runtime);
+	load_test_sdk(&runtime);
+	runtime
+}
+pub fn launch(heap_size: usize, mut files: Vec<&str>) -> Runtime {
+	files.push("core/Assert.class");
+	rvm_core::init();
+	let runtime = Runtime::new(heap_size, Box::new(BenBinding::new()));
+
+	load_sdk(&runtime);
+	load_test_sdk(&runtime);
 	for x in files {
 		let x1 = x.borrow();
 		runtime

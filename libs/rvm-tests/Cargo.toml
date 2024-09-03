@@ -13,3 +13,10 @@ rvm-engine-ben = { path = "../rvm-engine-ben" }
 
 walkdir = "2.3.2"
 num-traits = "0.2.16"
+eyre = "0.6"
+
+[build-dependencies]
+rvm-core = { path = "../rvm-core" }
+rvm-reader = { path = "../rvm-reader" }
+
+rust-format = "0.3"

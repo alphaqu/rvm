@@ -1,4 +1,4 @@
-package testing.object;
+package tests.object;
 
 public class Dog implements Animal {
 	@Override

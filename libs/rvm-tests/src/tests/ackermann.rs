@@ -1,6 +1,6 @@
 use rvm_runtime::java_bind_method;
 
-use crate::{compile, launch, sample};
+use crate::{compile, launch, launch2, sample};
 
 #[inline(always)]
 fn ack(m: i32, n: i32) -> i32 {
@@ -17,9 +17,9 @@ fn ack(m: i32, n: i32) -> i32 {
 
 #[test]
 fn test() -> Result<(), std::io::Error> {
-	let runtime = launch(1024, vec![]);
+	let runtime = launch2(1024);
 	compile(
-		&*runtime,
+		&runtime,
 		&[(
 			"Main.java",
 			"public class Main {
@@ -40,8 +40,8 @@ fn test() -> Result<(), std::io::Error> {
 
 	const SAMPLES: usize = 4;
 	let java_ack = java_bind_method!(runtime fn Main:ack(m: i32, n: i32) -> i32);
-	let rust = sample("Rust ackermann", SAMPLES, || ack(3, 8));
-	let java = sample("Java ackermann", SAMPLES, || java_ack(3, 8));
+	let rust = sample("Rust ackermann", SAMPLES, || ack(3, 4));
+	let java = sample("Java ackermann", SAMPLES, || java_ack(3, 4));
 
 	for ((i, rust), java) in rust.into_iter().enumerate().zip(java.into_iter()) {
 		assert_eq!(

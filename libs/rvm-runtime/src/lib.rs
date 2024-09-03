@@ -86,13 +86,12 @@ impl Runtime {
 		ty: ObjectType,
 		method: MethodIdentifier,
 		parameters: Vec<AnyValue>,
-	) -> Option<AnyValue> {
+	) -> eyre::Result<Option<AnyValue>> {
 		let thread = self.create_thread(ThreadConfig {
 			name: "run".to_string(),
 		});
 		thread.run(ty, method, parameters);
-		let value = thread.join();
-		value.expect("Thread failed to run")
+		thread.join()
 	}
 }
 
