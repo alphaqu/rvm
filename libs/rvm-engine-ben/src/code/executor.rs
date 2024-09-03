@@ -4,15 +4,15 @@ use std::borrow::Cow;
 use std::sync::Arc;
 use tracing::{debug, info, trace};
 
-use rvm_core::{Id, MethodAccessFlags, MethodDescriptor, ObjectType, Type};
-use rvm_runtime::engine::Thread;
-use rvm_runtime::gc::{AllocationError, GcMarker, GcSweeper, RootProvider};
-use rvm_runtime::{AnyValue, Class, MethodBinding, MethodIdentifier, Reference, Runtime};
-
 use crate::code::{CallTask, CallType, Task};
 use crate::thread::{ThreadFrame, ThreadStack};
 use crate::value::StackValue;
 use crate::{BenEngine, BenMethod};
+use rvm_core::{Id, MethodAccessFlags, MethodDescriptor, ObjectType, Type};
+use rvm_runtime::engine::Thread;
+use rvm_runtime::gc::{AllocationError, GcMarker, GcSweeper, RootProvider};
+use rvm_runtime::native::{JNIFunction, JNIFunctionSignature};
+use rvm_runtime::{AnyValue, Class, MethodBinding, MethodIdentifier, Reference, Runtime};
 
 /// The executor is where the java code actually executes.
 pub struct Executor<'a> {
@@ -264,7 +264,7 @@ impl<'a> Executor<'a> {
 			self.runtime.cl.resolve_class(&Type::Object(ty.clone()))
 		} else {
 			let reference = inputs.instance.unwrap();
-			let class_object = reference.to_class().unwrap();
+			let class_object = reference.to_instance().unwrap();
 			class_object.class()
 		};
 
@@ -319,20 +319,30 @@ impl<'a> Executor<'a> {
 					cursor: 0,
 				})
 			}
-			BenMethod::Binding(binding) => {
-				Scope::Return(binding.call(&self.runtime, &inputs.parameters, returns))
-			}
+			BenMethod::Binding(binding) => Scope::Return(
+				binding
+					.call(&self.runtime, inputs.parameters)
+					.wrap_err("Failed externally")?,
+			),
 			BenMethod::Native(native, desc) => {
 				let mut linker = self.runtime.linker.lock();
 				Scope::Return(linker.get(native, |function| unsafe {
 					trace!("Calling native function");
 
-					let binding = match function {
-						Either::Left(left) => Cow::Owned(MethodBinding::new(left, desc.clone())),
-						Either::Right(right) => Cow::Borrowed(right),
-					};
+					let desc = desc.clone();
 
-					binding.call(&self.runtime, &inputs.parameters, returns)
+					let Either::Left(value) = function else {
+						panic!("Cringe");
+					};
+					let jni_function = JNIFunction::new(
+						value,
+						JNIFunctionSignature {
+							parameters: desc.parameters.iter().map(|v| v.kind()).collect(),
+							returns: desc.returns.map(|v| v.kind()),
+						},
+					);
+
+					jni_function.call(&self.runtime, &inputs.parameters, returns)
 				}))
 			}
 		})

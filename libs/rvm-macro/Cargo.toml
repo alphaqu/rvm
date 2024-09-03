@@ -7,6 +7,8 @@ edition = "2021"
 
 [dependencies]
 syn = { version = "2.0.28", features = ["full"] }
-
+proc-macro-error = { version = "1" }
+proc-macro2 = "1.0.86"
+convert_case = "0.6.0"
 [lib]
 proc-macro = true

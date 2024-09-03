@@ -1,3 +1,4 @@
+use crate::{ObjectType, PrimitiveType, Type};
 use std::fmt::{Display, Formatter};
 use std::mem::size_of;
 
@@ -17,6 +18,20 @@ pub enum Kind {
 }
 
 impl Kind {
+	pub fn weak_ty(&self) -> Type {
+		match self {
+			Kind::Reference => Type::Object(ObjectType::Object()),
+			Kind::Boolean => Type::Primitive(PrimitiveType::Boolean),
+			Kind::Char => Type::Primitive(PrimitiveType::Char),
+			Kind::Float => Type::Primitive(PrimitiveType::Float),
+			Kind::Double => Type::Primitive(PrimitiveType::Double),
+			Kind::Byte => Type::Primitive(PrimitiveType::Byte),
+			Kind::Short => Type::Primitive(PrimitiveType::Short),
+			Kind::Int => Type::Primitive(PrimitiveType::Int),
+			Kind::Long => Type::Primitive(PrimitiveType::Long),
+		}
+	}
+
 	pub fn size(&self) -> usize {
 		match self {
 			Kind::Reference => size_of::<*mut u8>(),

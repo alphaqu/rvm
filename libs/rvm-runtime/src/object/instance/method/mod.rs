@@ -1,6 +1,5 @@
 mod binding;
 
-pub use crate::object::instance::method::binding::MethodBinding;
 use eyre::Context;
 use rvm_core::Storage;
 use rvm_core::StorageValue;
@@ -55,7 +54,7 @@ pub struct Method {
 	pub name: String,
 	pub desc: MethodDescriptor,
 	pub flags: MethodAccessFlags,
-	pub code: Option<MethodCode>,
+	pub code: Option<Code>,
 }
 
 impl Method {
@@ -63,7 +62,7 @@ impl Method {
 		name: String,
 		desc: String,
 		flags: MethodAccessFlags,
-		code: MethodCode,
+		code: Code,
 	) -> (MethodIdentifier, Method) {
 		(
 			MethodIdentifier {
@@ -97,7 +96,7 @@ impl Method {
 		} else {
 			for attribute in info.attribute_info {
 				if let AttributeInfo::CodeAttribute { code: c } = attribute {
-					code = Some(MethodCode::Java(c));
+					code = Some(c);
 				}
 			}
 		}

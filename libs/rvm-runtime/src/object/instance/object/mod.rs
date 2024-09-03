@@ -1,7 +1,7 @@
 mod binding;
 mod field;
 
-use rvm_core::{Id, Kind, StorageValue};
+use rvm_core::{CastTypeError, Id, Kind, ObjectType, StorageValue, Type};
 use std::mem::size_of;
 use std::ops::Deref;
 use std::println;
@@ -10,6 +10,7 @@ use std::sync::Arc;
 pub use binding::{Instance, InstanceBinding};
 pub use field::{DynField, TypedField};
 
+use crate::conversion::{FromJava, JavaTyped, ToJava};
 use crate::{
 	read_arr, write_arr, AnyValue, Castable, Class, Field, InstanceClass, Reference, ReferenceKind,
 	Runtime, Value,
@@ -145,6 +146,40 @@ impl InstanceReference {
 		let data = self.fields().add(offset);
 		V::write(data, value)
 	}
+
+	pub fn resolve(self, runtime: Arc<Runtime>) -> AnyInstance {
+		AnyInstance::new(runtime, self)
+	}
+
+	pub fn ty(&self, runtime: &Arc<Runtime>) -> Type {
+		self.resolve(runtime.clone()).ty(runtime)
+	}
+}
+
+impl ToJava for InstanceReference {
+	fn to_java(self, runtime: &Arc<Runtime>) -> eyre::Result<AnyValue> {
+		self.reference.to_java(runtime)
+	}
+}
+
+impl FromJava for InstanceReference {
+	fn from_java(value: AnyValue, runtime: &Arc<Runtime>) -> eyre::Result<Self> {
+		let reference = Reference::from_java(value, runtime)?;
+		Ok(reference.to_instance().ok_or_else(|| CastTypeError {
+			expected: ObjectType::Object().into(),
+			found: value.ty(runtime),
+		})?)
+	}
+}
+
+impl JavaTyped for InstanceReference {
+	//fn java_type(&self, runtime: &Arc<Runtime>) -> Type {
+	//	self.resolve(runtime.clone()).java_type(runtime)
+	//}
+
+	fn java_type() -> Type {
+		Reference::java_type()
+	}
 }
 impl From<InstanceReference> for AnyValue {
 	fn from(value: InstanceReference) -> Self {
@@ -230,7 +265,31 @@ impl AnyInstance {
 	pub fn typed<B: InstanceBinding>(self) -> Instance<B> {
 		Instance::try_new(self).expect("Wrong type!")
 	}
+
+	pub fn ty(&self, _: &Arc<Runtime>) -> Type {
+		self.class.cloned_ty()
+	}
 }
+
+impl ToJava for AnyInstance {
+	fn to_java(self, runtime: &Arc<Runtime>) -> eyre::Result<AnyValue> {
+		self.raw.to_java(runtime)
+	}
+}
+
+impl FromJava for AnyInstance {
+	fn from_java(value: AnyValue, runtime: &Arc<Runtime>) -> eyre::Result<Self> {
+		let instance = InstanceReference::from_java(value, runtime)?;
+		Ok(instance.resolve(runtime.clone()))
+	}
+}
+
+impl JavaTyped for AnyInstance {
+	fn java_type() -> Type {
+		Reference::java_type()
+	}
+}
+
 impl Castable for InstanceReference {
 	fn cast_from(runtime: &Arc<Runtime>, value: AnyValue) -> Self {
 		let reference = Reference::cast_from(runtime, value);

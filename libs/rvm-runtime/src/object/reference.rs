@@ -1,8 +1,10 @@
-use crate::{AnyArray, InstanceReference};
-use rvm_core::{ObjectType, Type, Typed};
+use crate::conversion::JavaTyped;
+use crate::{AnyArray, InstanceReference, Runtime};
+use rvm_core::{ArrayType, ObjectType, Type, Typed};
 use std::fmt::{Debug, Formatter};
 use std::mem::size_of;
 use std::ptr::null_mut;
+use std::sync::Arc;
 
 #[derive(Copy, Clone, PartialEq)]
 #[repr(transparent)]
@@ -37,7 +39,7 @@ impl Reference {
 		self.0.is_null()
 	}
 
-	pub fn to_class(&self) -> Option<InstanceReference> {
+	pub fn to_instance(&self) -> Option<InstanceReference> {
 		InstanceReference::try_new(*self)
 	}
 
@@ -68,6 +70,23 @@ impl Reference {
 			}
 		}
 	}
+
+	pub fn ty(&self, runtime: &Arc<Runtime>) -> Type {
+		match self.reference_kind() {
+			None => {
+				// When its null, its just a regular untyped object
+				Type::Object(ObjectType::Object())
+			}
+			Some(ReferenceKind::Instance) => {
+				let instance = self.to_instance().unwrap();
+				instance.ty(runtime)
+			}
+			Some(ReferenceKind::Array) => {
+				let array = self.to_array().unwrap();
+				array.ty(runtime)
+			}
+		}
+	}
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -79,6 +98,12 @@ pub enum ReferenceKind {
 impl Debug for Reference {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		write!(f, "{:?}", self.0)
+	}
+}
+
+impl JavaTyped for Reference {
+	fn java_type() -> Type {
+		Type::Object(ObjectType::Object())
 	}
 }
 

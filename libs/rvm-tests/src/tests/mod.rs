@@ -10,4 +10,5 @@ mod object;
 mod rni;
 mod switch_statement;
 
+mod constants;
 mod consts;

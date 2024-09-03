@@ -1,4 +1,5 @@
-use crate::{AnyInstance, AnyValue, Class, Returnable, Runtime};
+use crate::conversion::{FromJava, JavaTyped, ToJava};
+use crate::{AnyInstance, AnyValue, Class, InstanceReference, Returnable, Runtime};
 use rvm_core::{CastTypeError, Id, ObjectType, Type, Typed};
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
@@ -33,7 +34,7 @@ impl<B: InstanceBinding> Instance<B> {
 			.runtime
 			.cl
 			.get_named(&B::ty().into())
-			.expect("Class is not loaded");
+			.expect("Class is not found loaded");
 
 		if !instance.instance_of(target_class) {
 			return Err(CastTypeError {
@@ -58,6 +59,24 @@ impl<B: InstanceBinding> Instance<B> {
 
 	pub fn untyped(&self) -> &AnyInstance {
 		&self.instance
+	}
+}
+impl<B: InstanceBinding> ToJava for Instance<B> {
+	fn to_java(self, runtime: &Arc<Runtime>) -> eyre::Result<AnyValue> {
+		self.instance.to_java(runtime)
+	}
+}
+
+impl<B: InstanceBinding> FromJava for Instance<B> {
+	fn from_java(value: AnyValue, runtime: &Arc<Runtime>) -> eyre::Result<Self> {
+		let instance = AnyInstance::from_java(value, runtime)?;
+		Ok(Self::try_new(instance)?)
+	}
+}
+
+impl<B: InstanceBinding> JavaTyped for Instance<B> {
+	fn java_type() -> Type {
+		B::ty().into()
 	}
 }
 

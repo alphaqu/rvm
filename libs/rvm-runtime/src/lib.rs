@@ -4,20 +4,23 @@
 #![feature(c_variadic)]
 #![feature(fn_traits)]
 
+use crate::engine::{Engine, ThreadConfig};
+use crate::gc::GarbageCollector;
+use crate::native::JNILinker;
 use ahash::HashMap;
+pub use binding::*;
+pub use conversion::*;
 pub use object::*;
 use parking_lot::{Mutex, RwLock};
-use rvm_core::Id;
+use rvm_core::{Id, ObjectType};
 use std::sync::Arc;
 use std::thread::spawn;
 use std::time::Instant;
 use tracing::debug;
 pub use value::*;
 
-use crate::engine::Engine;
-use crate::gc::GarbageCollector;
-use crate::native::JNILinker;
-
+mod binding;
+mod conversion;
 pub mod engine;
 pub mod error;
 pub mod gc;
@@ -36,7 +39,7 @@ pub struct Runtime {
 	pub cl: ClassLoader,
 	pub engine: Box<dyn Engine>,
 	pub gc: Mutex<GarbageCollector>,
-	pub bindings: RwLock<HashMap<MethodIdentifier, MethodBinding>>,
+	pub bindings: RustBinder,
 	pub linker: Mutex<JNILinker>,
 	pub started: Instant,
 }
@@ -48,7 +51,7 @@ impl Runtime {
 			cl: loader,
 			engine,
 			gc: Mutex::new(GarbageCollector::new(heap_size)),
-			bindings: Default::default(),
+			bindings: RustBinder::new(),
 			linker: Mutex::new(JNILinker::new()),
 			started: Instant::now(),
 		}
@@ -78,6 +81,23 @@ impl Runtime {
 			)
 			.unwrap();
 		AnyInstance::new(self.clone(), instance)
+	}
+
+	pub fn simple_run(
+		self: &Arc<Runtime>,
+		ty: ObjectType,
+		method: MethodIdentifier,
+		parameters: Vec<AnyValue>,
+	) -> Option<AnyValue> {
+		let thread = self.engine.create_thread(
+			self.clone(),
+			ThreadConfig {
+				name: "run".to_string(),
+			},
+		);
+		thread.run(ty, method, parameters);
+		let value = thread.join();
+		value.expect("Thread failed to run")
 	}
 
 	// /// Compiles a method with a given identifier. Uses the mapping in [`java!`]

@@ -78,7 +78,7 @@ impl ArrayLoadTask {
 
 		let reference = frame.pop().to_ref().unwrap();
 		let array = reference.to_array().unwrap();
-		if array.kind() != self.0 {
+		if array.component_kind() != self.0 {
 			panic!("Array type does not match");
 		}
 
@@ -105,7 +105,7 @@ impl ArrayStoreTask {
 
 		let reference = frame.pop().to_ref().unwrap();
 		let array = reference.to_array().unwrap();
-		if array.kind() != self.0 {
+		if array.component_kind() != self.0 {
 			panic!("Array type does not match");
 		}
 

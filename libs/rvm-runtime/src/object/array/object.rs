@@ -1,13 +1,16 @@
-use rvm_core::{ArrayType, Id, Kind, PrimitiveType, StorageValue, Type, Typed};
+use crate::conversion::{FromJava, JavaTyped, ToJava};
+use crate::{
+	read_arr, write_arr, AnyValue, Castable, Class, Reference, ReferenceKind, Runtime, Value,
+};
+use eyre::ContextCompat;
+use rvm_core::{
+	ArrayType, CastTypeError, Id, Kind, ObjectType, PrimitiveType, StorageValue, Type, Typed,
+};
 use std::intrinsics::transmute;
 use std::marker::PhantomData;
 use std::mem::size_of;
 use std::ops::Deref;
 use std::sync::Arc;
-
-use crate::{
-	read_arr, write_arr, AnyValue, Castable, Class, Reference, ReferenceKind, Runtime, Value,
-};
 
 #[derive(Copy, Clone)]
 pub struct AnyArray {
@@ -90,22 +93,12 @@ impl AnyArray {
 		);
 	}
 
-	pub fn kind(&self) -> Kind {
+	pub fn component_kind(&self) -> Kind {
 		unsafe { transmute(self.reference.0.add(Reference::HEADER_SIZE).read()) }
 	}
 
-	pub fn length(&self) -> i32 {
-		unsafe {
-			i32::from_le_bytes(read_arr(
-				self.reference
-					.0
-					.add(Reference::HEADER_SIZE + Self::KIND_SIZE),
-			))
-		}
-	}
-
-	pub fn class(&self) -> Option<Id<Class>> {
-		match self.kind() {
+	pub fn component_class(&self) -> Option<Id<Class>> {
+		match self.component_kind() {
 			Kind::Reference => unsafe {
 				let idx = <Class as StorageValue>::Idx::from_le_bytes(read_arr(
 					self.reference
@@ -118,8 +111,18 @@ impl AnyArray {
 		}
 	}
 
+	pub fn length(&self) -> i32 {
+		unsafe {
+			i32::from_le_bytes(read_arr(
+				self.reference
+					.0
+					.add(Reference::HEADER_SIZE + Self::KIND_SIZE),
+			))
+		}
+	}
+
 	pub fn get(&self, index: i32) -> Option<AnyValue> {
-		Some(match self.kind() {
+		Some(match self.component_kind() {
 			Kind::Reference => AnyValue::Reference(Array::<Reference>::new(*self).get(index)?),
 			Kind::Boolean => AnyValue::Boolean(Array::<bool>::new(*self).get(index)?),
 			Kind::Char => AnyValue::Char(Array::<u16>::new(*self).get(index)?),
@@ -133,7 +136,7 @@ impl AnyArray {
 	}
 
 	pub fn set(&self, index: i32, value: AnyValue) {
-		if value.kind() != self.kind() {
+		if value.kind() != self.component_kind() {
 			panic!();
 		}
 		match value {
@@ -172,6 +175,47 @@ impl AnyArray {
 	pub fn typed<V: Value>(self) -> Array<V> {
 		Array::new(self)
 	}
+
+	pub fn ty(&self, runtime: &Arc<Runtime>) -> Type {
+		let component_ty = match self.component_kind() {
+			Kind::Reference => {
+				let id = self.component_class().unwrap();
+				runtime.cl.get(id).cloned_ty()
+			}
+			Kind::Boolean => Type::Primitive(PrimitiveType::Boolean),
+			Kind::Char => Type::Primitive(PrimitiveType::Char),
+			Kind::Float => Type::Primitive(PrimitiveType::Float),
+			Kind::Double => Type::Primitive(PrimitiveType::Double),
+			Kind::Byte => Type::Primitive(PrimitiveType::Byte),
+			Kind::Short => Type::Primitive(PrimitiveType::Short),
+			Kind::Int => Type::Primitive(PrimitiveType::Int),
+			Kind::Long => Type::Primitive(PrimitiveType::Long),
+		};
+
+		Type::Array(ArrayType::from_component(component_ty))
+	}
+}
+
+impl ToJava for AnyArray {
+	fn to_java(self, runtime: &Arc<Runtime>) -> eyre::Result<AnyValue> {
+		self.reference.to_java(runtime)
+	}
+}
+
+impl FromJava for AnyArray {
+	fn from_java(value: AnyValue, runtime: &Arc<Runtime>) -> eyre::Result<Self> {
+		let reference = Reference::from_java(value, runtime)?;
+		Ok(reference.to_array().ok_or_else(|| CastTypeError {
+			expected: ArrayType::ObjectArray().into(),
+			found: value.ty(runtime),
+		})?)
+	}
+}
+
+impl JavaTyped for AnyArray {
+	fn java_type() -> Type {
+		Reference::java_type()
+	}
 }
 
 #[derive(Copy, Clone)]
@@ -186,7 +230,7 @@ impl<V: Value> Array<V> {
 	}
 
 	pub fn try_new(array: AnyArray) -> Option<Array<V>> {
-		if array.kind() == V::kind() {
+		if array.component_kind() == V::kind() {
 			Some(Array {
 				array,
 				_p: Default::default(),
@@ -222,6 +266,28 @@ impl<V: Value> Array<V> {
 
 	pub unsafe fn data_mut(&mut self) -> *mut V {
 		(self.array.0.add(AnyArray::header_size(V::kind()))) as *mut V
+	}
+}
+
+impl<V: Value> ToJava for Array<V> {
+	fn to_java(self, runtime: &Arc<Runtime>) -> eyre::Result<AnyValue> {
+		self.array.to_java(runtime)
+	}
+}
+
+impl<V: Value> FromJava for Array<V> {
+	fn from_java(value: AnyValue, runtime: &Arc<Runtime>) -> eyre::Result<Self> {
+		let any_array = AnyArray::from_java(value, runtime)?;
+		Ok(Array::try_new(any_array).ok_or_else(|| CastTypeError {
+			expected: ArrayType::ObjectArray().into(),
+			found: value.ty(runtime),
+		})?)
+	}
+}
+
+impl<V: Value + JavaTyped> JavaTyped for Array<V> {
+	fn java_type() -> Type {
+		ArrayType::from_component(V::java_type()).into()
 	}
 }
 

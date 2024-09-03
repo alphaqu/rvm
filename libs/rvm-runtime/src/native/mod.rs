@@ -1,10 +1,12 @@
 #![allow(unused_variables)]
 
 mod env;
+mod function;
 mod link;
 
 use std::ffi::c_void;
 
+pub use function::*;
 use jni_sys::{jint, JavaVM, JavaVMInitArgs, JNI_ERR, JNI_EVERSION, JNI_OK, JNI_VERSION_1_8};
 pub use link::JNILinker;
 

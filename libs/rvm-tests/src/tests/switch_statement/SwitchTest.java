@@ -1,6 +1,6 @@
 package tests.switch_statement;
 
-import tests.Assert;
+import core.Assert;
 
 public class SwitchTest {
 
@@ -14,7 +14,7 @@ public class SwitchTest {
 		Assert.yes(testSwitch(10) == 10);
 	}
 
-	public static int testSwitch(int i){
+	public static int testSwitch(int i) {
 		int output = 0;
 		switch (i) {
 			case 1:

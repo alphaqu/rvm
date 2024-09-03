@@ -7,13 +7,13 @@ use std::sync::{Arc, RwLock};
 
 use tracing::{debug, info};
 
+use crate::method::JavaMethod;
+use crate::thread::spawn;
 use rvm_core::{Id, MethodAccessFlags, MethodDescriptor, Storage, StorageValue};
 use rvm_reader::ConstantPool;
 use rvm_runtime::engine::{Engine, ThreadConfig, ThreadHandle};
+use rvm_runtime::native::JNIFunction;
 use rvm_runtime::{Class, Method, MethodBinding, MethodCode, MethodIdentifier, Runtime};
-
-use crate::method::JavaMethod;
-use crate::thread::spawn;
 
 mod code;
 mod method;
@@ -73,30 +73,28 @@ impl BenEngine {
 
 		let code = method.code.as_ref();
 		let ben_method = Arc::new(match code {
-			Some(MethodCode::Java(code)) => {
+			Some(code) => {
 				let compiled = JavaMethod::new(code, instance, method);
 				BenMethod::Java(compiled)
 			}
-			Some(MethodCode::Binding(binding)) => {
-				let binding_guard = runtime.bindings.read();
-				let binding = binding_guard.get(binding).unwrap();
-				BenMethod::Binding(binding.clone())
-			}
 			None => {
 				if method.flags.contains(MethodAccessFlags::NATIVE) {
-					let binding_guard = runtime.bindings.read();
 					let identifier = MethodIdentifier {
 						name: method.name.clone(),
 						descriptor: method.desc.to_string(),
 					};
+
 					info!("Trying to find {identifier:?}");
-					if let Some(binding) = binding_guard.get(&identifier) {
-						BenMethod::Binding(binding.clone())
+					if let Some(binding) =
+						runtime
+							.bindings
+							.get_binding(&instance.ty.0, &method.name, &method.desc)
+					{
+						BenMethod::Binding(binding)
 					} else {
-						BenMethod::Native(
-							format!("Java_{}_{}", instance.ty.0.replace('/', "_"), method.name),
-							method.desc.clone(),
-						)
+						let name =
+							format!("Java_{}_{}", instance.ty.0.replace('/', "_"), method.name);
+						BenMethod::Native(name, method.desc.clone())
 					}
 				} else {
 					panic!("Could not find method")
@@ -112,8 +110,8 @@ impl BenEngine {
 
 pub enum BenMethod {
 	Java(JavaMethod),
-	Binding(MethodBinding),
 	Native(String, MethodDescriptor),
+	Binding(Arc<MethodBinding>),
 }
 
 impl BenMethod {

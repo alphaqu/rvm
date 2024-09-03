@@ -211,6 +211,10 @@ pub struct ArrayType {
 }
 
 impl ArrayType {
+	#[allow(non_snake_case)]
+	pub fn ObjectArray() -> ArrayType {
+		ArrayType::from_component(Type::Object(ObjectType::Object()))
+	}
 	pub fn from_component(ty: Type) -> ArrayType {
 		ArrayType {
 			component: Box::new(ty),

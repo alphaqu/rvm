@@ -1,9 +1,9 @@
-use rvm_core::Kind;
-use std::ptr::{read, write};
-use std::sync::Arc;
-
+use crate::conversion::JavaTyped;
 use crate::object::Reference;
 use crate::Runtime;
+use rvm_core::{Kind, PrimitiveType, Type};
+use std::ptr::{read, write};
+use std::sync::Arc;
 pub trait Castable {
 	fn cast_from(runtime: &Arc<Runtime>, value: AnyValue) -> Self;
 }
@@ -63,6 +63,38 @@ pub enum AnyValue {
 	Reference(Reference),
 }
 
+// Not implemented because AnyValue has no known value type
+
+//impl JavaTyped for AnyValue {
+//	//fn java_type(&self, runtime: &Arc<Runtime>) -> Type {
+//	//	match self {
+//	//		AnyValue::Byte(_) => Type::Primitive(PrimitiveType::Byte),
+//	//		AnyValue::Short(_) => Type::Primitive(PrimitiveType::Short),
+//	//		AnyValue::Int(_) => Type::Primitive(PrimitiveType::Int),
+//	//		AnyValue::Long(_) => Type::Primitive(PrimitiveType::Long),
+//	//		AnyValue::Char(_) => Type::Primitive(PrimitiveType::Char),
+//	//		AnyValue::Float(_) => Type::Primitive(PrimitiveType::Float),
+//	//		AnyValue::Double(_) => Type::Primitive(PrimitiveType::Double),
+//	//		AnyValue::Boolean(_) => Type::Primitive(PrimitiveType::Boolean),
+//	//		AnyValue::Reference(reference) => reference.java_type(runtime),
+//	//	}
+//	//}
+//
+//	fn java_type_static() -> Type {
+//		match self {
+//			AnyValue::Byte(_) => Type::Primitive(PrimitiveType::Byte),
+//			AnyValue::Short(_) => Type::Primitive(PrimitiveType::Short),
+//			AnyValue::Int(_) => Type::Primitive(PrimitiveType::Int),
+//			AnyValue::Long(_) => Type::Primitive(PrimitiveType::Long),
+//			AnyValue::Char(_) => Type::Primitive(PrimitiveType::Char),
+//			AnyValue::Float(_) => Type::Primitive(PrimitiveType::Float),
+//			AnyValue::Double(_) => Type::Primitive(PrimitiveType::Double),
+//			AnyValue::Boolean(_) => Type::Primitive(PrimitiveType::Boolean),
+//			AnyValue::Reference(_) => Reference::java_type_static(),
+//		}
+//	}
+//}
+
 macro_rules! impl_from {
 	($TY:ty, $KIND:ident) => {
 		impl Castable for $TY {
@@ -101,6 +133,20 @@ impl_from!(bool, Boolean);
 impl_from!(Reference, Reference);
 
 impl AnyValue {
+	pub fn ty(&self, runtime: &Arc<Runtime>) -> Type {
+		match self {
+			AnyValue::Byte(_) => Type::Primitive(PrimitiveType::Byte),
+			AnyValue::Short(_) => Type::Primitive(PrimitiveType::Short),
+			AnyValue::Int(_) => Type::Primitive(PrimitiveType::Int),
+			AnyValue::Long(_) => Type::Primitive(PrimitiveType::Long),
+			AnyValue::Char(_) => Type::Primitive(PrimitiveType::Char),
+			AnyValue::Float(_) => Type::Primitive(PrimitiveType::Float),
+			AnyValue::Double(_) => Type::Primitive(PrimitiveType::Double),
+			AnyValue::Boolean(_) => Type::Primitive(PrimitiveType::Boolean),
+			AnyValue::Reference(reference) => reference.ty(runtime),
+		}
+	}
+
 	pub fn kind(&self) -> Kind {
 		match self {
 			AnyValue::Byte(_) => i8::kind(),

@@ -1,16 +1,19 @@
 #![feature(exit_status_error)]
 #![feature(try_blocks)]
 
+use std::borrow::Borrow;
 use std::fs::read;
 use std::io::Result;
 use std::sync::Arc;
 use std::time::Instant;
 
+use crate::core::load_test_core;
+use rvm_core::{MethodDescriptor, ObjectType, Type};
+use rvm_engine_ben::BenBinding;
+use rvm_runtime::{AnyValue, MethodIdentifier, Runtime};
 use walkdir::WalkDir;
 
-use rvm_engine_ben::BenBinding;
-use rvm_runtime::Runtime;
-
+mod core;
 #[cfg(test)]
 mod tests;
 
@@ -22,15 +25,76 @@ pub fn load_sdk(runtime: &Runtime) {
 		.unwrap();
 }
 
+pub struct SimpleClassTest {
+	pub name: String,
+	pub methods: Vec<SimpleMethodTest>,
+}
+
+pub struct SimpleMethodTest {
+	pub name: String,
+	pub parameters: Vec<(Type, AnyValue)>,
+	pub returns: Option<(Type, AnyValue)>,
+}
+
+impl SimpleMethodTest {
+	pub fn void(name: impl ToString) -> SimpleMethodTest {
+		SimpleMethodTest {
+			name: name.to_string(),
+			parameters: vec![],
+			returns: None,
+		}
+	}
+
+	pub fn parameters_simple(name: impl ToString, parameters: Vec<AnyValue>) -> SimpleMethodTest {
+		SimpleMethodTest {
+			name: name.to_string(),
+			parameters: parameters
+				.into_iter()
+				.map(|v| (v.kind().weak_ty(), v))
+				.collect(),
+			returns: None,
+		}
+	}
+}
+
+pub fn simple_launch(tests: Vec<SimpleClassTest>) {
+	let mut classes: Vec<String> = tests.iter().map(|v| format!("{}.class", v.name)).collect();
+
+	// Core
+	classes.push("core/Assert.class".to_string());
+
+	let runtime = launch(1024, classes.iter().map(|v| v.as_str()).collect());
+	load_test_core(&runtime);
+
+	for test in tests {
+		let ty = ObjectType(test.name);
+		for method in test.methods {
+			let _ = runtime.simple_run(
+				ty.clone(),
+				MethodIdentifier {
+					name: method.name,
+					descriptor: MethodDescriptor {
+						parameters: method.parameters.iter().map(|(v, _)| v.clone()).collect(),
+						returns: method.returns.as_ref().map(|(v, _)| v.clone()),
+					}
+					.to_string(),
+				},
+				method.parameters.iter().map(|(_, v)| *v).collect(),
+			);
+		}
+	}
+}
+
 pub fn launch(heap_size: usize, files: Vec<&str>) -> Arc<Runtime> {
 	rvm_core::init();
 	let runtime = Arc::new(Runtime::new(heap_size, Box::new(BenBinding::new())));
 
 	load_sdk(&runtime);
 	for x in files {
+		let x1 = x.borrow();
 		runtime
 			.cl
-			.load_class(&read(format!("bytecode/{x}")).unwrap())
+			.load_class(&read(format!("bytecode/{x1}")).unwrap())
 			.unwrap();
 	}
 	runtime

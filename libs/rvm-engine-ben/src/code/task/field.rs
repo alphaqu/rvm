@@ -65,7 +65,7 @@ impl FieldTask {
 						FieldInstKind::Get => {
 							let reference = frame.pop().to_ref().unwrap();
 
-							let class = reference.to_class().unwrap();
+							let class = reference.to_instance().unwrap();
 							let instance = AnyInstance::try_new(runtime.clone(), class).unwrap();
 
 							let value = instance.field(id).get();
@@ -75,7 +75,7 @@ impl FieldTask {
 						FieldInstKind::Put => {
 							let value = frame.pop();
 							let reference = frame.pop().to_ref().unwrap();
-							let class = reference.to_class().unwrap();
+							let class = reference.to_instance().unwrap();
 							let instance = AnyInstance::try_new(runtime.clone(), class).unwrap();
 							instance.field(id).set(value.to_any());
 						}

@@ -46,7 +46,7 @@ mod tests {
 				HI_FIELD = Some((field.offset, field.ty.kind()));
 			}
 			pub extern "C" fn hello(reference: Reference, things: i32) {
-				let instance = reference.to_class().unwrap();
+				let instance = reference.to_instance().unwrap();
 				unsafe {
 					JavaString {
 						hi: instance.get_any(HI_FIELD.unwrap().0, HI_FIELD.unwrap().1),
@@ -73,10 +73,7 @@ mod tests {
 					name: "hello".to_string(),
 					desc: MethodDescriptor::parse("(Ljava/lang/String;)"),
 					flags: (),
-					code: Some(MethodCode::Binding(MethodIdentifier {
-						name: "".to_string(),
-						descriptor: "".to_string(),
-					})),
+					code: None,
 				}]),
 			}));
 		}
