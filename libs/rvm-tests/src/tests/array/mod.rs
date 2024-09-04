@@ -1,5 +1,5 @@
 use rvm_core::PrimitiveType;
-use rvm_runtime::{Array, Reference};
+use rvm_runtime::{Array, Class, Reference};
 
 use crate::bindings::tests::array::ArrayTest;
 use crate::{launch, load_sdk};
@@ -9,8 +9,7 @@ fn primitive() {
 	let runtime = launch(1024);
 	let short = runtime
 		.gc
-		.lock()
-		.allocate_array(PrimitiveType::Int, 3)
+		.alloc_array(&PrimitiveType::Int.into(), 3)
 		.unwrap();
 	let mut array = Array::new(short);
 
@@ -44,7 +43,7 @@ fn setter() -> eyre::Result<()> {
 	let runtime = launch(1024);
 	load_sdk(&runtime);
 
-	let short = runtime.gc.lock().allocate_array(PrimitiveType::Int, 3)?;
+	let short = runtime.gc.alloc_array(&PrimitiveType::Int.into(), 3)?;
 
 	let array = Array::new(short);
 	assert_eq!(array.get(0), Some(0));
@@ -65,7 +64,7 @@ fn getter() -> eyre::Result<()> {
 	let runtime = launch(1024);
 	load_sdk(&runtime);
 
-	let short = runtime.gc.lock().allocate_array(PrimitiveType::Int, 3)?;
+	let short = runtime.gc.alloc_array(&PrimitiveType::Int.into(), 3)?;
 
 	let mut array = Array::new(short);
 

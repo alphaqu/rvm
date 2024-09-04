@@ -12,27 +12,27 @@ fn test() -> Result<(), std::io::Error> {
 		&[(
 			"Main.java",
 			"public class Main {
-    public static boolean testZeroEq(int v) {
+    public statics boolean testZeroEq(int v) {
         return v == 0;
     }
 
-    public static boolean testZeroNeq(int v) {
+    public statics boolean testZeroNeq(int v) {
         return v != 0;
     }
 
-    public static boolean testZeroGt(int v) {
+    public statics boolean testZeroGt(int v) {
         return v > 0;
     }
 
-    public static boolean testZeroGe(int v) {
+    public statics boolean testZeroGe(int v) {
         return v >= 0;
     }
 
-    public static boolean testZeroLt(int v) {
+    public statics boolean testZeroLt(int v) {
         return v < 0;
     }
 
-    public static boolean testZeroLe(int v) {
+    public statics boolean testZeroLe(int v) {
         return v <= 0;
     }
 }",

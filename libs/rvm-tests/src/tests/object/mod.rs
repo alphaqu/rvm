@@ -128,7 +128,7 @@ pub fn gc() {
 			}
 			Ok(value) => {
 				if i > 4 {
-					runtime.gc.lock().add_frozen(*value.raw());
+					runtime.gc.add_frozen(*value.raw());
 					frozen += 1;
 					debug!("Now frozen {frozen}");
 				}

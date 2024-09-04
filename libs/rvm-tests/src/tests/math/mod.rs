@@ -108,7 +108,7 @@ fn add_doubles() {
 // 	let mut output = String::new();
 // 	output.write_str("public class Main {").unwrap();
 // 	output
-// 		.write_str("\tpublic static void main(String[] args) {")
+// 		.write_str("\tpublic statics void main(String[] args) {")
 // 		.unwrap();
 // 	for x in values {
 // 		output.write_str("\t\t").unwrap();

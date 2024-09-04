@@ -1,8 +1,8 @@
 use std::fmt::{Display, Formatter};
 
-use rvm_core::{Kind, ObjectType, PrimitiveType, Type};
+use rvm_core::{ArrayType, Kind, ObjectType, PrimitiveType, Type};
 use rvm_reader::{ClassConst, ConstPtr};
-use rvm_runtime::{InstanceClass, Runtime};
+use rvm_runtime::{Class, InstanceClass, Runtime};
 
 use crate::thread::ThreadFrame;
 use crate::value::StackValue;
@@ -14,7 +14,10 @@ impl ArrayCreateTask {
 	#[inline(always)]
 	pub fn exec(&self, runtime: &Runtime, frame: &mut ThreadFrame) {
 		let length = frame.pop().to_int().unwrap();
-		let array = runtime.gc.lock().allocate_array(self.0, length).unwrap();
+		let array = runtime
+			.gc
+			.alloc_array(&Class::Primitive(self.0), length as u32)
+			.unwrap();
 		frame.push(StackValue::Reference(*array));
 	}
 }
@@ -39,9 +42,13 @@ impl ArrayCreateRefTask {
 	pub fn exec(&self, runtime: &Runtime, frame: &mut ThreadFrame) {
 		let length = frame.pop().to_int().unwrap();
 
-		let id = runtime.classes.resolve(&Type::Object(self.0.clone()));
-		let array = runtime.gc.lock().allocate_ref_array(id, length).unwrap();
+		let component_id = runtime.classes.resolve(&Type::Object(self.0.clone()));
+		let component_class = runtime.classes.get(component_id);
 
+		let array = runtime
+			.gc
+			.alloc_array(&component_class, length as u32)
+			.unwrap();
 		frame.push(StackValue::Reference(*array));
 	}
 }

@@ -23,7 +23,7 @@ fn test() -> Result<(), std::io::Error> {
 		&[(
 			"Main.java",
 			"public class Main {
-    static int ack(int m, int n) {
+    statics int ack(int m, int n) {
         if (m == 0) {
             return n + 1;
         } else if (m > 0 && n == 0) {

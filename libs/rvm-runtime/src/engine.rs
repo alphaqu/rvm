@@ -7,9 +7,9 @@ use std::{panic, thread};
 use crossbeam::channel::{unbounded, Receiver, Sender};
 
 use rvm_core::ObjectType;
+use rvm_gc::GcSweeper;
 use rvm_reader::ConstantPool;
 
-use crate::gc::GcSweeper;
 use crate::value::AnyValue;
 use crate::Runtime;
 use crate::{Method, MethodIdentifier};
@@ -47,7 +47,7 @@ impl ThreadHandle {
 		let (sender, receiver) = unbounded();
 		let data2 = data.clone();
 
-		let sweeper = runtime.gc.lock().new_sweeper();
+		let sweeper = runtime.gc.new_sweeper();
 		let handle = spawn(|| {
 			func(Thread {
 				gc: sweeper,

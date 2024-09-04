@@ -54,7 +54,7 @@ mod tests {
 					.hello(things);
 				}
 			}
-			cl.define(Class::Object(InstanceClass {
+			cl.define(Class::Instance(InstanceClass {
 				ty: ObjectType("java/lang/String".to_string()),
 				super_class: None,
 				super_id: None,

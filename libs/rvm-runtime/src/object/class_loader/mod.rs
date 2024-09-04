@@ -43,6 +43,7 @@ impl ClassLoader {
 		self.classes.read().get_id(ty)
 	}
 
+	// Make this return Arc<Class>??
 	pub fn resolve(&self, desc: &Type) -> Id<Class> {
 		// if its in the match the lock wont get dropped
 		let option = self.classes.read().get_id(desc);
@@ -57,7 +58,7 @@ impl ClassLoader {
 					}
 					Type::Object(object) => {
 						let class = self.load(object).unwrap();
-						Class::Object(class)
+						Class::Instance(class)
 					}
 					Type::Array(value) => {
 						let mut component_id = None;
@@ -66,7 +67,11 @@ impl ClassLoader {
 							component_id = Some(self.resolve(value.component()));
 						}
 
-						Class::Array(ArrayClass::new((*value.component()).clone(), component_id))
+						Class::Array(ArrayClass::new(
+							id,
+							(*value.component()).clone(),
+							component_id,
+						))
 					}
 				};
 
@@ -90,7 +95,7 @@ impl ClassLoader {
 			drop(guard);
 
 			let info = ClassInfo::parse_complete(&data).wrap_err("Failed to parse .class file")?;
-			let class = InstanceClass::parse(info, self)?;
+			let class = InstanceClass::new(info, self)?;
 			return Ok(class);
 		}
 
@@ -119,11 +124,11 @@ impl ClassLoader {
 	#[instrument(skip_all)]
 	pub fn load_class(&self, data: &[u8]) -> eyre::Result<Id<Class>> {
 		let info = ClassInfo::parse_complete(data).wrap_err("Failed to parse .class file")?;
-		let class = InstanceClass::parse(info, self)?;
+		let class = InstanceClass::new(info, self)?;
 
 		debug!("Parsed class {}", class.ty);
 
-		let class = Class::Object(class);
+		let class = Class::Instance(class);
 		let id = self.allocate_id(class.cloned_ty());
 		self.define(id, class);
 

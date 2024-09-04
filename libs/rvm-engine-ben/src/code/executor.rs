@@ -10,7 +10,7 @@ use crate::value::StackValue;
 use crate::{BenEngine, BenMethod};
 use rvm_core::{Id, MethodAccessFlags, MethodDescriptor, ObjectType, Type};
 use rvm_runtime::engine::Thread;
-use rvm_runtime::gc::{AllocationError, GcMarker, GcSweeper, RootProvider};
+use rvm_runtime::gc::{AllocationError, GcMarker, GcRef, GcSweeper, JavaUser, RootProvider};
 use rvm_runtime::native::{JNIFunction, JNIFunctionSignature};
 use rvm_runtime::{AnyValue, Class, Method, MethodBinding, MethodIdentifier, Reference, Runtime};
 
@@ -225,7 +225,7 @@ impl<'a> Executor<'a> {
 	pub fn new_object(&mut self, id: Id<Class>) -> eyre::Result<Option<Reference>> {
 		let class = self.runtime.classes.get(id);
 		let object = class.as_instance().unwrap();
-		let result = self.runtime.gc.lock().allocate_instance(id, object);
+		let result = self.runtime.gc.alloc_instance(object);
 
 		match result {
 			Ok(object) => {
@@ -293,9 +293,9 @@ impl<'a> Executor<'a> {
 					bail!(
 						"Method invocation ({call_ty:?}) is not compatible with {} method \"{}{method_descriptor:?}\"",
 						if is_method_static {
-							"static"
+							"statics"
 						} else {
-							"non-static"
+							"non-statics"
 						},
 						method_ident.name
 					);
@@ -416,28 +416,31 @@ impl<'a> Executor<'a> {
 	}
 }
 
-impl<'a> RootProvider for Executor<'a> {
+impl<'a> RootProvider<JavaUser> for Executor<'a> {
 	fn mark_roots(&mut self, visitor: GcMarker) {
 		self.stack.visit_frames_mut(|frame| {
 			for i in 0..frame.stack_pos {
 				if let StackValue::Reference(reference) = frame.get_stack_value(i) {
-					visitor.mark(reference);
+					visitor.mark(*reference);
 				}
 			}
 
 			for i in 0..frame.local_size {
 				if let StackValue::Reference(reference) = frame.load(i) {
-					visitor.mark(reference);
+					visitor.mark(*reference);
 				}
 			}
 		});
 	}
 
-	fn remap_roots(&mut self, mut mapper: impl FnMut(Reference) -> Reference) {
+	fn remap_roots(&mut self, mut mapper: impl FnMut(GcRef) -> GcRef) {
 		self.stack.visit_frames_mut(|frame| {
 			for i in 0..frame.stack_pos {
 				if let StackValue::Reference(reference) = frame.get_stack_value(i) {
-					frame.set_stack_value(i, StackValue::Reference(mapper(reference)));
+					frame.set_stack_value(
+						i,
+						StackValue::Reference(Reference::new(mapper(*reference))),
+					);
 				}
 			}
 

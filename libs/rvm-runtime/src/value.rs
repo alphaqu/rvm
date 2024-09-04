@@ -1,9 +1,11 @@
 use crate::conversion::JavaTyped;
 use crate::object::Reference;
 use crate::Runtime;
-use rvm_core::{Kind, PrimitiveType, Type};
+use rvm_core::{Kind, PrimitiveType, ResultUnwrapOrErr, Type};
+use rvm_gc::GcRef;
 use std::ptr::{read, write};
 use std::sync::Arc;
+
 pub trait Castable {
 	fn cast_from(runtime: &Runtime, value: AnyValue) -> Self;
 }
@@ -43,9 +45,9 @@ impl<R: Returnable> Returnable for Option<R> {
 
 pub trait Value: Sized + Copy {
 	fn kind() -> Kind;
-	unsafe fn write(ptr: *mut u8, value: Self);
-	unsafe fn read(ptr: *mut u8) -> Self;
-	unsafe fn cast_pointer(ptr: *mut u8) -> *mut Self {
+	unsafe fn write(ptr: *mut UnionValue, value: Self);
+	unsafe fn read(ptr: UnionValue) -> Self;
+	unsafe fn cast_pointer(ptr: *mut UnionValue) -> *mut Self {
 		ptr as *mut Self
 	}
 }
@@ -61,6 +63,20 @@ pub enum AnyValue {
 	Double(f64),
 	Boolean(bool),
 	Reference(Reference),
+}
+
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub union UnionValue {
+	pub byte: i8,
+	pub short: i16,
+	pub int: i32,
+	pub long: i64,
+	pub char: u16,
+	pub float: f32,
+	pub double: f64,
+	pub boolean: bool,
+	pub reference: Reference,
 }
 
 // Not implemented because AnyValue has no known value type
@@ -161,90 +177,60 @@ impl AnyValue {
 		}
 	}
 
-	pub unsafe fn write(self, ptr: *mut u8) {
+	pub unsafe fn write(self, ptr: *mut UnionValue) {
 		match self {
-			AnyValue::Byte(v) => i8::write(ptr, v),
-			AnyValue::Short(v) => i16::write(ptr, v),
-			AnyValue::Int(v) => i32::write(ptr, v),
-			AnyValue::Long(v) => i64::write(ptr, v),
-			AnyValue::Char(v) => u16::write(ptr, v),
-			AnyValue::Float(v) => f32::write(ptr, v),
-			AnyValue::Double(v) => f64::write(ptr, v),
-			AnyValue::Boolean(v) => bool::write(ptr, v),
-			AnyValue::Reference(v) => Reference::write(ptr, v),
+			AnyValue::Byte(v) => ptr.write(UnionValue { byte: v }),
+			AnyValue::Short(v) => ptr.write(UnionValue { short: v }),
+			AnyValue::Int(v) => ptr.write(UnionValue { int: v }),
+			AnyValue::Long(v) => ptr.write(UnionValue { long: v }),
+			AnyValue::Char(v) => ptr.write(UnionValue { char: v }),
+			AnyValue::Float(v) => ptr.write(UnionValue { float: v }),
+			AnyValue::Double(v) => ptr.write(UnionValue { double: v }),
+			AnyValue::Boolean(v) => ptr.write(UnionValue { boolean: v }),
+			AnyValue::Reference(v) => ptr.write(UnionValue { reference: v }),
 		}
 	}
-	pub unsafe fn read(ptr: *mut u8, kind: Kind) -> Self {
+	pub unsafe fn read(ptr: UnionValue, kind: Kind) -> Self {
 		match kind {
-			Kind::Byte => AnyValue::Byte(i8::read(ptr)),
-			Kind::Short => AnyValue::Short(i16::read(ptr)),
-			Kind::Int => AnyValue::Int(i32::read(ptr)),
-			Kind::Long => AnyValue::Long(i64::read(ptr)),
-			Kind::Char => AnyValue::Char(u16::read(ptr)),
-			Kind::Float => AnyValue::Float(f32::read(ptr)),
-			Kind::Double => AnyValue::Double(f64::read(ptr)),
-			Kind::Boolean => AnyValue::Boolean(bool::read(ptr)),
-			Kind::Reference => AnyValue::Reference(Reference::read(ptr)),
+			Kind::Byte => AnyValue::Byte(ptr.byte),
+			Kind::Short => AnyValue::Short(ptr.short),
+			Kind::Int => AnyValue::Int(ptr.int),
+			Kind::Long => AnyValue::Long(ptr.long),
+			Kind::Char => AnyValue::Char(ptr.char),
+			Kind::Float => AnyValue::Float(ptr.float),
+			Kind::Double => AnyValue::Double(ptr.double),
+			Kind::Boolean => AnyValue::Boolean(ptr.boolean),
+			Kind::Reference => AnyValue::Reference(ptr.reference),
 		}
 	}
 }
 
-macro_rules! impl_direct {
-	($VAR:ident $TY:ty) => {
+macro_rules! impl_value {
+	($VAR:ident $FIELD:ident $TY:ty) => {
 		impl Value for $TY {
 			fn kind() -> Kind {
 				Kind::$VAR
 			}
 
-			unsafe fn write(ptr: *mut u8, value: Self) {
-				write_arr(ptr, value.to_le_bytes())
+			unsafe fn write(ptr: *mut UnionValue, value: Self) {
+				(*ptr).$FIELD = value;
 			}
 
-			unsafe fn read(ptr: *mut u8) -> Self {
-				<$TY>::from_le_bytes(read_arr(ptr))
+			unsafe fn read(ptr: UnionValue) -> Self {
+				ptr.$FIELD
 			}
 		}
 	};
 }
-impl_direct!(Byte i8);
-impl_direct!(Short i16);
-impl_direct!(Int i32);
-impl_direct!(Long i64);
-impl_direct!(Char u16);
-impl_direct!(Float f32);
-impl_direct!(Double f64);
-
-impl Value for bool {
-	fn kind() -> Kind {
-		Kind::Boolean
-	}
-
-	unsafe fn write(ptr: *mut u8, value: Self) {
-		write(ptr, value as u8)
-	}
-
-	unsafe fn read(ptr: *mut u8) -> Self {
-		read(ptr) != 0
-	}
-}
-
-impl Value for Reference {
-	fn kind() -> Kind {
-		Kind::Reference
-	}
-
-	unsafe fn write(ptr: *mut u8, value: Self) {
-		write_arr(ptr, {
-			let x: *mut u8 = value.0;
-			let i = x as usize;
-			i.to_ne_bytes()
-		})
-	}
-
-	unsafe fn read(ptr: *mut u8) -> Self {
-		Reference(usize::from_ne_bytes(read_arr(ptr)) as *mut u8)
-	}
-}
+impl_value!(Boolean boolean bool);
+impl_value!(Byte byte i8);
+impl_value!(Short short i16);
+impl_value!(Int int i32);
+impl_value!(Long long i64);
+impl_value!(Char char u16);
+impl_value!(Float float f32);
+impl_value!(Double double f64);
+impl_value!(Reference reference Reference);
 
 #[inline(always)]
 pub(crate) unsafe fn read_arr<const C: usize>(ptr: *mut u8) -> [u8; C] {

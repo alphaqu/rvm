@@ -10,7 +10,7 @@ fn test() -> Result<(), std::io::Error> {
 		&[(
 			"Main.java",
 			"public class Main {
-    public static int pow(int base, int power) {
+    public statics int pow(int base, int power) {
         int result = 1;
 
         while (power > 0) {

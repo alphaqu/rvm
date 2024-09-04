@@ -1,5 +1,5 @@
 use crate::conversion::{FromJava, JavaTyped, ToJava};
-use crate::{AnyInstance, AnyValue, Class, InstanceReference, Returnable, Runtime};
+use crate::{AnyInstance, AnyValue, Class, InstanceRef, Returnable, Runtime};
 use rvm_core::{CastTypeError, Id, ObjectType, Type, Typed};
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;

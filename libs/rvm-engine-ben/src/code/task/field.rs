@@ -49,18 +49,10 @@ impl FieldTask {
 		let id = runtime.classes.resolve(&Type::Object(self.source.clone()));
 		let arc = runtime.classes.get(id);
 		match &*arc {
-			Class::Object(object) => {
-				let id = object.fields.get_id(&self.field_name).unwrap();
-				let field = object.fields.get(id);
-				if field.is_static() {
-					if self.instance {
-						panic!("Found static field on INSTANCE field op");
-					}
-					todo!()
-				} else {
-					if !self.instance {
-						panic!("Found instance field on STATIC field op");
-					}
+			Class::Instance(object) => {
+				if self.instance {
+					let id = object.fields.get_id(&self.field_name).unwrap();
+					let field = object.fields.get(id);
 
 					match self.kind {
 						FieldInstKind::Get => {
@@ -81,6 +73,9 @@ impl FieldTask {
 							instance.field(id).set(value.to_any());
 						}
 					}
+				} else {
+					let id = object.static_fields.get_id(&self.field_name).unwrap();
+					let field = object.static_fields.get(id);
 				}
 			}
 			_ => {

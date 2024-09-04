@@ -9,9 +9,11 @@ use tracing_subscriber::layer::SubscriberExt;
 
 pub use storage::*;
 pub use ty::*;
+pub use utils::*;
 
 mod storage;
 mod ty;
+mod utils;
 
 static START: Once = Once::new();
 
@@ -19,8 +21,9 @@ pub fn init() {
 	START.call_once(|| {
 		let filter = filter::Targets::new()
 			.with_default(Level::TRACE)
-			.with_target("exe", Level::DEBUG)
-			.with_target("exec", Level::INFO);
+			.with_target("rvm_gc", Level::DEBUG)
+			.with_target("exe", Level::TRACE)
+			.with_target("exec", Level::TRACE);
 		let layered = tracing_subscriber::registry()
 			.with(tracing_subscriber::fmt::layer())
 			.with(filter);

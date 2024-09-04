@@ -5,7 +5,7 @@
 #![feature(fn_traits)]
 
 use crate::engine::{Engine, ThreadConfig, ThreadHandle};
-use crate::gc::{AllocationError, GarbageCollector};
+use crate::gc::GarbageCollector;
 use crate::native::JNILinker;
 use ahash::HashMap;
 pub use binding::*;
@@ -13,8 +13,9 @@ pub use conversion::*;
 pub use object::*;
 use parking_lot::{Mutex, RwLock};
 use rvm_core::{Id, ObjectType};
+use rvm_gc::AllocationError;
 use std::ops::Deref;
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use std::thread::spawn;
 use std::time::Instant;
 use tracing::debug;
@@ -46,7 +47,7 @@ impl Runtime {
 			inner: Arc::new(InnerRuntime {
 				classes: ClassLoader::new(),
 				engine,
-				gc: Mutex::new(GarbageCollector::new(heap_size)),
+				gc: GarbageCollector::new(heap_size),
 				bindings: RustBinder::new(),
 				linker: Mutex::new(JNILinker::new()),
 				started: Instant::now(),
@@ -61,8 +62,7 @@ impl Runtime {
 	pub fn gc(&self) {
 		let inner = self.inner.clone();
 		spawn(move || {
-			let mut gc = inner.gc.lock();
-			let statistics = gc.gc();
+			let statistics = inner.gc.gc();
 			debug!(
 				"GC Complete: removed {} objects, {} remaining",
 				statistics.objects_cleared, statistics.objects_remaining
@@ -77,8 +77,7 @@ impl Runtime {
 			.as_instance()
 			.expect("Id does not point to an instance class");
 
-		let instance = self.inner.gc.lock().allocate_instance(id, class)?;
-		Ok(AnyInstance::new(self.clone(), instance))
+		Ok(self.gc.alloc_instance(class)?.resolve(self.clone()))
 	}
 
 	pub fn simple_run(
@@ -103,10 +102,20 @@ impl Deref for Runtime {
 	}
 }
 
+pub struct WeakRuntime(Weak<Runtime>);
+
+impl WeakRuntime {
+	pub fn get(&self) -> Arc<Runtime> {
+		self.0
+			.upgrade()
+			.expect("Tried to get a weak runtime, when it has been dropped.")
+	}
+}
+
 pub struct InnerRuntime {
 	pub classes: ClassLoader,
 	engine: Box<dyn Engine>,
-	pub gc: Mutex<GarbageCollector>,
+	pub gc: GarbageCollector,
 	pub bindings: RustBinder,
 	pub linker: Mutex<JNILinker>,
 	pub started: Instant,

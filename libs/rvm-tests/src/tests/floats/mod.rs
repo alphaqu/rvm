@@ -10,7 +10,7 @@ fn test() -> Result<(), std::io::Error> {
 		&[(
 			"Main.java",
 			"public class Main {
-    public static double get() {
+    public statics double get() {
         double i = Math.PI;
         i += 0 * i;
         i += 1 * i;

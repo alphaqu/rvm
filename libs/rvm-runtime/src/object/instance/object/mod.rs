@@ -11,19 +11,20 @@ pub use binding::{Instance, InstanceBinding};
 pub use field::{DynField, TypedField};
 
 use crate::conversion::{FromJava, JavaTyped, ToJava};
+use crate::gc::{InstanceHeader, JavaHeader};
 use crate::{
 	read_arr, write_arr, AnyValue, Castable, Class, Field, InstanceClass, Reference, ReferenceKind,
-	Runtime, Value,
+	Runtime, UnionValue, Value,
 };
 
 #[derive(Copy, Clone)]
-pub struct InstanceReference {
+pub struct InstanceRef {
 	// 1: class (u32)
 	// 2: ref_fields (u16)
 	reference: Reference,
 }
 
-impl Deref for InstanceReference {
+impl Deref for InstanceRef {
 	type Target = Reference;
 
 	fn deref(&self) -> &Self::Target {
@@ -31,17 +32,17 @@ impl Deref for InstanceReference {
 	}
 }
 
-impl InstanceReference {
+impl InstanceRef {
 	pub const CLASS_ID_SIZE: usize = size_of::<<Class as StorageValue>::Idx>();
 	pub const REF_FIELD_HEADER_SIZE: usize = size_of::<u16>();
 	pub const FULL_HEADER_SIZE: usize =
 		Reference::HEADER_SIZE + Self::CLASS_ID_SIZE + Self::REF_FIELD_HEADER_SIZE;
 
-	pub fn new(reference: Reference) -> InstanceReference {
+	pub fn new(reference: Reference) -> InstanceRef {
 		Self::try_new(reference).unwrap()
 	}
 
-	pub fn try_new(reference: Reference) -> Option<InstanceReference> {
+	pub fn try_new(reference: Reference) -> Option<InstanceRef> {
 		if reference.reference_kind() != Some(ReferenceKind::Instance) {
 			return None;
 		}
@@ -49,64 +50,37 @@ impl InstanceReference {
 		Some(unsafe { Self::new_unchecked(reference) })
 	}
 
-	pub unsafe fn new_unchecked(reference: Reference) -> InstanceReference {
-		InstanceReference { reference }
+	pub unsafe fn new_unchecked(reference: Reference) -> InstanceRef {
+		InstanceRef { reference }
 	}
 
-	/// Allocates a new instance object
-	pub unsafe fn allocate(
-		reference: Reference,
-		id: Id<Class>,
-		class: &InstanceClass,
-	) -> InstanceReference {
-		reference.0.write(1);
-		let i = id.idx();
-		//println!("idx: {i}");
-		let bytes = i.to_le_bytes();
-		write_arr(reference.0.add(Reference::HEADER_SIZE), bytes);
-		write_arr(
-			reference
-				.0
-				.add(Reference::HEADER_SIZE + Self::CLASS_ID_SIZE),
-			class.fields.ref_fields.to_le_bytes(),
-		);
-		//println!("{:?}", reference.reference_kind());
-
-		let object = InstanceReference { reference };
-		//println!("{:?}", object.class());
-		object
+	pub fn header(&self) -> &InstanceHeader {
+		let JavaHeader::Instance(header) = self.reference.header().user() else {
+			panic!("Wrong header type");
+		};
+		header
 	}
 
 	pub fn class(&self) -> Id<Class> {
-		unsafe {
-			let ptr = self.reference.0.add(Reference::HEADER_SIZE);
-			let i = <Class as StorageValue>::Idx::from_le_bytes(read_arr(ptr));
-			Id::new(i as usize)
-		}
+		self.header().id
 	}
 
 	pub fn ref_fields(&self) -> u16 {
-		unsafe {
-			let ptr = self
-				.reference
-				.0
-				.add(Reference::HEADER_SIZE + Self::CLASS_ID_SIZE);
-			u16::from_le_bytes(read_arr(ptr))
-		}
+		self.header().ref_fields
 	}
 
 	#[inline(always)]
-	pub unsafe fn fields(&self) -> *mut u8 {
-		self.reference.0.add(Self::FULL_HEADER_SIZE)
+	pub unsafe fn fields(&self) -> *mut UnionValue {
+		self.reference.data_ptr() as *mut UnionValue
 	}
 
 	pub fn visit_refs(&self, mut visitor: impl FnMut(Reference)) {
 		unsafe {
 			let fields = self.fields();
 			for i in 0..self.ref_fields() {
-				let ptr = fields.add(size_of::<Reference>() * i as usize);
-				let reference = Reference::read(ptr);
-				visitor(reference);
+				let field = fields.add(i as usize);
+				let value = field.read();
+				visitor(value.reference);
 			}
 		}
 	}
@@ -115,9 +89,12 @@ impl InstanceReference {
 		unsafe {
 			let fields = self.fields();
 			for i in 0..self.ref_fields() {
-				let ptr = fields.add(size_of::<Reference>() * i as usize);
-				let reference = Reference::read(ptr);
-				Reference::write(ptr, mapper(reference));
+				let field = fields.add(i as usize);
+				let value = field.read();
+
+				field.write(UnionValue {
+					reference: mapper(value.reference),
+				});
 			}
 		}
 	}
@@ -128,12 +105,12 @@ impl InstanceReference {
 	}
 
 	pub unsafe fn get_any(&self, offset: usize, kind: Kind) -> AnyValue {
-		let data = self.fields().add(offset);
+		let data = self.fields().add(offset).read();
 		AnyValue::read(data, kind)
 	}
 
 	pub unsafe fn get<V: Value>(&self, offset: usize) -> V {
-		let data = self.fields().add(offset);
+		let data = self.fields().add(offset).read();
 		V::read(data)
 	}
 
@@ -156,13 +133,13 @@ impl InstanceReference {
 	}
 }
 
-impl ToJava for InstanceReference {
+impl ToJava for InstanceRef {
 	fn to_java(self, runtime: &Runtime) -> eyre::Result<AnyValue> {
 		self.reference.to_java(runtime)
 	}
 }
 
-impl FromJava for InstanceReference {
+impl FromJava for InstanceRef {
 	fn from_java(value: AnyValue, runtime: &Runtime) -> eyre::Result<Self> {
 		let reference = Reference::from_java(value, runtime)?;
 		Ok(reference.to_instance().ok_or_else(|| CastTypeError {
@@ -172,7 +149,7 @@ impl FromJava for InstanceReference {
 	}
 }
 
-impl JavaTyped for InstanceReference {
+impl JavaTyped for InstanceRef {
 	//fn java_type(&self, runtime: &Runtime) -> Type {
 	//	self.resolve(runtime.clone()).java_type(runtime)
 	//}
@@ -181,8 +158,8 @@ impl JavaTyped for InstanceReference {
 		Reference::java_type()
 	}
 }
-impl From<InstanceReference> for AnyValue {
-	fn from(value: InstanceReference) -> Self {
+impl From<InstanceRef> for AnyValue {
+	fn from(value: InstanceRef) -> Self {
 		AnyValue::Reference(value.reference)
 	}
 }
@@ -196,15 +173,15 @@ impl From<AnyInstance> for AnyValue {
 pub struct AnyInstance {
 	runtime: Runtime,
 	class: Arc<Class>,
-	raw: InstanceReference,
+	raw: InstanceRef,
 }
 
 impl AnyInstance {
-	pub fn new(runtime: Runtime, instance: InstanceReference) -> AnyInstance {
+	pub fn new(runtime: Runtime, instance: InstanceRef) -> AnyInstance {
 		Self::try_new(runtime, instance).unwrap()
 	}
 
-	pub fn try_new(runtime: Runtime, instance: InstanceReference) -> Option<AnyInstance> {
+	pub fn try_new(runtime: Runtime, instance: InstanceRef) -> Option<AnyInstance> {
 		let arc = runtime.classes.get(instance.class());
 		if !arc.is_instance() {
 			return None;
@@ -240,7 +217,7 @@ impl AnyInstance {
 		}
 	}
 
-	pub fn raw(&self) -> InstanceReference {
+	pub fn raw(&self) -> InstanceRef {
 		self.raw
 	}
 	pub fn runtime(&self) -> &Runtime {
@@ -286,7 +263,7 @@ impl ToJava for AnyInstance {
 
 impl FromJava for AnyInstance {
 	fn from_java(value: AnyValue, runtime: &Runtime) -> eyre::Result<Self> {
-		let instance = InstanceReference::from_java(value, runtime)?;
+		let instance = InstanceRef::from_java(value, runtime)?;
 		Ok(instance.resolve(runtime.clone()))
 	}
 }
@@ -297,15 +274,15 @@ impl JavaTyped for AnyInstance {
 	}
 }
 
-impl Castable for InstanceReference {
+impl Castable for InstanceRef {
 	fn cast_from(runtime: &Runtime, value: AnyValue) -> Self {
 		let reference = Reference::cast_from(runtime, value);
-		InstanceReference::new(reference)
+		InstanceRef::new(reference)
 	}
 }
 impl Castable for AnyInstance {
 	fn cast_from(runtime: &Runtime, value: AnyValue) -> Self {
-		let reference = InstanceReference::cast_from(runtime, value);
+		let reference = InstanceRef::cast_from(runtime, value);
 		AnyInstance::new(runtime.clone(), reference)
 	}
 }

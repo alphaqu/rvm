@@ -1,28 +1,29 @@
-use crate::{ClassFields, ClassMethods, FieldData};
+use crate::gc::GarbageCollector;
+use crate::object::{Class, ClassLoader};
+use crate::{ClassFields, ClassMethods, FieldData, Reference};
 use eyre::Context;
 use rvm_core::{Id, ObjectType, Type};
 use rvm_reader::{ClassInfo, ConstantPool};
 use std::sync::Arc;
 
-use crate::object::{Class, ClassLoader};
-
 #[non_exhaustive]
-pub struct ClassRef {
+pub struct ResolvedClassId {
 	pub ty: ObjectType,
 	pub id: Id<Class>,
 }
 
-impl ClassRef {
-	pub fn new(ty: ObjectType) -> ClassRef {
-		ClassRef { ty, id: Id::null() }
+impl ResolvedClassId {
+	pub fn new(ty: ObjectType) -> ResolvedClassId {
+		ResolvedClassId { ty, id: Id::null() }
 	}
 }
+
 pub struct InstanceClass {
 	pub id: Id<Class>,
 	pub ty: ObjectType,
 
-	pub super_class: Option<ClassRef>,
-	pub interfaces: Vec<ClassRef>,
+	pub super_class: Option<ResolvedClassId>,
+	pub interfaces: Vec<ResolvedClassId>,
 
 	pub cp: Arc<ConstantPool>,
 	pub fields: ClassFields,
@@ -36,7 +37,7 @@ unsafe impl Send for InstanceClass {}
 unsafe impl Sync for InstanceClass {}
 
 impl InstanceClass {
-	pub fn parse(info: ClassInfo, cl: &ClassLoader) -> eyre::Result<InstanceClass> {
+	pub fn new(info: ClassInfo, cl: &ClassLoader) -> eyre::Result<InstanceClass> {
 		let super_class = info
 			.constant_pool
 			.get(info.super_class)
@@ -60,7 +61,7 @@ impl InstanceClass {
 			.map(|v| FieldData::from_info(v, &info.constant_pool).unwrap())
 			.collect();
 
-		let interfaces: Vec<ClassRef> = info
+		let interfaces: Vec<ResolvedClassId> = info
 			.interfaces
 			.iter()
 			.map(|v| {
@@ -68,10 +69,8 @@ impl InstanceClass {
 				let class_name = class.name.get(&info.constant_pool).unwrap();
 
 				let object_type = ObjectType::new(class_name.to_string());
-
-				&Type::Object(object_type.clone());
 				let id = cl.resolve(&object_type.clone().into());
-				ClassRef {
+				ResolvedClassId {
 					ty: object_type,
 					id,
 				}
@@ -81,7 +80,7 @@ impl InstanceClass {
 		Ok(InstanceClass {
 			id: Id::null(),
 			ty: ObjectType::new(name.to_string()),
-			super_class: super_class.map(|v| ClassRef {
+			super_class: super_class.map(|v| ResolvedClassId {
 				ty: v,
 				id: super_id.unwrap(),
 			}),

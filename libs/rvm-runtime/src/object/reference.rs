@@ -1,14 +1,17 @@
 use crate::conversion::JavaTyped;
-use crate::{AnyArray, InstanceReference, Runtime};
+use crate::gc::{JavaHeader, JavaUser};
+use crate::{ArrayRef, InstanceRef, Runtime};
 use rvm_core::{ArrayType, ObjectType, Type, Typed};
+use rvm_gc::GcRef;
 use std::fmt::{Debug, Formatter};
 use std::mem::size_of;
+use std::ops::Deref;
 use std::ptr::null_mut;
 use std::sync::Arc;
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 #[repr(transparent)]
-pub struct Reference(pub *mut u8);
+pub struct Reference(GcRef<JavaUser>);
 
 unsafe impl Send for Reference {}
 
@@ -16,7 +19,11 @@ unsafe impl Sync for Reference {}
 
 impl Reference {
 	pub const HEADER_SIZE: usize = size_of::<u8>();
-	pub const NULL: Reference = Reference(null_mut());
+	pub const NULL: Reference = Reference(GcRef::NULL);
+
+	pub fn new(gc: GcRef<JavaUser>) -> Reference {
+		Reference(gc)
+	}
 
 	pub fn reference_kind(&self) -> Option<ReferenceKind> {
 		if self.is_null() {
@@ -26,47 +33,40 @@ impl Reference {
 		Some(unsafe { self.reference_kind_unchecked() })
 	}
 
+	/// # Safety
+	/// Dont be null
 	pub unsafe fn reference_kind_unchecked(&self) -> ReferenceKind {
-		let i = unsafe { *self.0 };
-		match i {
-			1 => ReferenceKind::Instance,
-			2 => ReferenceKind::Array,
-			_ => panic!("Corrupted kind {i}",),
-		}
+		self.0.header().kind()
 	}
 
 	pub fn is_null(self) -> bool {
 		self.0.is_null()
 	}
 
-	pub fn to_instance(&self) -> Option<InstanceReference> {
-		InstanceReference::try_new(*self)
+	pub fn to_instance(&self) -> Option<InstanceRef> {
+		InstanceRef::try_new(*self)
 	}
 
-	pub fn to_array(&self) -> Option<AnyArray> {
-		AnyArray::try_new(*self)
+	pub fn to_array(&self) -> Option<ArrayRef> {
+		ArrayRef::try_new(*self)
 	}
 
 	pub fn visit_refs(&self, visitor: impl FnMut(Reference)) {
+		let header = &**self.0.header();
 		unsafe {
-			match self.reference_kind() {
-				Some(ReferenceKind::Instance) => {
-					InstanceReference::new_unchecked(*self).visit_refs(visitor)
-				}
-				Some(ReferenceKind::Array) => AnyArray::new_unchecked(*self).visit_refs(visitor),
-				_ => {}
+			match header {
+				JavaHeader::Instance(_) => InstanceRef::new_unchecked(*self).visit_refs(visitor),
+				JavaHeader::Array(_) => ArrayRef::new_unchecked(*self).visit_refs(visitor),
 			}
 		}
 	}
 
 	pub fn map_refs(&self, mapper: impl FnMut(Reference) -> Reference) {
+		let header = &**self.0.header();
 		unsafe {
-			match self.reference_kind() {
-				Some(ReferenceKind::Instance) => {
-					InstanceReference::new_unchecked(*self).map_refs(mapper)
-				}
-				Some(ReferenceKind::Array) => AnyArray::new_unchecked(*self).map_refs(mapper),
-				_ => {}
+			match header {
+				JavaHeader::Instance(_) => InstanceRef::new_unchecked(*self).map_refs(mapper),
+				JavaHeader::Array(_) => ArrayRef::new_unchecked(*self).map_refs(mapper),
 			}
 		}
 	}
@@ -86,6 +86,14 @@ impl Reference {
 				array.ty(runtime)
 			}
 		}
+	}
+}
+
+impl Deref for Reference {
+	type Target = GcRef<JavaUser>;
+
+	fn deref(&self) -> &Self::Target {
+		&self.0
 	}
 }
 

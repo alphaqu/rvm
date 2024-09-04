@@ -1,0 +1,15 @@
+[package]
+name = "rvm-gc"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rvm-core = { path = "../rvm-core" }
+
+parking_lot = "0.12"
+tracing = "0.1"
+bitflags = "2.6"
+crossbeam = "0.8"
+thiserror = "1"
+ahash = "0.8"
+rand = "0.8.5"

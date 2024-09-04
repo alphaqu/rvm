@@ -11,3 +11,4 @@ mod switch_statement;
 
 mod constants;
 mod consts;
+mod statics;

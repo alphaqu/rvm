@@ -51,7 +51,7 @@ impl TraceEntry {
 		let class = runtime.classes.get(self.class);
 
 		match &*class {
-			Class::Object(object) => {
+			Class::Instance(object) => {
 				let method = object.methods.get(self.method);
 				writeln!(
 					f,
