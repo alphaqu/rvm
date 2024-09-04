@@ -1,10 +1,11 @@
-use rvm_runtime::{InstanceBinding, Runtime};
-
 use crate::bindings::tests::object::{Animal, ExtendedObject, ObjectTests, SimpleObject};
-use crate::launch2;
+use crate::launch;
+use rvm_runtime::gc::AllocationError;
+use rvm_runtime::{AnyInstance, InstanceBinding, Runtime};
+use tracing::debug;
 
 fn runtime() -> Runtime {
-	launch2(1024)
+	launch(1024)
 }
 
 #[test]
@@ -33,7 +34,7 @@ pub fn get_field() {
 	let runtime = runtime();
 	let id = runtime.classes.resolve(&SimpleObject::ty().into());
 
-	let mut instance = runtime.alloc_object(id).typed::<SimpleObject>();
+	let mut instance = runtime.alloc_object(id).unwrap().typed::<SimpleObject>();
 	*instance.value = 420;
 
 	let output = ObjectTests::getSimpleField(&runtime, instance.clone()).unwrap();
@@ -45,7 +46,7 @@ pub fn set_field() {
 	let runtime = runtime();
 	let id = runtime.classes.resolve(&SimpleObject::ty().into());
 
-	let instance = runtime.alloc_object(id).typed::<SimpleObject>();
+	let instance = runtime.alloc_object(id).unwrap().typed::<SimpleObject>();
 	assert_eq!(*instance.value, 0);
 
 	ObjectTests::setSimpleField(&runtime, instance.clone(), 420).unwrap();
@@ -57,7 +58,7 @@ pub fn basic_instance_method() {
 	let runtime = runtime();
 	let id = runtime.classes.resolve(&SimpleObject::ty().into());
 
-	let instance = runtime.alloc_object(id).typed::<SimpleObject>();
+	let instance = runtime.alloc_object(id).unwrap().typed::<SimpleObject>();
 	assert_eq!(*instance.value, 0);
 
 	let i = ObjectTests::simpleInvocation(&runtime, instance).unwrap();
@@ -80,7 +81,7 @@ pub fn create_extended() {
 
 #[test]
 pub fn basic_override() {
-	let runtime = launch2(1024);
+	let runtime = launch(1024);
 	let reference = ObjectTests::createExtended(&runtime).unwrap();
 	let i = ObjectTests::simpleInvocation(&runtime, reference.cast_to::<SimpleObject>()).unwrap();
 
@@ -91,7 +92,7 @@ pub fn basic_override() {
 pub fn casting() {
 	let runtime = runtime();
 	let id = runtime.classes.resolve(&ExtendedObject::ty().into());
-	let mut instance = runtime.alloc_object(id).typed::<ExtendedObject>();
+	let mut instance = runtime.alloc_object(id).unwrap().typed::<ExtendedObject>();
 	*instance.value = 500;
 
 	let instance = ObjectTests::casting(&runtime, instance).unwrap();
@@ -104,9 +105,36 @@ pub fn interface_call() {
 	let runtime = runtime();
 
 	let id = runtime.classes.resolve(&ExtendedObject::ty().into());
-	let instance = runtime.alloc_object(id).typed::<ExtendedObject>();
+	let instance = runtime.alloc_object(id).unwrap().typed::<ExtendedObject>();
 
 	let instance = ObjectTests::interfaceCall(&runtime, instance.cast_to::<Animal>()).unwrap();
 
 	assert_eq!(instance, 49);
+}
+
+#[test]
+pub fn gc() {
+	let runtime = launch(128);
+
+	let id = runtime.classes.resolve(&ExtendedObject::ty().into());
+
+	let mut frozen = 0;
+	let mut ran_gc = false;
+	for i in 0..16 {
+		match runtime.alloc_object(id) {
+			Err(AllocationError::OutOfHeap) => {
+				runtime.gc();
+				ran_gc = true;
+			}
+			Ok(value) => {
+				if i > 4 {
+					runtime.gc.lock().add_frozen(*value.raw());
+					frozen += 1;
+					debug!("Now frozen {frozen}");
+				}
+			}
+			_ => {}
+		}
+	}
+	assert!(ran_gc);
 }

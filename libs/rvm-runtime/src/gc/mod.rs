@@ -1,4 +1,6 @@
+use ahash::HashSetExt;
 use std::alloc::{alloc_zeroed, Layout};
+use std::collections::HashSet;
 use std::ptr::copy;
 use thiserror::Error;
 use tracing::{debug, trace};
@@ -17,6 +19,7 @@ pub const OBJECT_ALIGNMENT: usize = 8;
 
 pub struct GarbageCollector {
 	handles: Vec<GcSweeperHandle>,
+	frozen: HashSet<Reference>,
 	mark: bool,
 	size: usize,
 	objects: usize,
@@ -43,6 +46,7 @@ impl GarbageCollector {
 
 		GarbageCollector {
 			handles: vec![],
+			frozen: HashSet::new(),
 			mark: false,
 			size,
 			objects: 0,
@@ -57,13 +61,26 @@ impl GarbageCollector {
 		sweeper
 	}
 
+	pub fn add_frozen(&mut self, reference: Reference) {
+		if !self.frozen.insert(reference) {
+			panic!("Double insertion!");
+		}
+	}
+
+	pub fn remove_frozen(&mut self, reference: Reference) {
+		if !self.frozen.remove(&reference) {
+			panic!("Removed a reference which was not frozen. (did you double free?)")
+		}
+	}
+
 	pub(super) fn gc(&mut self) -> GCStatistics {
 		debug!("Starting garbage collection");
 
 		// Stops all threads
 		debug!("Stopping threads");
 		for handle in &self.handles {
-			handle.start(!self.mark);
+			let new_mark = !self.mark;
+			handle.start(new_mark);
 		}
 
 		self.mark = !self.mark;
@@ -72,6 +89,9 @@ impl GarbageCollector {
 		debug!("Marking threads");
 		for handle in &self.handles {
 			handle.start_marking();
+		}
+		for reference in &self.frozen {
+			GcMarker { mark: self.mark }.mark(*reference)
 		}
 
 		//use std::fmt::Write;
@@ -118,11 +138,22 @@ impl GarbageCollector {
 		debug!("Moving roots");
 		// Update all of the object edges to the new object locations.
 		// Moves all of the roots to their soon to be new location
+		//roots.remap_roots(|r| unsafe { move_reference(r) });
+		// Move all of the objects children to their new location
+		{
+			// Frozen
+			let mut new_frozen = HashSet::new();
+			for reference in &self.frozen {
+				unsafe {
+					assert!(new_frozen.insert(move_reference(*reference)));
+				}
+			}
+			self.frozen = new_frozen;
+		}
 		for handle in &self.handles {
 			handle.move_roots();
 		}
-		//roots.remap_roots(|r| unsafe { move_reference(r) });
-		// Move all of the objects children to their new location
+
 		debug!("Moving references");
 		self.walk_alive(|pointer| {
 			trace!("Updating {pointer:?}");

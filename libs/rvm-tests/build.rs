@@ -138,7 +138,8 @@ fn compile_java(files: &[PathBuf], current_dir: &Path) {
 }
 
 fn main() {
-	eprintln!("HI!");
+	println!("cargo::rerun-if-changed=build.rs");
+	println!("cargo::rerun-if-changed=src");
 	let paths = get_paths();
 	let needs_recompile = check_needs_recompile(&paths);
 
@@ -170,8 +171,6 @@ fn main() {
 	let dest_path = Path::new(&out_dir).join("java_bindings.rs");
 
 	fs::write(&dest_path, formatted_code).unwrap();
-
-	println!("cargo::rerun-if-changed=build.rs");
 }
 
 pub struct ClassData {

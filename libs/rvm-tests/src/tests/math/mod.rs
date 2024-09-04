@@ -1,13 +1,13 @@
 use rvm_runtime::java_bind_method;
 
+use crate::launch;
 use crate::tests::consts::Samples;
-use crate::{launch, launch2};
 
 macro_rules! test_op {
     ($TY:ty: $METHOD:ident $RUST_METHOD:ident) => {
-		let runtime = launch2(1024);
+		let runtime = launch(1024);
 		let func =
-			java_bind_method!(runtime fn testing::math::MathTests:$METHOD(left: $TY, right: $TY) -> $TY);
+			java_bind_method!(runtime fn tests::math::MathTests:$METHOD(left: $TY, right: $TY) -> $TY);
 		for v0 in <$TY>::samples() {
 			for v1 in <$TY>::samples() {
 				assert_eq!(func(v0, v1), v0.$RUST_METHOD(v1));
@@ -22,8 +22,8 @@ fn add_int() {
 	test_op!(i32: sub wrapping_sub);
 	test_op!(i32: mul wrapping_mul);
 
-	let runtime = launch(1024, vec!["testing/math/MathTests.class"]);
-	let func = java_bind_method!( runtime fn testing :: math :: MathTests : div ( left : i32 , right : i32 ) -> i32 );
+	let runtime = launch(1024);
+	let func = java_bind_method!( runtime fn tests :: math :: MathTests : div ( left : i32 , right : i32 ) -> i32 );
 	for v0 in <i32>::samples() {
 		for v1 in <i32>::samples() {
 			if v1 == 0 {
@@ -41,9 +41,9 @@ fn add_long() {
 
 #[test]
 fn add_floats() {
-	let runtime = launch(1024, vec!["testing/math/MathTests.class"]);
+	let runtime = launch(1024);
 	let func =
-		java_bind_method!(runtime fn testing::math::MathTests:add(left: f32, right: f32) -> f32);
+		java_bind_method!(runtime fn tests::math::MathTests:add(left: f32, right: f32) -> f32);
 	for v0 in f32::samples() {
 		for v1 in f32::samples() {
 			let rust = v0 + v1;
@@ -60,9 +60,9 @@ fn add_floats() {
 
 #[test]
 fn add_doubles() {
-	let runtime = launch(1024, vec!["testing/math/MathTests.class"]);
+	let runtime = launch(1024);
 	let func =
-		java_bind_method!(runtime fn testing::math::MathTests:add(left: f64, right: f64) -> f64);
+		java_bind_method!(runtime fn tests::math::MathTests:add(left: f64, right: f64) -> f64);
 	for v0 in f64::samples() {
 		for v1 in f64::samples() {
 			let rust = v0 + v1;

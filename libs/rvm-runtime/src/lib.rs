@@ -5,7 +5,7 @@
 #![feature(fn_traits)]
 
 use crate::engine::{Engine, ThreadConfig, ThreadHandle};
-use crate::gc::GarbageCollector;
+use crate::gc::{AllocationError, GarbageCollector};
 use crate::native::JNILinker;
 use ahash::HashMap;
 pub use binding::*;
@@ -70,15 +70,15 @@ impl Runtime {
 		});
 	}
 
-	pub fn alloc_object(&self, id: Id<Class>) -> AnyInstance {
+	pub fn alloc_object(&self, id: Id<Class>) -> Result<AnyInstance, AllocationError> {
 		let class = self.inner.classes.get(id);
 
 		let class = class
 			.as_instance()
 			.expect("Id does not point to an instance class");
 
-		let instance = self.inner.gc.lock().allocate_instance(id, class).unwrap();
-		AnyInstance::new(self.clone(), instance)
+		let instance = self.inner.gc.lock().allocate_instance(id, class)?;
+		Ok(AnyInstance::new(self.clone(), instance))
 	}
 
 	pub fn simple_run(

@@ -1,9 +1,22 @@
 use crate::bindings::tests::constants::ConstantTests;
 use crate::launch;
 use rvm_core::ObjectType;
-use rvm_runtime::{AnyInstance, InstanceBinding};
+use rvm_runtime::{AnyInstance, Instance, InstanceBinding};
+use std::mem::transmute;
+use std::ops::Deref;
 
-pub struct Hello {}
+pub struct Hello {
+	field: f32,
+	// base: Dog
+}
+
+impl Hello {
+	pub fn run(self: &Instance<Hello>) {}
+}
+
+pub struct HelloStatic {
+	static_field: f32,
+}
 
 impl InstanceBinding for Hello {
 	fn ty() -> ObjectType {
@@ -16,7 +29,7 @@ impl InstanceBinding for Hello {
 }
 #[test]
 fn test() {
-	let runtime = launch(1024, vec![]);
+	let runtime = launch(1024);
 
 	ConstantTests::test(&runtime).unwrap();
 	//println!("{:?}", current_dir());

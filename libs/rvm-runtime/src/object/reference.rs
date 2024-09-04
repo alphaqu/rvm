@@ -6,7 +6,7 @@ use std::mem::size_of;
 use std::ptr::null_mut;
 use std::sync::Arc;
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 #[repr(transparent)]
 pub struct Reference(pub *mut u8);
 

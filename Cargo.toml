@@ -26,5 +26,5 @@ members = [
     "./libs/rvm-tests",
 ]
 
-[profile.dev]
-opt-level = 1
+# [profile.dev]
+# opt-level = 1

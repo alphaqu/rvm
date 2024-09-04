@@ -1,10 +1,10 @@
 use rvm_runtime::java_bind_method;
 
-use crate::{compile, launch, launch2};
+use crate::{compile, launch};
 
 #[test]
 fn test() -> Result<(), std::io::Error> {
-	let runtime = launch2(1024);
+	let runtime = launch(1024);
 	compile(
 		&runtime,
 		&[(

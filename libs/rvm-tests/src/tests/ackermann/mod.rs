@@ -1,6 +1,6 @@
 use rvm_runtime::java_bind_method;
 
-use crate::{compile, launch, launch2, sample};
+use crate::{compile, launch, sample};
 
 #[inline(always)]
 fn ack(m: i32, n: i32) -> i32 {
@@ -17,7 +17,7 @@ fn ack(m: i32, n: i32) -> i32 {
 
 #[test]
 fn test() -> Result<(), std::io::Error> {
-	let runtime = launch2(1024);
+	let runtime = launch(1024);
 	compile(
 		&runtime,
 		&[(

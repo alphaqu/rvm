@@ -4,7 +4,7 @@ use crate::{compile, launch};
 
 #[test]
 fn test() -> Result<(), std::io::Error> {
-	let runtime = launch(1024, vec![]);
+	let runtime = launch(1024);
 	compile(
 		&runtime,
 		&[(

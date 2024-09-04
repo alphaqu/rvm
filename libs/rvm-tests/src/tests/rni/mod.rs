@@ -1,29 +1,11 @@
-use std::mem::transmute;
-use std::sync::Arc;
+use rvm_runtime::MethodBinding;
 
-use rvm_core::{MethodDescriptor, PrimitiveType, Type, Typed};
-use rvm_macro::{jni_binding, jni_method};
-use rvm_runtime::{bind, MethodBinding, Runtime};
-
-use crate::{launch, load_sdk};
-
-pub struct RniTests;
-
-bind!("tests/rni" {
-	RniTests {
-		test(number_1: i32, number_2: i64, number_3: i32) -> i64
-	}
-});
-
-fn runtime() -> Runtime {
-	let runtime = launch(1024, vec!["tests/rni/RniTests.class"]);
-	load_sdk(&runtime);
-	runtime
-}
+use crate::bindings::tests::rni::RniTests;
+use crate::launch;
 
 #[test]
-pub fn basic() {
-	let runtime = runtime();
+pub fn basic() -> eyre::Result<()> {
+	let runtime = launch(1024);
 
 	runtime.bindings.bind(
 		"tests/rni/RniTests",
@@ -35,11 +17,10 @@ pub fn basic() {
 		),
 	);
 
-	let tests = RniTests::test(&runtime);
-
-	let i = tests(69, 50, 12);
+	let i = RniTests::test(&runtime, 69, 50, 12)?;
 
 	assert_eq!(i, 69 + 50 * 12);
+	Ok(())
 }
 
 //pub struct RniTestsLinking;

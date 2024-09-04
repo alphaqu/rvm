@@ -1,6 +1,6 @@
 #![feature(exit_status_error)]
 #![feature(try_blocks)]
-
+#![feature(arbitrary_self_types)]
 use crate::core::load_test_sdk;
 use eyre::Context;
 use rvm_core::{MethodDescriptor, ObjectType, Type};
@@ -20,8 +20,8 @@ mod core;
 mod tests;
 
 static RT_ZIP: LazyLock<Arc<JarClassSource>> = LazyLock::new(|| {
-	let data = read("../../rt.zip").unwrap();
-	Arc::new(JarClassSource::new(data).unwrap())
+	//let data = read("../../rt.zip").unwrap();
+	Arc::new(JarClassSource::new(include_bytes!("../../../rt.zip").to_vec()).unwrap())
 });
 
 pub fn load_sdk(runtime: &Runtime) {
@@ -64,7 +64,7 @@ pub fn simple_launch(tests: Vec<SimpleClassTest>) {
 	let mut classes: Vec<String> = tests.iter().map(|v| format!("{}.class", v.name)).collect();
 
 	// Core
-	let runtime = launch(1024, classes.iter().map(|v| v.as_str()).collect());
+	let runtime = launch(1024);
 
 	for test in tests {
 		let ty = ObjectType::new(test.name);
@@ -88,28 +88,12 @@ pub fn simple_launch(tests: Vec<SimpleClassTest>) {
 		}
 	}
 }
-pub fn launch2(heap_size: usize) -> Runtime {
+pub fn launch(heap_size: usize) -> Runtime {
 	rvm_core::init();
 	let runtime = Runtime::new(heap_size, Box::new(BenBinding::new()));
 
 	load_sdk(&runtime);
 	load_test_sdk(&runtime);
-	runtime
-}
-pub fn launch(heap_size: usize, mut files: Vec<&str>) -> Runtime {
-	files.push("core/Assert.class");
-	rvm_core::init();
-	let runtime = Runtime::new(heap_size, Box::new(BenBinding::new()));
-
-	load_sdk(&runtime);
-	load_test_sdk(&runtime);
-	for x in files {
-		let x1 = x.borrow();
-		runtime
-			.classes
-			.load_class(&read(format!("bytecode/{x1}")).unwrap())
-			.unwrap();
-	}
 	runtime
 }
 

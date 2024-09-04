@@ -61,7 +61,7 @@ impl InstanceReference {
 	) -> InstanceReference {
 		reference.0.write(1);
 		let i = id.idx();
-		println!("idx: {i}");
+		//println!("idx: {i}");
 		let bytes = i.to_le_bytes();
 		write_arr(reference.0.add(Reference::HEADER_SIZE), bytes);
 		write_arr(
@@ -70,10 +70,10 @@ impl InstanceReference {
 				.add(Reference::HEADER_SIZE + Self::CLASS_ID_SIZE),
 			class.fields.ref_fields.to_le_bytes(),
 		);
-		println!("{:?}", reference.reference_kind());
+		//println!("{:?}", reference.reference_kind());
 
 		let object = InstanceReference { reference };
-		println!("{:?}", object.class());
+		//println!("{:?}", object.class());
 		object
 	}
 
@@ -240,6 +240,9 @@ impl AnyInstance {
 		}
 	}
 
+	pub fn raw(&self) -> InstanceReference {
+		self.raw
+	}
 	pub fn runtime(&self) -> &Runtime {
 		&self.runtime
 	}
