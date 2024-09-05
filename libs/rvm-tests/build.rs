@@ -268,8 +268,7 @@ impl RustCompiler {
 					None => (String::new(), full_name.clone()),
 				};
 
-				let super_class =
-					info.constant_pool[info.constant_pool[info.super_class].name].to_string();
+				let super_class = info.cp[info.cp[info.super_class].name].to_string();
 				let super_name = if super_class != *ObjectType::Object() {
 					Some(self.class_to_rust(&package, &super_class))
 				} else {
@@ -283,8 +282,8 @@ impl RustCompiler {
 					writeln!(out, "  base: {super_name},")?;
 				}
 				for field in &info.fields {
-					let field_name = info.constant_pool[field.name_index].to_string();
-					let field_descriptor = info.constant_pool[field.descriptor_index].to_string();
+					let field_name = info.cp[field.name_index].to_string();
+					let field_descriptor = info.cp[field.descriptor_index].to_string();
 					let field_type = Type::parse(&field_descriptor).unwrap();
 					write!(out, "  pub {field_name}: rvm_runtime::TypedField<")?;
 					self.write_type(&field_type, &package, out);
@@ -301,13 +300,17 @@ impl RustCompiler {
 					out,
 					"  fn bind(instance: &rvm_runtime::AnyInstance) -> Self {{"
 				)?;
+				writeln!(out, "  let fields = instance.fields();")?;
 				writeln!(out, "    {name} {{")?;
 				if let Some(super_name) = &super_name {
 					writeln!(out, "    base: {super_name}::bind(instance),")?;
 				}
 				for field in &info.fields {
-					let field_name = info.constant_pool[field.name_index].to_string();
-					writeln!(out, "    {field_name}: instance.field_named(\"{field_name}\").unwrap().typed(),")?;
+					let field_name = info.cp[field.name_index].to_string();
+					writeln!(
+						out,
+						"    {field_name}: fields.field_named(\"{field_name}\").unwrap().typed(),"
+					)?;
 				}
 				writeln!(out, "    }}")?;
 				writeln!(out, "  }}")?;
@@ -357,12 +360,12 @@ impl RustCompiler {
 				// Check what method names need descriptors
 				let mut method_names = HashMap::<String, usize>::new();
 				for method in &info.methods {
-					let method_name = info.constant_pool[method.name_index].to_string();
+					let method_name = info.cp[method.name_index].to_string();
 					*method_names.entry(method_name).or_default() += 1;
 				}
 				for method in &info.methods {
-					let method_name = info.constant_pool[method.name_index].to_string();
-					let descriptor = info.constant_pool[method.descriptor_index].to_string();
+					let method_name = info.cp[method.name_index].to_string();
+					let descriptor = info.cp[method.descriptor_index].to_string();
 					let descriptor = MethodDescriptor::parse(&descriptor).unwrap();
 
 					let mut rust_method_name = method_name.replace(['<', '>'], "_");

@@ -1,10 +1,6 @@
-use crate::{
-	ArrayClass, ArrayRef, Class, InnerRuntime, InstanceClass, InstanceRef, Reference,
-	ReferenceKind, Runtime, WeakRuntime,
-};
-use rvm_core::{Id, Kind, PrimitiveType};
+use crate::{ArrayRef, Class, InstanceClass, InstanceRef, Reference, ReferenceKind};
+use rvm_core::{Id, Kind};
 pub use rvm_gc::*;
-use std::ops::Deref;
 
 pub type GcRef = rvm_gc::GcRef<JavaUser>;
 pub struct GarbageCollector {
@@ -37,14 +33,28 @@ impl GarbageCollector {
 	pub fn used(&self) -> usize {
 		self.gc.used()
 	}
+	pub fn alloc_static_instance(
+		&self,
+		class: &InstanceClass,
+	) -> Result<InstanceRef, AllocationError> {
+		let fields = &class.static_field_layout;
+		let gc_ref = self.gc.alloc_raw(
+			fields.fields_size as usize,
+			JavaHeader::InstanceStatic(InstanceHeader {
+				id: class.id,
+				ref_fields: fields.reference_count,
+			}),
+		)?;
 
+		Ok(InstanceRef::new(Reference::new(gc_ref)))
+	}
 	pub fn alloc_instance(&self, class: &InstanceClass) -> Result<InstanceRef, AllocationError> {
-		let fields = &class.fields;
+		let fields = &class.field_layout;
 		let gc_ref = self.gc.alloc_raw(
 			fields.fields_size as usize,
 			JavaHeader::Instance(InstanceHeader {
 				id: class.id,
-				ref_fields: fields.ref_fields,
+				ref_fields: fields.reference_count,
 			}),
 		)?;
 
@@ -93,8 +103,18 @@ impl GcUser for JavaUser {
 pub enum JavaHeader {
 	Array(ArrayHeader),
 	Instance(InstanceHeader),
+	InstanceStatic(InstanceHeader),
 }
 
+impl JavaHeader {
+	pub fn kind(&self) -> ReferenceKind {
+		match self {
+			JavaHeader::Array(_) => ReferenceKind::Array,
+			JavaHeader::Instance(_) => ReferenceKind::Instance,
+			JavaHeader::InstanceStatic(_) => ReferenceKind::Instance,
+		}
+	}
+}
 pub struct ArrayHeader {
 	pub kind: Kind,
 	pub component_id: Option<Id<Class>>,
@@ -103,14 +123,6 @@ pub struct ArrayHeader {
 pub struct InstanceHeader {
 	pub id: Id<Class>,
 	pub ref_fields: u16,
-}
-impl JavaHeader {
-	pub fn kind(&self) -> ReferenceKind {
-		match self {
-			JavaHeader::Array { .. } => ReferenceKind::Array,
-			JavaHeader::Instance { .. } => ReferenceKind::Instance,
-		}
-	}
 }
 //use ahash::HashSetExt;
 // use std::alloc::{alloc_zeroed, Layout};

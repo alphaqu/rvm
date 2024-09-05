@@ -11,7 +11,7 @@ fn runtime() -> Runtime {
 #[test]
 pub fn create() {
 	let runtime = runtime();
-	let id = runtime.classes.resolve(&SimpleObject::ty().into());
+	let id = runtime.resolve_class(&SimpleObject::ty().into()).unwrap();
 
 	let instance = ObjectTests::createSimple(&runtime).unwrap();
 
@@ -32,7 +32,7 @@ pub fn create_numbered() {
 #[test]
 pub fn get_field() {
 	let runtime = runtime();
-	let id = runtime.classes.resolve(&SimpleObject::ty().into());
+	let id = runtime.resolve_class(&SimpleObject::ty().into()).unwrap();
 
 	let mut instance = runtime.alloc_object(id).unwrap().typed::<SimpleObject>();
 	*instance.value = 420;
@@ -44,7 +44,7 @@ pub fn get_field() {
 #[test]
 pub fn set_field() {
 	let runtime = runtime();
-	let id = runtime.classes.resolve(&SimpleObject::ty().into());
+	let id = runtime.resolve_class(&SimpleObject::ty().into()).unwrap();
 
 	let instance = runtime.alloc_object(id).unwrap().typed::<SimpleObject>();
 	assert_eq!(*instance.value, 0);
@@ -56,7 +56,7 @@ pub fn set_field() {
 #[test]
 pub fn basic_instance_method() {
 	let runtime = runtime();
-	let id = runtime.classes.resolve(&SimpleObject::ty().into());
+	let id = runtime.resolve_class(&SimpleObject::ty().into()).unwrap();
 
 	let instance = runtime.alloc_object(id).unwrap().typed::<SimpleObject>();
 	assert_eq!(*instance.value, 0);
@@ -68,7 +68,7 @@ pub fn basic_instance_method() {
 #[test]
 pub fn create_extended() {
 	let runtime = runtime();
-	let id = runtime.classes.resolve(&ExtendedObject::ty().into());
+	let id = runtime.resolve_class(&ExtendedObject::ty().into()).unwrap();
 
 	let instance = ObjectTests::createExtended(&runtime).unwrap();
 	assert_eq!(instance.class_id(), id);
@@ -91,7 +91,7 @@ pub fn basic_override() {
 #[test]
 pub fn casting() {
 	let runtime = runtime();
-	let id = runtime.classes.resolve(&ExtendedObject::ty().into());
+	let id = runtime.resolve_class(&ExtendedObject::ty().into()).unwrap();
 	let mut instance = runtime.alloc_object(id).unwrap().typed::<ExtendedObject>();
 	*instance.value = 500;
 
@@ -104,7 +104,7 @@ pub fn casting() {
 pub fn interface_call() {
 	let runtime = runtime();
 
-	let id = runtime.classes.resolve(&ExtendedObject::ty().into());
+	let id = runtime.resolve_class(&ExtendedObject::ty().into()).unwrap();
 	let instance = runtime.alloc_object(id).unwrap().typed::<ExtendedObject>();
 
 	let instance = ObjectTests::interfaceCall(&runtime, instance.cast_to::<Animal>()).unwrap();
@@ -116,7 +116,7 @@ pub fn interface_call() {
 pub fn gc() {
 	let runtime = launch(128);
 
-	let id = runtime.classes.resolve(&ExtendedObject::ty().into());
+	let id = runtime.resolve_class(&ExtendedObject::ty().into()).unwrap();
 
 	let mut frozen = 0;
 	let mut ran_gc = false;

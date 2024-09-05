@@ -1,6 +1,67 @@
-use crate::{AnyInstance, AnyValue, Value};
-use rvm_core::Kind;
-use std::ops::{Deref, DerefMut};
+use crate::{AnyInstance, AnyValue, Field, FieldLayout, UnionValue, Value};
+use rvm_core::{Id, Kind};
+use std::ops::{Deref, DerefMut, Index};
+
+#[derive(Copy, Clone)]
+pub struct FieldTable<'a> {
+	layout: &'a FieldLayout,
+	fields: *mut u8,
+}
+
+impl<'a> FieldTable<'a> {
+	/// # Safety
+	/// Caller must ensure that the pointer is pointing to valid data.
+	pub unsafe fn new(layout: &'a FieldLayout, fields: *mut u8) -> FieldTable {
+		FieldTable { layout, fields }
+	}
+
+	pub fn field(&self, id: Id<Field>) -> DynField2 {
+		let field = self.layout.get(id);
+
+		DynField2 {
+			ptr: unsafe { self.fields.add(field.offset as usize).cast::<UnionValue>() },
+			kind: field.ty.kind(),
+		}
+	}
+
+	pub fn field_named(&self, name: &str) -> Option<DynField2> {
+		let field = self.layout.get_id(name)?;
+		Some(self.field(field))
+	}
+}
+
+pub struct DynField2 {
+	pub(super) ptr: *mut UnionValue,
+	pub(super) kind: Kind,
+}
+
+impl DynField2 {
+	pub fn get(&self) -> AnyValue {
+		unsafe { AnyValue::read(self.ptr.read(), self.kind) }
+	}
+
+	pub fn set(&self, value: AnyValue) {
+		if self.kind != value.kind() {
+			panic!("Invalid type");
+		}
+
+		unsafe {
+			value.write(self.ptr);
+		}
+	}
+
+	pub fn typed<V: Value>(self) -> TypedField<V> {
+		if self.kind != V::kind() {
+			panic!("Invalid type");
+		}
+
+		unsafe {
+			TypedField {
+				ptr: V::cast_pointer(self.ptr),
+			}
+		}
+	}
+}
 
 pub struct DynField {
 	pub(super) instance: AnyInstance,

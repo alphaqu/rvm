@@ -12,13 +12,13 @@ pub struct ArrayCreateTask(pub PrimitiveType);
 
 impl ArrayCreateTask {
 	#[inline(always)]
-	pub fn exec(&self, runtime: &Runtime, frame: &mut ThreadFrame) {
-		let length = frame.pop().to_int().unwrap();
+	pub fn exec(&self, runtime: &Runtime, frame: &mut ThreadFrame) -> eyre::Result<()> {
+		let length = frame.pop().to_int()?;
 		let array = runtime
 			.gc
-			.alloc_array(&Class::Primitive(self.0), length as u32)
-			.unwrap();
+			.alloc_array(&Class::Primitive(self.0), length as u32)?;
 		frame.push(StackValue::Reference(*array));
+		Ok(())
 	}
 }
 
@@ -38,18 +38,16 @@ impl ArrayCreateRefTask {
 		ArrayCreateRefTask(ObjectType::new(name.to_string()))
 	}
 
-	#[inline(always)]
-	pub fn exec(&self, runtime: &Runtime, frame: &mut ThreadFrame) {
-		let length = frame.pop().to_int().unwrap();
+	pub fn exec(&self, runtime: &Runtime, frame: &mut ThreadFrame) -> eyre::Result<()> {
+		let length = frame.pop().to_int()?;
 
-		let component_id = runtime.classes.resolve(&Type::Object(self.0.clone()));
+		let component_id = runtime.resolve_class(&Type::Object(self.0.clone()))?;
 		let component_class = runtime.classes.get(component_id);
 
-		let array = runtime
-			.gc
-			.alloc_array(&component_class, length as u32)
-			.unwrap();
+		let array = runtime.gc.alloc_array(&component_class, length as u32)?;
 		frame.push(StackValue::Reference(*array));
+
+		Ok(())
 	}
 }
 
@@ -109,19 +107,20 @@ pub struct ArrayStoreTask(pub Kind);
 
 impl ArrayStoreTask {
 	#[inline(always)]
-	pub fn exec(&self, frame: &mut ThreadFrame) {
+	pub fn exec(&self, frame: &mut ThreadFrame) -> eyre::Result<()> {
 		let value = frame.pop();
-		let value = value.convert(self.0).expect("unable to conver");
+		let value = value.convert(self.0)?;
 
-		let index = frame.pop().to_int().unwrap();
+		let index = frame.pop().to_int()?;
 
-		let reference = frame.pop().to_ref().unwrap();
+		let reference = frame.pop().to_ref()?;
 		let array = reference.to_array().unwrap();
 		if array.component_kind() != self.0 {
 			panic!("Array type does not match");
 		}
 
 		array.set(index, value);
+		Ok(())
 	}
 }
 

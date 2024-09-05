@@ -15,7 +15,7 @@ pub struct JavaField<V: Value> {}
 mod tests {
 	use rvm_core::{FieldAccessFlags, Kind, MethodDescriptor, ObjectType, Type};
 	use rvm_runtime::{
-		Array, Class, ClassFields, ClassMethods, FieldData, InstanceClass, Method, MethodCode,
+		Array, Class, ClassMethods, FieldData, FieldLayout, InstanceClass, Method, MethodCode,
 		MethodIdentifier,
 	};
 
@@ -31,7 +31,7 @@ mod tests {
 
 	unsafe impl JavaBinder for JavaString {
 		fn load_class(binder: &Binder, cl: &ClassLoader) {
-			let layout = ClassFields::new(
+			let layout = FieldLayout::new(
 				&[FieldData {
 					name: "hi".to_string(),
 					ty: Type::parse("[I").unwrap(),
@@ -59,7 +59,7 @@ mod tests {
 				super_class: None,
 				super_id: None,
 				cp: Default::default(),
-				fields: ClassFields::new(
+				field_layout: FieldLayout::new(
 					&[FieldData {
 						name: "hi".to_string(),
 						ty: Type::parse("[I").unwrap(),
@@ -68,7 +68,7 @@ mod tests {
 					None,
 					false,
 				),
-				static_fields: ClassFields::new(&[], None, true),
+				static_field_layout: FieldLayout::new(&[], None, true),
 				methods: ClassMethods::new(vec![Method {
 					name: "hello".to_string(),
 					desc: MethodDescriptor::parse("(Ljava/lang/String;)"),

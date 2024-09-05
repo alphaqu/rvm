@@ -4,11 +4,10 @@ mod field;
 use rvm_core::{CastTypeError, Id, Kind, ObjectType, StorageValue, Type};
 use std::mem::size_of;
 use std::ops::Deref;
-use std::println;
 use std::sync::Arc;
 
 pub use binding::{Instance, InstanceBinding};
-pub use field::{DynField, TypedField};
+pub use field::{DynField, FieldTable, TypedField};
 
 use crate::conversion::{FromJava, JavaTyped, ToJava};
 use crate::gc::{InstanceHeader, JavaHeader};
@@ -99,27 +98,27 @@ impl InstanceRef {
 		}
 	}
 
-	pub unsafe fn get_mut_ptr<V: Value>(&self, offset: usize) -> *mut V {
+	pub(super) unsafe fn get_mut_ptr<V: Value>(&self, offset: usize) -> *mut V {
 		let data = self.fields().add(offset);
 		V::cast_pointer(data)
 	}
 
-	pub unsafe fn get_any(&self, offset: usize, kind: Kind) -> AnyValue {
+	pub(super) unsafe fn get_any(&self, offset: usize, kind: Kind) -> AnyValue {
 		let data = self.fields().add(offset).read();
 		AnyValue::read(data, kind)
 	}
 
-	pub unsafe fn get<V: Value>(&self, offset: usize) -> V {
+	pub(super) unsafe fn get<V: Value>(&self, offset: usize) -> V {
 		let data = self.fields().add(offset).read();
 		V::read(data)
 	}
 
-	pub unsafe fn put_any(&self, offset: usize, value: AnyValue) {
+	pub(super) unsafe fn put_any(&self, offset: usize, value: AnyValue) {
 		let data = self.fields().add(offset);
 		AnyValue::write(value, data)
 	}
 
-	pub unsafe fn put<V: Value>(&self, offset: usize, value: V) {
+	pub(super) unsafe fn put<V: Value>(&self, offset: usize, value: V) {
 		let data = self.fields().add(offset);
 		V::write(data, value)
 	}
@@ -172,6 +171,7 @@ impl From<AnyInstance> for AnyValue {
 #[derive(Clone)]
 pub struct AnyInstance {
 	runtime: Runtime,
+	is_static: bool,
 	class: Arc<Class>,
 	raw: InstanceRef,
 }
@@ -189,6 +189,10 @@ impl AnyInstance {
 
 		Some(AnyInstance {
 			runtime,
+			is_static: matches!(
+				instance.reference.header().user(),
+				JavaHeader::InstanceStatic(_)
+			),
 			class: arc,
 			raw: instance,
 		})
@@ -232,21 +236,15 @@ impl AnyInstance {
 		self.class().id
 	}
 
-	pub fn field(&self, id: Id<Field>) -> DynField {
-		let field = self.class().fields.get(id);
-		DynField {
-			instance: self.clone(),
-			offset: field.offset,
-			kind: field.ty.kind(),
-		}
-	}
-
-	pub fn field_named(&self, name: &str) -> Option<DynField> {
-		let field = self.class().fields.get_id(name)?;
-		Some(self.field(field))
+	pub fn fields(&self) -> FieldTable<'_> {
+		let fields = &self.class.as_instance().unwrap().field_layout;
+		unsafe { FieldTable::new(fields, self.raw.data_ptr()) }
 	}
 
 	pub fn typed<B: InstanceBinding>(self) -> Instance<B> {
+		if self.is_static {
+			todo!("Implement this!");
+		}
 		Instance::try_new(self).expect("Wrong type!")
 	}
 

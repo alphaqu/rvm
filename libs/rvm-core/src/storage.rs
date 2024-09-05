@@ -97,6 +97,10 @@ impl<K: Hash + Eq + Debug, V: StorageValue, O> Storage<K, V, O> {
 			.iter()
 			.map(|(k, i)| (*i, k, &self.values[i.0.to_usize().unwrap() - 1]))
 	}
+
+	pub fn len(&self) -> usize {
+		self.values.len()
+	}
 }
 
 pub struct Id<V: StorageValue>(V::Idx);

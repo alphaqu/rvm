@@ -3,6 +3,8 @@
 #![feature(thread_id_value)]
 #![feature(c_variadic)]
 #![feature(fn_traits)]
+#![feature(new_uninit)]
+#![feature(iterator_try_collect)]
 
 use crate::engine::{Engine, ThreadConfig, ThreadHandle};
 use crate::gc::GarbageCollector;
@@ -10,9 +12,10 @@ use crate::native::JNILinker;
 use ahash::HashMap;
 pub use binding::*;
 pub use conversion::*;
+use eyre::Context;
 pub use object::*;
 use parking_lot::{Mutex, RwLock};
-use rvm_core::{Id, ObjectType};
+use rvm_core::{Id, ObjectType, Type};
 use rvm_gc::AllocationError;
 use std::ops::Deref;
 use std::sync::{Arc, Weak};
@@ -59,6 +62,41 @@ impl Runtime {
 		self.inner.engine.create_thread(self.clone(), config)
 	}
 
+	pub fn is_instance_of(&self, instance: InstanceRef, id: Id<Class>) -> bool {
+		let mut this_id = instance.header().id;
+
+		loop {
+			if this_id == id {
+				return true;
+			}
+
+			let this_class = self.classes.get(this_id);
+			let instance_class = this_class.as_instance().unwrap();
+
+			// Check if interfaces contain this
+			for interface in &instance_class.interfaces {
+				if interface.id == id {
+					return true;
+				}
+			}
+
+			if let Some(super_class) = &instance_class.super_class {
+				this_id = super_class.id;
+			} else {
+				return false;
+			}
+		}
+	}
+
+	pub fn resolve_class(&self, ty: &Type) -> eyre::Result<Id<Class>> {
+		let mut resolver = ClassResolver::new(&self.classes);
+		let id = resolver
+			.resolve(ty)
+			.wrap_err_with(|| format!("Resolving class {ty:?}"))?;
+		resolver.link_all(self).wrap_err("Linking")?;
+		Ok(id)
+	}
+
 	pub fn gc(&self) {
 		let inner = self.inner.clone();
 		spawn(move || {
@@ -92,6 +130,10 @@ impl Runtime {
 		thread.run(ty, method, parameters);
 		thread.join()
 	}
+
+	pub fn weak(&self) -> WeakRuntime {
+		WeakRuntime(Arc::downgrade(&self.inner))
+	}
 }
 
 impl Deref for Runtime {
@@ -102,13 +144,16 @@ impl Deref for Runtime {
 	}
 }
 
-pub struct WeakRuntime(Weak<Runtime>);
+pub struct WeakRuntime(Weak<InnerRuntime>);
 
 impl WeakRuntime {
-	pub fn get(&self) -> Arc<Runtime> {
-		self.0
-			.upgrade()
-			.expect("Tried to get a weak runtime, when it has been dropped.")
+	pub fn get(&self) -> Runtime {
+		Runtime {
+			inner: self
+				.0
+				.upgrade()
+				.expect("Tried to get a weak runtime, when it has been dropped."),
+		}
 	}
 }
 

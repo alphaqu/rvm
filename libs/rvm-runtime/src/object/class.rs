@@ -2,6 +2,7 @@ use rvm_core::{Id, PrimitiveType, StorageValue, Type};
 
 use crate::object::array::ArrayClass;
 use crate::object::instance::InstanceClass;
+use crate::Runtime;
 
 pub enum Class {
 	Instance(InstanceClass),

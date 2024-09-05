@@ -1,12 +1,4 @@
-use std::fs::read;
-use std::path::Path;
-use std::sync::Arc;
 use std::thread::Builder;
-
-use rvm_core::{init, ObjectType, Type};
-use rvm_engine_ben::BenBinding;
-use rvm_runtime::engine::ThreadConfig;
-use rvm_runtime::Runtime;
 
 fn main() {
 	Builder::new()
@@ -21,53 +13,53 @@ fn main() {
 }
 
 fn run() {
-	init();
-	let engine = Box::new(BenBinding::new());
-
-	let runtime = Arc::new(Runtime::new(1024 * 1024, engine));
-	runtime
-		.classes
-		.load_jar(include_bytes!("../rt.zip"), |v| {
-			v == "java/lang/Object.class"
-		})
-		.unwrap();
-	runtime
-		.classes
-		.load_jar(include_bytes!("../unnamed.jar"), |v| true)
-		.unwrap();
-	for jar in std::env::args().skip(1) {
-		let path = Path::new(&jar);
-
-		match path.extension().and_then(|x| x.to_str()) {
-			Some("jar") | Some("zip") => {
-				runtime
-					.classes
-					.load_jar(&read(path).unwrap(), |_| true)
-					.unwrap();
-			}
-			Some("class") => {
-				runtime.classes.load_class(&read(path).unwrap()).unwrap();
-			}
-			other => {
-				panic!("Unrecognised extension {other:?}");
-			}
-		}
-	}
-
-	let handle = runtime.create_thread(ThreadConfig {
-		name: "Hi".to_string(),
-	});
-
-	handle.run(
-		ObjectType("Main".to_string()),
-		MethodIdentifier {
-			name: "main".to_string(),
-			descriptor: "()I".to_string(),
-		},
-		vec![],
-	);
-
-	println!("{:?}", handle.join().unwrap());
+	//init();
+	//let engine = Box::new(BenBinding::new());
+	//
+	//let runtime = Arc::new(Runtime::new(1024 * 1024, engine));
+	//runtime
+	//	.classes
+	//	.load_jar(include_bytes!("../rt.zip"), |v| {
+	//		v == "java/lang/Object.class"
+	//	})
+	//	.unwrap();
+	//runtime
+	//	.classes
+	//	.load_jar(include_bytes!("../unnamed.jar"), |v| true)
+	//	.unwrap();
+	//for jar in std::env::args().skip(1) {
+	//	let path = Path::new(&jar);
+	//
+	//	match path.extension().and_then(|x| x.to_str()) {
+	//		Some("jar") | Some("zip") => {
+	//			runtime
+	//				.classes
+	//				.load_jar(&read(path).unwrap(), |_| true)
+	//				.unwrap();
+	//		}
+	//		Some("class") => {
+	//			runtime.classes.load_class(&read(path).unwrap()).unwrap();
+	//		}
+	//		other => {
+	//			panic!("Unrecognised extension {other:?}");
+	//		}
+	//	}
+	//}
+	//
+	//let handle = runtime.create_thread(ThreadConfig {
+	//	name: "Hi".to_string(),
+	//});
+	//
+	//handle.run(
+	//	ObjectType("Main".to_string()),
+	//	MethodIdentifier {
+	//		name: "main".to_string(),
+	//		descriptor: "()I".to_string(),
+	//	},
+	//	vec![],
+	//);
+	//
+	//println!("{:?}", handle.join().unwrap());
 	// 	// bind
 	// 	{
 	// 		// bindhi(&mut runtime);

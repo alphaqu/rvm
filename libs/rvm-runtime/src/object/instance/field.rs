@@ -14,8 +14,8 @@ pub struct FieldData {
 
 impl FieldData {
 	pub fn from_info(info: &FieldInfo, cp: &ConstantPool) -> Option<FieldData> {
-		let name = info.name_index.get(cp).unwrap().to_string();
-		let desc = info.descriptor_index.get(cp).unwrap().as_str();
+		let name = cp[info.name_index].to_string();
+		let desc = cp[info.descriptor_index].as_str();
 		let field_type = Type::parse(desc)?;
 
 		Some(FieldData {
@@ -27,20 +27,30 @@ impl FieldData {
 }
 
 #[derive(Clone)]
-pub struct ClassFields {
+pub struct FieldLayout {
 	pub fields_size: u32,
-	pub ref_fields: u16,
+	pub reference_count: u16,
+	pub statics: bool,
 	fields: Storage<String, Field>,
 }
 
-impl ClassFields {
-	pub fn new(
+impl FieldLayout {
+	pub fn new_instance(fields: &[FieldData], super_fields: Option<&FieldLayout>) -> FieldLayout {
+		FieldLayout::new(fields, super_fields, false)
+	}
+
+	pub fn new_static(fields: &[FieldData]) -> FieldLayout {
+		FieldLayout::new(fields, None, true)
+	}
+
+	fn new(
 		fields: &[FieldData],
-		super_fields: Option<&ClassFields>,
-		static_layout: bool,
-	) -> ClassFields {
+		super_fields: Option<&FieldLayout>,
+		is_static: bool,
+	) -> FieldLayout {
 		let mut output: Vec<(usize, Field, String)> = vec![];
 		if let Some(fields) = super_fields {
+			assert_eq!(fields.statics, is_static);
 			for (id, name, field) in fields.fields.iter_keys_unordered() {
 				output.push((
 					id.idx().to_usize(),
@@ -56,7 +66,7 @@ impl ClassFields {
 
 		for field in fields {
 			let static_field = field.flags.contains(FieldAccessFlags::STATIC);
-			if static_field != static_layout {
+			if static_field != is_static {
 				continue;
 			}
 
@@ -98,15 +108,20 @@ impl ClassFields {
 			storage.insert(name, field);
 		}
 
-		ClassFields {
+		FieldLayout {
 			fields_size,
-			ref_fields: ref_fields as u16,
+			reference_count: ref_fields as u16,
+			statics: is_static,
 			fields: storage,
 		}
 	}
+
+	pub fn len(&self) -> usize {
+		self.fields.len()
+	}
 }
 
-impl Deref for ClassFields {
+impl Deref for FieldLayout {
 	type Target = Storage<String, Field>;
 
 	fn deref(&self) -> &Self::Target {

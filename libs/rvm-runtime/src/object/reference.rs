@@ -54,9 +54,9 @@ impl Reference {
 	pub fn visit_refs(&self, visitor: impl FnMut(Reference)) {
 		let header = &**self.0.header();
 		unsafe {
-			match header {
-				JavaHeader::Instance(_) => InstanceRef::new_unchecked(*self).visit_refs(visitor),
-				JavaHeader::Array(_) => ArrayRef::new_unchecked(*self).visit_refs(visitor),
+			match header.kind() {
+				ReferenceKind::Instance => InstanceRef::new_unchecked(*self).visit_refs(visitor),
+				ReferenceKind::Array => ArrayRef::new_unchecked(*self).visit_refs(visitor),
 			}
 		}
 	}
@@ -64,9 +64,9 @@ impl Reference {
 	pub fn map_refs(&self, mapper: impl FnMut(Reference) -> Reference) {
 		let header = &**self.0.header();
 		unsafe {
-			match header {
-				JavaHeader::Instance(_) => InstanceRef::new_unchecked(*self).map_refs(mapper),
-				JavaHeader::Array(_) => ArrayRef::new_unchecked(*self).map_refs(mapper),
+			match header.kind() {
+				ReferenceKind::Instance => InstanceRef::new_unchecked(*self).map_refs(mapper),
+				ReferenceKind::Array => ArrayRef::new_unchecked(*self).map_refs(mapper),
 			}
 		}
 	}

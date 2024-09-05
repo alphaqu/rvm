@@ -16,7 +16,7 @@ use crate::{ClassConst, ConstPtr, IResult};
 pub struct ClassInfo {
 	pub minor_version: u16,
 	pub major_version: u16,
-	pub constant_pool: ConstantPool,
+	pub cp: ConstantPool,
 	pub access_flags: ClassAccessFlags,
 
 	pub this_class: ConstPtr<ClassConst>,
@@ -89,7 +89,7 @@ impl ClassInfo {
 			ClassInfo {
 				minor_version,
 				major_version,
-				constant_pool,
+				cp: constant_pool,
 				access_flags,
 				this_class: ConstPtr::new(this_class),
 				super_class: ConstPtr::new(super_class),
@@ -102,7 +102,7 @@ impl ClassInfo {
 	}
 
 	pub fn full_name(&self) -> String {
-		let class = self.constant_pool.get(self.this_class).unwrap();
-		self.constant_pool.get(class.name).unwrap().to_string()
+		let class = self.cp.get(self.this_class).unwrap();
+		self.cp.get(class.name).unwrap().to_string()
 	}
 }

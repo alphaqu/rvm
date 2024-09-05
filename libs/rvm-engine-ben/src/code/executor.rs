@@ -78,8 +78,7 @@ impl<'f> JavaScope<'f> {
 				Task::New(object) => {
 					let id = executor
 						.runtime
-						.classes
-						.resolve(&Type::Object(object.class_name.clone()));
+						.resolve_class(&Type::Object(object.class_name.clone()))?;
 
 					match executor.new_object(id)? {
 						Some(object) => {
@@ -126,19 +125,19 @@ impl<'f> JavaScope<'f> {
 					continue;
 				}
 				Task::Stack(task) => task.exec(frame),
-				Task::Field(task) => task.exec(&executor.runtime, frame),
+				Task::Field(task) => task.exec(&executor.runtime, frame)?,
 				Task::Increment(task) => {
 					let value = frame.load(task.local);
 					frame.store(
 						task.local,
-						StackValue::Int(value.to_int().unwrap() + task.increment as i32),
+						StackValue::Int(value.to_int()? + task.increment as i32),
 					);
 				}
 				Task::ArrayLength(v) => v.exec(frame),
 				Task::ArrayLoad(v) => v.exec(frame),
-				Task::ArrayStore(v) => v.exec(frame),
-				Task::ArrayCreate(v) => v.exec(&executor.runtime, frame),
-				Task::ArrayCreateRef(v) => v.exec(&executor.runtime, frame),
+				Task::ArrayStore(v) => v.exec(frame)?,
+				Task::ArrayCreate(v) => v.exec(&executor.runtime, frame)?,
+				Task::ArrayCreateRef(v) => v.exec(&executor.runtime, frame)?,
 			};
 			self.cursor += 1;
 		}
@@ -265,7 +264,7 @@ impl<'a> Executor<'a> {
 			.wrap_err_with(|| format!("Method inputs for {method_descriptor}"))?;
 
 		let class_id = if call_ty.is_static() || call_ty.is_special() {
-			self.runtime.classes.resolve(&Type::Object(ty.clone()))
+			self.runtime.resolve_class(&Type::Object(ty.clone()))?
 		} else {
 			let reference = inputs.instance.unwrap();
 			let class_object = reference.to_instance().unwrap();

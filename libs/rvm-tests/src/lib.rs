@@ -98,56 +98,57 @@ pub fn launch(heap_size: usize) -> Runtime {
 }
 
 pub fn compile(runtime: &Runtime, sources: &[(&str, &str)]) -> Result<()> {
-	let mut root = std::env::current_dir().unwrap();
-	root.push("temp");
-	root.push(&format!("rvm-{:p}", runtime));
-
-	let result: Result<()> = try {
-		std::fs::create_dir_all(&root)?;
-
-		let mut process = std::process::Command::new(match std::env::var("JAVA_HOME") {
-			Ok(java_home) => format!("{}/bin/javac", java_home),
-			_ => "javac".to_string(),
-		});
-		process.current_dir(&root).arg("-Xlint");
-
-		for &(name, source) in sources {
-			let mut file = root.clone();
-			file.push(name);
-
-			if let Some(parent) = file.parent() {
-				std::fs::create_dir_all(parent)?;
-			}
-
-			std::fs::write(file, source)?;
-			process.arg(name);
-		}
-
-		let status = process.status()?;
-
-		println!(
-			"ERROR: {}",
-			String::from_utf8(process.output().unwrap().stderr).unwrap()
-		);
-		status.exit_ok().expect("javac not successful");
-
-		for entry in WalkDir::new(&root) {
-			let entry = entry?;
-
-			if entry.path().extension().and_then(|x| x.to_str()) == Some("class") {
-				runtime
-					.classes
-					.load_class(&std::fs::read(entry.path())?)
-					.unwrap();
-			}
-		}
-	};
-
-	if let Err(error) = std::fs::remove_dir_all(root) {
-		eprintln!("Error cleaning up: {}", error);
-	}
-
-	result
+	todo!()
+	//let mut root = std::env::current_dir().unwrap();
+	//root.push("temp");
+	//root.push(&format!("rvm-{:p}", runtime));
+	//
+	//let result: Result<()> = try {
+	//	std::fs::create_dir_all(&root)?;
+	//
+	//	let mut process = std::process::Command::new(match std::env::var("JAVA_HOME") {
+	//		Ok(java_home) => format!("{}/bin/javac", java_home),
+	//		_ => "javac".to_string(),
+	//	});
+	//	process.current_dir(&root).arg("-Xlint");
+	//
+	//	for &(name, source) in sources {
+	//		let mut file = root.clone();
+	//		file.push(name);
+	//
+	//		if let Some(parent) = file.parent() {
+	//			std::fs::create_dir_all(parent)?;
+	//		}
+	//
+	//		std::fs::write(file, source)?;
+	//		process.arg(name);
+	//	}
+	//
+	//	let status = process.status()?;
+	//
+	//	println!(
+	//		"ERROR: {}",
+	//		String::from_utf8(process.output().unwrap().stderr).unwrap()
+	//	);
+	//	status.exit_ok().expect("javac not successful");
+	//
+	//	for entry in WalkDir::new(&root) {
+	//		let entry = entry?;
+	//
+	//		if entry.path().extension().and_then(|x| x.to_str()) == Some("class") {
+	//			runtime
+	//				.classes
+	//				.load_class(&std::fs::read(entry.path())?)
+	//				.unwrap();
+	//		}
+	//	}
+	//};
+	//
+	//if let Err(error) = std::fs::remove_dir_all(root) {
+	//	eprintln!("Error cleaning up: {}", error);
+	//}
+	//
+	//result
 }
 
 pub fn sample<F, R>(message: &str, times: usize, f: F) -> Vec<R>

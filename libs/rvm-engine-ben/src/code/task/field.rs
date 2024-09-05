@@ -45,42 +45,55 @@ impl FieldTask {
 	}
 
 	#[inline(always)]
-	pub fn exec(&self, runtime: &Runtime, frame: &mut ThreadFrame) {
-		let id = runtime.classes.resolve(&Type::Object(self.source.clone()));
+	pub fn exec(&self, runtime: &Runtime, frame: &mut ThreadFrame) -> eyre::Result<()> {
+		let id = runtime.resolve_class(&Type::Object(self.source.clone()))?;
 		let arc = runtime.classes.get(id);
 		match &*arc {
 			Class::Instance(object) => {
 				if self.instance {
-					let id = object.fields.get_id(&self.field_name).unwrap();
-					let field = object.fields.get(id);
+					let id = object.field_layout.get_id(&self.field_name).unwrap();
 
 					match self.kind {
 						FieldInstKind::Get => {
-							let reference = frame.pop().to_ref().unwrap();
+							let reference = frame.pop().to_ref()?;
 
 							let class = reference.to_instance().unwrap();
 							let instance = AnyInstance::try_new(runtime.clone(), class).unwrap();
+							let fields = instance.fields();
 
-							let value = instance.field(id).get();
+							let value = fields.field(id).get();
 
 							frame.push(StackValue::from_any(value));
 						}
 						FieldInstKind::Put => {
 							let value = frame.pop();
-							let reference = frame.pop().to_ref().unwrap();
+							let reference = frame.pop().to_ref()?;
 							let class = reference.to_instance().unwrap();
 							let instance = AnyInstance::try_new(runtime.clone(), class).unwrap();
-							instance.field(id).set(value.to_any());
+							let fields = instance.fields();
+							fields.field(id).set(value.to_any());
 						}
 					}
 				} else {
-					let id = object.static_fields.get_id(&self.field_name).unwrap();
-					let field = object.static_fields.get(id);
+					let fields = object.static_fields();
+					let field = fields.field_named(&self.field_name).unwrap();
+
+					match self.kind {
+						FieldInstKind::Get => {
+							let value = field.get();
+							frame.push(StackValue::from_any(value));
+						}
+						FieldInstKind::Put => {
+							let value = frame.pop();
+							field.set(value.to_any());
+						}
+					}
 				}
 			}
 			_ => {
 				panic!()
 			}
 		}
+		Ok(())
 	}
 }
