@@ -12,7 +12,7 @@ use rvm_core::{Id, Kind, ObjectType, Storage, Type};
 use rvm_reader::ClassInfo;
 
 use crate::object::class::Class;
-use crate::{ArrayClass, InstanceClass, Runtime};
+use crate::{ArrayClass, InstanceClass, MethodIdentifier, Runtime};
 
 pub use source::*;
 
@@ -202,7 +202,13 @@ impl<'a> ClassResolver<'a> {
 	pub fn link_all(mut self, runtime: &Runtime) -> eyre::Result<()> {
 		info!("Linking all");
 
+		let class_init = MethodIdentifier {
+			name: "<clinit>".into(),
+			descriptor: "()V".into(),
+		};
+		// Linking
 		let mut guard = self.cl.classes.write();
+		let mut to_initialize = Vec::new();
 		for id in self.to_link.drain(..) {
 			let slot = guard.get_mut(id);
 			let class = slot.take().unwrap();
@@ -211,14 +217,35 @@ impl<'a> ClassResolver<'a> {
 				.wrap_err("Class has arc references")?;
 
 			let ty = class.cloned_ty();
-			info!("Loading class {ty}");
+
+			info!("Linking class {ty}");
 			if let Class::Instance(class) = &mut class {
 				class
 					.link(runtime)
 					.wrap_err_with(|| format!("Linking {ty}"))?;
 			}
 
-			*slot = Some(Arc::new(class));
+			let class = Arc::new(class);
+			*slot = Some(class.clone());
+
+			if let Some(instance) = class.as_instance() {
+				if instance.methods.contains(&class_init) {
+					to_initialize.push(class);
+				}
+			}
+		}
+
+		drop(guard);
+
+		// Initializing
+		for class in to_initialize {
+			let class = class.as_instance().unwrap();
+			info!("Initializing class {}", class.ty);
+
+			// TODO some form of jvm thread which handles these kinds of tasks
+			runtime
+				.simple_run(class.ty.clone(), class_init.clone(), vec![])
+				.wrap_err("<clinit>")?;
 		}
 		Ok(())
 	}

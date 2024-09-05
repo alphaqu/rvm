@@ -5,12 +5,15 @@ use crate::core::load_test_sdk;
 use eyre::Context;
 use rvm_core::{MethodDescriptor, ObjectType, Type};
 use rvm_engine_ben::BenBinding;
-use rvm_runtime::{AnyValue, ClassSource, JarClassSource, MethodIdentifier, Runtime};
+use rvm_runtime::{
+	AnyValue, ClassSource, JarClassSource, MethodBinding, MethodIdentifier, Runtime,
+};
 use std::borrow::Borrow;
 use std::fs::read;
 use std::io::Result;
 use std::sync::{Arc, LazyLock};
 use std::time::Instant;
+use tracing::info;
 use walkdir::WalkDir;
 
 pub use bindings::*;
@@ -26,6 +29,14 @@ static RT_ZIP: LazyLock<Arc<JarClassSource>> = LazyLock::new(|| {
 
 pub fn load_sdk(runtime: &Runtime) {
 	runtime.classes.add_source(Box::new(RT_ZIP.clone()));
+
+	runtime.bindings.bind(
+		"java/lang/Object",
+		"registerNatives",
+		MethodBinding::new(|runtime, _: ()| {
+			info!("Hi natives");
+		}),
+	);
 }
 
 pub struct SimpleClassTest {

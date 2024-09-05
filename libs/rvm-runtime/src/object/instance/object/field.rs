@@ -15,7 +15,7 @@ impl<'a> FieldTable<'a> {
 		FieldTable { layout, fields }
 	}
 
-	pub fn field(&self, id: Id<Field>) -> DynField2 {
+	pub fn by_id(&self, id: Id<Field>) -> DynField2 {
 		let field = self.layout.get(id);
 
 		DynField2 {
@@ -23,10 +23,17 @@ impl<'a> FieldTable<'a> {
 			kind: field.ty.kind(),
 		}
 	}
+	pub fn by_id_typed<V: Value>(&self, id: Id<Field>) -> TypedField<V> {
+		self.by_id(id).typed::<V>()
+	}
 
-	pub fn field_named(&self, name: &str) -> Option<DynField2> {
+	pub fn by_name(&self, name: &str) -> Option<DynField2> {
 		let field = self.layout.get_id(name)?;
-		Some(self.field(field))
+		Some(self.by_id(field))
+	}
+
+	pub fn by_name_typed<V: Value>(&self, name: &str) -> Option<TypedField<V>> {
+		Some(self.by_name(name)?.typed::<V>())
 	}
 }
 

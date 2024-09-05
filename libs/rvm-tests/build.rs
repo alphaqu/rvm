@@ -309,7 +309,7 @@ impl RustCompiler {
 					let field_name = info.cp[field.name_index].to_string();
 					writeln!(
 						out,
-						"    {field_name}: fields.field_named(\"{field_name}\").unwrap().typed(),"
+						"    {field_name}: fields.by_name_typed(\"{field_name}\").unwrap(),"
 					)?;
 				}
 				writeln!(out, "    }}")?;

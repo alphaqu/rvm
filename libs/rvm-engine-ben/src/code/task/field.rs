@@ -61,7 +61,7 @@ impl FieldTask {
 							let instance = AnyInstance::try_new(runtime.clone(), class).unwrap();
 							let fields = instance.fields();
 
-							let value = fields.field(id).get();
+							let value = fields.by_id(id).get();
 
 							frame.push(StackValue::from_any(value));
 						}
@@ -71,12 +71,12 @@ impl FieldTask {
 							let class = reference.to_instance().unwrap();
 							let instance = AnyInstance::try_new(runtime.clone(), class).unwrap();
 							let fields = instance.fields();
-							fields.field(id).set(value.to_any());
+							fields.by_id(id).set(value.to_any());
 						}
 					}
 				} else {
 					let fields = object.static_fields();
-					let field = fields.field_named(&self.field_name).unwrap();
+					let field = fields.by_name(&self.field_name).unwrap();
 
 					match self.kind {
 						FieldInstKind::Get => {

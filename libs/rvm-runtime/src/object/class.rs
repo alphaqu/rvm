@@ -29,6 +29,9 @@ impl Class {
 		None
 	}
 
+	pub fn to_instance(&self) -> &InstanceClass {
+		self.as_instance().expect("Instance class")
+	}
 	pub fn set_id(&mut self, id: Id<Class>) {
 		match self {
 			Class::Instance(object) => {
