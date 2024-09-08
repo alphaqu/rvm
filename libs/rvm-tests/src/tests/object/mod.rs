@@ -114,7 +114,7 @@ pub fn interface_call() {
 
 #[test]
 pub fn gc() {
-	let runtime = launch(128);
+	let runtime = launch(1024);
 
 	let id = runtime.resolve_class(&ExtendedObject::ty().into()).unwrap();
 

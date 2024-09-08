@@ -11,4 +11,6 @@ mod switch_statement;
 
 mod constants;
 mod consts;
+mod exception;
 mod statics;
+mod string;

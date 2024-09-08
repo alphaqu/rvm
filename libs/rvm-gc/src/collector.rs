@@ -322,15 +322,6 @@ impl<U: GcUser> Drop for InnerGarbageCollector<U> {
 	}
 }
 
-pub const fn align_size(bytes: usize, byte_alignment: usize) -> usize {
-	let remainder = bytes % byte_alignment;
-	if remainder == 0 {
-		bytes // Already aligned
-	} else {
-		bytes + byte_alignment - remainder
-	}
-}
-
 pub struct GCStatistics {
 	pub objects_cleared: usize,
 	pub objects_remaining: usize,
@@ -346,7 +337,7 @@ pub enum AllocationError {
 
 #[cfg(test)]
 mod tests {
-	use crate::align_size;
+	use rvm_core::align_size;
 
 	#[test]
 	fn align_size_test() {

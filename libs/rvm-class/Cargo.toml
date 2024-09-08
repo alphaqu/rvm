@@ -1,0 +1,13 @@
+[package]
+name = "rvm-class"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rvm-core = { path = "../rvm-core" }
+rvm-reader = { path = "../rvm-reader" }
+
+eyre = "0.6"
+tracing = "0.1"
+parking_lot = "0.12"
+zip = "2.2.0"

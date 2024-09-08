@@ -18,7 +18,7 @@ pub struct MethodInfo {
 	pub access_flags: MethodAccessFlags,
 	pub name_index: ConstPtr<UTF8Const>,
 	pub descriptor_index: ConstPtr<UTF8Const>,
-	pub attribute_info: Vec<AttributeInfo>,
+	pub attributes: Vec<AttributeInfo>,
 }
 
 impl MethodInfo {
@@ -34,7 +34,7 @@ impl MethodInfo {
 				access_flags,
 				name_index: ConstPtr::new(name_index),
 				descriptor_index: ConstPtr::new(descriptor_index),
-				attribute_info,
+				attributes: attribute_info,
 			},
 		))
 	}

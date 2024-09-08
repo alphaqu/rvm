@@ -7,7 +7,7 @@ use nom::sequence::tuple;
 
 use crate::code::Code;
 use crate::consts::{ConstantInfo, ConstantPool};
-use crate::IResult;
+use crate::{be_cp, ConstPtr, IResult, UTF8Const};
 
 pub struct AttributeException {
 	start_pc: u16,
@@ -43,11 +43,32 @@ pub struct AttributeLineNumber {
 }
 
 pub struct AttributeLocalVariable {
-	start_pc: u16,
-	length: u16,
-	name_index: u16,
-	descriptor_index: u16,
-	index: u16,
+	pub start_pc: u16,
+	pub length: u16,
+	pub name_index: ConstPtr<UTF8Const>,
+	pub descriptor_index: ConstPtr<UTF8Const>,
+	pub index: u16,
+}
+
+impl AttributeLocalVariable {
+	pub fn parse(input: &[u8]) -> IResult<Self> {
+		let (input, start_pc) = be_u16(input)?;
+		let (input, length) = be_u16(input)?;
+		let (input, name_index) = be_cp(input)?;
+		let (input, descriptor_index) = be_cp(input)?;
+		let (input, index) = be_u16(input)?;
+
+		Ok((
+			input,
+			AttributeLocalVariable {
+				start_pc,
+				length,
+				name_index,
+				descriptor_index,
+				index,
+			},
+		))
+	}
 }
 
 pub struct AttributeLocalVariableType {
@@ -96,7 +117,7 @@ pub enum AttributeInfo {
 		line_number_table: Vec<AttributeLineNumber>,
 	},
 	LocalVariableTable {
-		local_variable_table: Vec<AttributeLocalVariable>,
+		variables: Vec<AttributeLocalVariable>,
 	},
 	LocalVariableTypeTable {
 		local_variable_type_table: Vec<AttributeLocalVariableType>,
@@ -138,6 +159,13 @@ impl AttributeInfo {
 					map(
 						|input| Code::parse(input, constant_pool),
 						|code| AttributeInfo::CodeAttribute { code },
+					),
+				)(input),
+				"LocalVariableTable" => context(
+					"LocalVariableTable",
+					map(
+						length_count(be_u16, |input| AttributeLocalVariable::parse(input)),
+						|value| AttributeInfo::LocalVariableTable { variables: value },
 					),
 				)(input),
 				_ => map(take(length), |_| AttributeInfo::AnnotationDefault)(input),

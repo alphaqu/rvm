@@ -275,7 +275,7 @@ pub enum Inst {
 	// Grandpa shit
 	JSR(BranchOffset),
 	JSR_W(WideBranchOffset),
-	RET(u8),
+	RET(u16),
 	// TODO read
 	LOOKUPSWITCH,
 	TableSwitch(TableSwitchInst),
@@ -860,6 +860,57 @@ impl Inst {
 					}),
 				)
 			}
+			Op::LOOKUPSWITCH => {
+				let pos = pos + 1;
+				let padding = 4 - (pos % 4);
+				let mut input = input;
+				if padding != 4 {
+					let (new_input, _) =
+						length_count(|input| Ok((input, padding)) as IResult<usize>, be_u8)(input)?;
+					input = new_input;
+				}
+				let (input, default) = be_i32(input)?;
+				let (mut input, n_pairs) = be_i32(input)?;
+
+				for _ in 0..n_pairs {
+					let (input2, match_v) = be_i32(input)?;
+					let (input2, offset_v) = be_i32(input2)?;
+					input = input2;
+				}
+
+				(input, Inst::LOOKUPSWITCH)
+			}
+			Op::WIDE => {
+				let (input, opcode) = Op::parse_op(input)?;
+				let (mut input, index) = be_u16(input)?;
+
+				let inst = if let Op::RET = opcode {
+					Inst::RET(index)
+				} else {
+					Inst::Local(match opcode {
+						Op::ILOAD => LocalInst::Load(StackKind::Int, index),
+						Op::FLOAD => LocalInst::Load(StackKind::Float, index),
+						Op::ALOAD => LocalInst::Load(StackKind::Reference, index),
+						Op::LLOAD => LocalInst::Load(StackKind::Long, index),
+						Op::DLOAD => LocalInst::Load(StackKind::Double, index),
+						Op::ISTORE => LocalInst::Store(StackKind::Int, index),
+						Op::FSTORE => LocalInst::Store(StackKind::Float, index),
+						Op::ASTORE => LocalInst::Store(StackKind::Reference, index),
+						Op::LSTORE => LocalInst::Store(StackKind::Long, index),
+						Op::DSTORE => LocalInst::Store(StackKind::Double, index),
+						Op::IINC => {
+							let (input2, amount) = be_i16(input)?;
+							input = input2;
+							LocalInst::Increment(amount, index)
+						}
+						_ => unreachable!(),
+					})
+				};
+
+				(input, inst)
+			}
+			Op::MONITORENTER => (input, Inst::MONITORENTER),
+			Op::MONITOREXIT => (input, Inst::MONITOREXIT),
 			v => panic!("instruction {v:?} kinda dodo"),
 		})
 	}

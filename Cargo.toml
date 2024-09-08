@@ -23,7 +23,7 @@ members = [
     "./libs/rvm-engine-ben",
     "./libs/rvm-reader",
     "./libs/rvm-macro",
-    "./libs/rvm-tests", "libs/rvm-gc",
+    "./libs/rvm-tests", "libs/rvm-gc", "libs/rvm-class", "libs/rvm-stack",
 ]
 
 # [profile.dev]

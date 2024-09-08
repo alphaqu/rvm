@@ -2,6 +2,8 @@
 #![feature(exit_status_error)]
 
 use rust_format::{Formatter, RustFmt};
+use rvm_bind::JavaBinder;
+use rvm_class::{ClassLoader, DirectoryClassSource, JarClassSource};
 use rvm_core::{MethodDescriptor, ObjectType, PrimitiveType, Type};
 use rvm_reader::ClassInfo;
 use std::collections::HashMap;
@@ -111,6 +113,7 @@ fn compile_java(files: &[PathBuf], current_dir: &Path) {
 	process.current_dir(current_dir.join("src")).arg("-Xlint");
 
 	process.arg("-XDignore.symbol.file=true");
+	process.arg("-g:vars,source"); // Include variable/source file informations
 
 	let bytecode_dir = current_dir.join("bytecode");
 	std::fs::create_dir_all(&bytecode_dir).expect("Could not create bytecode dir");
@@ -150,27 +153,55 @@ fn main() {
 	let current_dir = std::env::current_dir().unwrap();
 	compile_java(&paths, &current_dir);
 
-	let mut root = PackageNode::default();
+	let mut binder = JavaBinder {
+		loader: ClassLoader::new(),
+		to_bind: vec![],
+	};
+
+	binder.loader.add_source(Box::new(
+		DirectoryClassSource::new(PathBuf::from("bytecode")).unwrap(),
+	));
+	binder.loader.add_source(Box::new(
+		JarClassSource::new(read("../../rt.zip").expect("Could not load rt.zip (java std)"))
+			.unwrap(),
+	));
+
+	//let mut root = PackageNode::default();
 	for x in paths {
-		let simple: PathBuf = x.components().skip(1).collect();
-		let mut buf = PathBuf::from("bytecode").join(simple);
-		buf.set_extension("class");
+		let mut simple: PathBuf = x.components().skip(1).collect();
+		simple.set_extension("");
 
-		let vec = read(&buf).unwrap();
-		let info = ClassInfo::parse_complete(&vec).unwrap();
+		let parts: Vec<String> = simple
+			.components()
+			.map(|v| v.as_os_str().to_str().unwrap().to_string())
+			.collect();
+		let full_name = parts.join("/");
 
-		root.insert(ClassData { info, source: buf });
+		binder.bind(&ObjectType::new(full_name)).unwrap();
+
+		//let mut buf = PathBuf::from("bytecode").join(simple);
+		//buf.set_extension("class");
+		//
+		//let vec = read(&buf).unwrap();
+		//let info = ClassInfo::parse_complete(&vec).unwrap();
+		//
+		//root.insert(ClassData { info, source: buf });
 	}
 
-	let mut code_out = String::new();
-	let compiler = RustCompiler { root };
-	compiler.write_node(&compiler.root, &mut code_out).unwrap();
+	let rust_file = binder.compile();
 
-	let formatted_code = RustFmt::default().format_str(&code_out).unwrap_or(code_out);
 	let out_dir = env::var_os("OUT_DIR").unwrap();
 	let dest_path = Path::new(&out_dir).join("java_bindings.rs");
-
-	fs::write(&dest_path, formatted_code).unwrap();
+	fs::write(&dest_path, rust_file).unwrap();
+	//let mut code_out = String::new();
+	//let compiler = RustCompiler { root };
+	//compiler.write_node(&compiler.root, &mut code_out).unwrap();
+	//
+	//let formatted_code = RustFmt::default().format_str(&code_out).unwrap_or(code_out);
+	//let out_dir = env::var_os("OUT_DIR").unwrap();
+	//let dest_path = Path::new(&out_dir).join("java_bindings.rs");
+	//
+	//fs::write(&dest_path, formatted_code).unwrap();
 }
 
 pub struct ClassData {

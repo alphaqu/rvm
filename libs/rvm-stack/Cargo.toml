@@ -1,0 +1,12 @@
+[package]
+name = "rvm-stack"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rvm-core = { path = "../rvm-core" }
+
+eyre = "0.6"
+tracing = "0.1"
+
+stackalloc = "1"

@@ -7,7 +7,17 @@ edition = "2021"
 
 [dependencies]
 rvm-core = { path = "../rvm-core" }
-rvm-runtime = { path = "../rvm-runtime" }
 rvm-reader = { path = "../rvm-reader" }
+rvm-class = { path = "../rvm-class" }
+
+eyre = "0.6"
+
+syn = "2"
+quote = "1"
+proc-macro2 = "1"
+prettyplease = "0.2"
+
+convert_case = "0.6.0"
+
 
 [lib]

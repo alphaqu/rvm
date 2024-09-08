@@ -29,6 +29,7 @@ pub struct InstanceClass {
 	pub cp: Arc<ConstantPool>,
 	pub field_layout: FieldLayout,
 	pub static_field_layout: FieldLayout,
+
 	pub methods: ClassMethods,
 
 	// Linking

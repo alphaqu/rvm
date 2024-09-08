@@ -13,6 +13,7 @@ pub enum ConstTask {
 	Long(i64),
 	Float(f32),
 	Double(f64),
+	String(String),
 }
 
 impl Display for ConstTask {
@@ -26,6 +27,7 @@ impl Display for ConstTask {
 				ConstTask::Long(v) => v.to_string(),
 				ConstTask::Float(v) => v.to_string(),
 				ConstTask::Double(v) => v.to_string(),
+				ConstTask::String(v) => format!("\"{v:?}\""),
 			}
 		)
 	}
@@ -46,6 +48,9 @@ impl ConstTask {
 					ConstantInfo::Float(value) => ConstTask::Float(value.bytes),
 					ConstantInfo::Long(value) => ConstTask::Long(value.bytes),
 					ConstantInfo::Double(value) => ConstTask::Double(value.bytes),
+					ConstantInfo::String(value) => {
+						ConstTask::String(class.cp[value.string].to_string())
+					}
 					_ => {
 						panic!();
 					}
@@ -64,6 +69,7 @@ impl ConstTask {
 			ConstTask::Long(v) => frame.push(StackValue::Long(*v)),
 			ConstTask::Float(v) => frame.push(StackValue::Float(*v)),
 			ConstTask::Double(v) => frame.push(StackValue::Double(*v)),
+			ConstTask::String(v) => {}
 		}
 	}
 }

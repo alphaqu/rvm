@@ -39,6 +39,14 @@ impl Type {
 			Type::Array(_) | Type::Object(_) => Kind::Reference,
 		}
 	}
+
+	pub fn to_java(&self) -> String {
+		match self {
+			Type::Primitive(ty) => ty.char().to_string(),
+			Type::Object(ty) => ty.to_java(),
+			Type::Array(ty) => ty.to_java(),
+		}
+	}
 }
 
 impl Debug for Type {
@@ -187,6 +195,36 @@ impl ObjectType {
 	pub fn kind(&self) -> Kind {
 		Kind::Reference
 	}
+
+	pub fn name(&self) -> String {
+		if let Some((_, name)) = self.0.rsplit_once("/") {
+			name.to_string()
+		} else {
+			self.0.to_string()
+		}
+	}
+
+	// String may be empty
+	pub fn package(&self) -> String {
+		if let Some((package, _)) = self.0.rsplit_once("/") {
+			package.to_string()
+		} else {
+			// packageless
+			String::new()
+		}
+	}
+
+	pub fn package_path(&self) -> Vec<String> {
+		self.package().split("/").map(|v| v.to_string()).collect()
+	}
+
+	pub fn to_java(&self) -> String {
+		let mut output = String::new();
+		output.push('L');
+		output.push_str(&self.0);
+		output.push(';');
+		output
+	}
 }
 impl Deref for ObjectType {
 	type Target = str;
@@ -213,6 +251,7 @@ impl From<&'static str> for ObjectType {
 	}
 }
 
+/// TODO not do this!!!
 impl Display for ObjectType {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		f.write_char('L')?;
@@ -258,6 +297,10 @@ impl ArrayType {
 
 	pub fn kind(&self) -> Kind {
 		Kind::Reference
+	}
+
+	pub fn to_java(&self) -> String {
+		format!("[{}", self.component.to_java())
 	}
 }
 impl Debug for ArrayType {

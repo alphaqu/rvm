@@ -31,6 +31,7 @@ impl MethodDescriptor {
 				} else if char == '[' {
 					out.push_str("_3")
 				} else if char == '<' || char == '>' {
+					// TODO remove this
 					// THIS IS NOT JNI SPECC!!!
 					out.push_str("_");
 				} else if char.is_ascii_alphanumeric() {
@@ -76,6 +77,24 @@ impl MethodDescriptor {
 			parameters,
 			returns: ret,
 		})
+	}
+
+	pub fn to_java(&self) -> String {
+		let mut out = String::new();
+		out.push('(');
+		for ty in &self.parameters {
+			out.push_str(&ty.to_java());
+		}
+		out.push(')');
+		match &self.returns {
+			None => {
+				out.push('V');
+			}
+			Some(ty) => {
+				out.push_str(&ty.to_java());
+			}
+		}
+		out
 	}
 }
 impl Display for MethodDescriptor {

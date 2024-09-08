@@ -10,6 +10,20 @@ pub struct Hello {
 	// base: Dog
 }
 
+pub mod test {
+	use crate::java::lang::Object;
+
+	impl Object {}
+}
+
+pub mod java {
+	pub mod test {
+		use super::super::java::lang;
+	}
+	pub mod lang {
+		pub struct Object;
+	}
+}
 impl Hello {
 	pub fn run(self: &Instance<Hello>) {}
 }
@@ -27,17 +41,36 @@ impl InstanceBinding for Hello {
 		todo!()
 	}
 }
-#[test]
-fn test() {
-	let runtime = launch(1024);
 
-	ConstantTests::test(&runtime).unwrap();
-	//println!("{:?}", current_dir());
-	//let result = JarClassSource::new(read("../../rt.zip").unwrap()).unwrap();
-	//
-	//let vec = result.try_load(&ObjectType::Object()).unwrap().unwrap();
-	//
+macro_rules! test_const {
+	($TEST_NAME:ident $EXPECTED:literal) => {
+		#[test]
+		fn $TEST_NAME() {
+			let runtime = launch(128);
+
+			assert_eq!(ConstantTests::$TEST_NAME(&runtime).unwrap(), $EXPECTED);
+		}
+	};
 }
+
+test_const!(iconst_m1 - 1);
+test_const!(iconst_0 0);
+test_const!(iconst_1 1);
+test_const!(iconst_2 2);
+test_const!(iconst_3 3);
+test_const!(iconst_4 4);
+test_const!(iconst_5 5);
+test_const!(lconst_0 0);
+test_const!(lconst_1 1);
+test_const!(fconst_0 0.0);
+test_const!(fconst_1 1.0);
+test_const!(fconst_2 2.0);
+test_const!(dconst_0 0.0);
+test_const!(dconst_1 1.0);
+test_const!(bipush 12);
+test_const!(sipush 244);
+test_const!(ldc 696969);
+test_const!(ldc_2 6969695232535242342i64);
 
 //macro_rules! java_bind {
 // 	(package $PACKAGE:path; pub struct $TY:ident {

@@ -91,6 +91,9 @@ impl<K: Hash + Eq + Debug, V: StorageValue, O> Storage<K, V, O> {
 	pub fn iter(&self) -> &[O] {
 		self.values.as_slice()
 	}
+	pub fn iter_mut(&mut self) -> &mut [O] {
+		self.values.as_mut_slice()
+	}
 
 	pub fn iter_keys_unordered(&self) -> impl Iterator<Item = (Id<V>, &K, &O)> {
 		self.lookup

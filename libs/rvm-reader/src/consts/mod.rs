@@ -1,13 +1,5 @@
-use nom::combinator::{map, map_res};
-use nom::multi::length_data;
-use nom::number::complete::{be_f32, be_f64, be_i32, be_i64, be_u16, be_u8};
-use nom::sequence::pair;
-use nom::Needed;
-use std::fmt::{Debug, Formatter};
-use std::marker::PhantomData;
-use std::ops::Index;
-
 pub use crate::consts::class::ClassConst;
+use crate::consts::dynamic::{DynamicConst, InvokeDynamicConst};
 pub use crate::consts::field::FieldConst;
 pub use crate::consts::interface::InterfaceConst;
 pub use crate::consts::method::{MethodConst, MethodHandleConst, MethodTypeConst};
@@ -16,8 +8,18 @@ pub use crate::consts::number::{DoubleConst, FloatConst, IntegerConst, LongConst
 pub use crate::consts::string::StringConst;
 pub use crate::consts::utf_8::UTF8Const;
 use crate::IResult;
+use nom::combinator::{map, map_res};
+use nom::multi::length_data;
+use nom::number::complete::{be_f32, be_f64, be_i32, be_i64, be_u16, be_u8};
+use nom::sequence::pair;
+use nom::Needed;
+use rvm_core::ObjectType;
+use std::fmt::{Debug, Formatter};
+use std::marker::PhantomData;
+use std::ops::Index;
 
 mod class;
+mod dynamic;
 mod field;
 mod interface;
 mod method;
@@ -86,6 +88,11 @@ impl<V: Constant> Debug for ConstPtr<V> {
 
 impl<V: Constant> Copy for ConstPtr<V> {}
 
+impl ConstPtr<ClassConst> {
+	pub fn ty(&self, cp: &ConstantPool) -> Option<ObjectType> {
+		Some(ObjectType::new(cp.get(cp.get(*self)?.name)?.to_string()))
+	}
+}
 #[derive(Default)]
 pub struct ConstantPool(Vec<ConstantInfo>);
 
@@ -131,6 +138,8 @@ pub enum ConstantInfo {
 	UTF8(UTF8Const),
 	MethodHandle(MethodHandleConst),
 	MethodType(MethodTypeConst),
+	Dynamic(DynamicConst),
+	InvokeDynamic(InvokeDynamicConst),
 	Unusable,
 	Unknown,
 }
@@ -223,8 +232,24 @@ impl ConstantInfo {
 					descriptor: ConstPtr::new(descriptor_index),
 				})
 			})(input),
-			17 => panic!("Dynamic is not supported"),
-			18 => panic!("InvokeDynamic is not supported"),
+			17 => map(
+				pair(be_u16, be_cp),
+				|(bootstrap_method_attr_index, name_and_type)| {
+					ConstantInfo::Dynamic(DynamicConst {
+						bootstrap_method_attr_index,
+						name_and_type,
+					})
+				},
+			)(input),
+			18 => map(
+				pair(be_u16, be_cp),
+				|(bootstrap_method_attr_index, name_and_type)| {
+					ConstantInfo::InvokeDynamic(InvokeDynamicConst {
+						bootstrap_method_attr_index,
+						name_and_type,
+					})
+				},
+			)(input),
 			19 => panic!("Module is not supported"),
 			20 => panic!("Package is not supported"),
 			_ => Err(nom::Err::Incomplete(Needed::Unknown)),

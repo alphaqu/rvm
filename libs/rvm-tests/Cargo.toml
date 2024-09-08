@@ -19,5 +19,8 @@ tracing = "0.1"
 [build-dependencies]
 rvm-core = { path = "../rvm-core" }
 rvm-reader = { path = "../rvm-reader" }
+rvm-bind = { path = "../rvm-bind" }
+rvm-class = { path = "../rvm-class" }
+
 
 rust-format = "0.3"
