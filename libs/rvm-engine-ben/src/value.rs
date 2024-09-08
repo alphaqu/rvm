@@ -1,3 +1,4 @@
+use bytemuck::Zeroable;
 use derive_more::From;
 use rvm_core::{CastKindError, Kind, StackKind};
 use rvm_runtime::{AnyValue, Reference};
@@ -12,6 +13,8 @@ pub enum StackValue {
 	Double(f64),
 	Reference(Reference),
 }
+
+unsafe impl Zeroable for StackValue {}
 
 impl Display for StackValue {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

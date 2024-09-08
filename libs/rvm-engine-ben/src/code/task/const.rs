@@ -3,7 +3,7 @@ use std::fmt::{Display, Formatter};
 use rvm_reader::{ConstInst, ConstantInfo};
 use rvm_runtime::{InstanceClass, Reference};
 
-use crate::thread::ThreadFrame;
+use crate::thread::{BenFrameMut, ThreadFrame};
 use crate::value::StackValue;
 
 #[derive(Debug)]
@@ -60,7 +60,7 @@ impl ConstTask {
 	}
 
 	#[inline(always)]
-	pub fn exec(&self, frame: &mut ThreadFrame) {
+	pub fn exec(&self, frame: &mut BenFrameMut) {
 		match self {
 			ConstTask::Null => {
 				frame.push(StackValue::Reference(Reference::NULL));

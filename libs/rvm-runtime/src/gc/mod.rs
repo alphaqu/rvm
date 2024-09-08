@@ -1,3 +1,5 @@
+mod unwindable;
+
 use crate::{ArrayRef, Class, InstanceClass, InstanceRef, Reference, ReferenceKind};
 use rvm_core::{Id, Kind};
 pub use rvm_gc::*;

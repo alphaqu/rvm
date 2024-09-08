@@ -1,4 +1,4 @@
-use crate::thread::ThreadFrame;
+use crate::thread::{BenFrameMut, ThreadFrame};
 use rvm_reader::TableSwitchInst;
 use std::fmt::{Display, Formatter};
 
@@ -21,7 +21,7 @@ impl SwitchTableTask {
 	}
 
 	#[inline(always)]
-	pub fn exec(&self, frame: &mut ThreadFrame) -> i32 {
+	pub fn exec(&self, frame: &mut BenFrameMut) -> i32 {
 		let value = frame.pop().to_int().unwrap();
 		let idx = if value < self.low || value > self.high {
 			return self.default_jump;

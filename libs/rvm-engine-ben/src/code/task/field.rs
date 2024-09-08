@@ -4,7 +4,7 @@ use rvm_runtime::{AnyInstance, Class, InstanceClass, Runtime};
 use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
-use crate::thread::ThreadFrame;
+use crate::thread::{BenFrameMut, ThreadFrame};
 use crate::value::StackValue;
 
 #[derive(Debug)]
@@ -45,7 +45,7 @@ impl FieldTask {
 	}
 
 	#[inline(always)]
-	pub fn exec(&self, runtime: &Runtime, frame: &mut ThreadFrame) -> eyre::Result<()> {
+	pub fn exec(&self, runtime: &Runtime, frame: &mut BenFrameMut) -> eyre::Result<()> {
 		let id = runtime.resolve_class(&Type::Object(self.source.clone()))?;
 		let arc = runtime.classes.get(id);
 		match &*arc {

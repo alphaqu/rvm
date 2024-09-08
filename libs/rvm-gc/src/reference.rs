@@ -1,4 +1,5 @@
-use crate::{align_size, GcHeader, GcUser};
+use crate::{GcHeader, GcUser};
+use rvm_core::align_size;
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;

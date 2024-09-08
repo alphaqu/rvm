@@ -4,6 +4,7 @@ use rvm_reader::{JumpInst, JumpKind};
 use rvm_runtime::Reference;
 
 use crate::code::JavaScope;
+use crate::thread::BenFrameMut;
 
 #[derive(Debug)]
 pub struct JumpTask {
@@ -18,8 +19,7 @@ impl JumpTask {
 			kind: jump_inst.kind,
 		}
 	}
-	pub fn exec(&self, scope: &mut JavaScope) {
-		let frame = &mut scope.frame;
+	pub fn exec(&self, frame: &mut BenFrameMut) {
 		let condition = match self.kind {
 			JumpKind::IF_ICMPEQ | JumpKind::IF_ACMPEQ => {
 				let value2 = frame.pop();
@@ -87,12 +87,12 @@ impl JumpTask {
 		};
 
 		if condition {
-			scope.cursor = scope
+			frame.cursor = frame
 				.cursor
 				.checked_add_signed(self.offset as isize)
 				.unwrap();
 		} else {
-			scope.cursor += 1;
+			frame.cursor += 1;
 		}
 	}
 }

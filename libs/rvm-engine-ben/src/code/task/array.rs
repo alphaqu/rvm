@@ -4,7 +4,7 @@ use rvm_core::{ArrayType, Kind, ObjectType, PrimitiveType, Type};
 use rvm_reader::{ClassConst, ConstPtr};
 use rvm_runtime::{Class, InstanceClass, Runtime};
 
-use crate::thread::ThreadFrame;
+use crate::thread::{BenFrameMut, ThreadFrame};
 use crate::value::StackValue;
 
 #[derive(Debug)]
@@ -12,7 +12,7 @@ pub struct ArrayCreateTask(pub PrimitiveType);
 
 impl ArrayCreateTask {
 	#[inline(always)]
-	pub fn exec(&self, runtime: &Runtime, frame: &mut ThreadFrame) -> eyre::Result<()> {
+	pub fn exec(&self, runtime: &Runtime, frame: &mut BenFrameMut) -> eyre::Result<()> {
 		let length = frame.pop().to_int()?;
 		let array = runtime
 			.gc
@@ -38,7 +38,7 @@ impl ArrayCreateRefTask {
 		ArrayCreateRefTask(ObjectType::new(name.to_string()))
 	}
 
-	pub fn exec(&self, runtime: &Runtime, frame: &mut ThreadFrame) -> eyre::Result<()> {
+	pub fn exec(&self, runtime: &Runtime, frame: &mut BenFrameMut) -> eyre::Result<()> {
 		let length = frame.pop().to_int()?;
 
 		let component_id = runtime.resolve_class(&Type::Object(self.0.clone()))?;
@@ -62,7 +62,7 @@ pub struct ArrayLengthTask;
 
 impl ArrayLengthTask {
 	#[inline(always)]
-	pub fn exec(&self, frame: &mut ThreadFrame) {
+	pub fn exec(&self, frame: &mut BenFrameMut) {
 		let reference = frame.pop().to_ref().unwrap();
 		let option = reference.to_array();
 		let array = option.unwrap();
@@ -82,7 +82,7 @@ pub struct ArrayLoadTask(pub Kind);
 
 impl ArrayLoadTask {
 	#[inline(always)]
-	pub fn exec(&self, frame: &mut ThreadFrame) {
+	pub fn exec(&self, frame: &mut BenFrameMut) {
 		let index = frame.pop().to_int().unwrap();
 
 		let reference = frame.pop().to_ref().unwrap();
@@ -107,7 +107,7 @@ pub struct ArrayStoreTask(pub Kind);
 
 impl ArrayStoreTask {
 	#[inline(always)]
-	pub fn exec(&self, frame: &mut ThreadFrame) -> eyre::Result<()> {
+	pub fn exec(&self, frame: &mut BenFrameMut) -> eyre::Result<()> {
 		let value = frame.pop();
 		let value = value.convert(self.0)?;
 

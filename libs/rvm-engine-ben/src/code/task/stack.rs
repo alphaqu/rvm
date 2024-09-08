@@ -2,7 +2,7 @@ use std::fmt::{Display, Formatter};
 
 use rvm_reader::StackInst;
 
-use crate::thread::ThreadFrame;
+use crate::thread::{BenFrameMut, ThreadFrame};
 
 #[derive(Debug)]
 pub enum StackTask {
@@ -39,7 +39,7 @@ impl StackTask {
 	}
 
 	#[inline(always)]
-	pub fn exec(&self, frame: &mut ThreadFrame) {
+	pub fn exec(&self, frame: &mut BenFrameMut) {
 		match self {
 			StackTask::Dup => {
 				let value = frame.pop();

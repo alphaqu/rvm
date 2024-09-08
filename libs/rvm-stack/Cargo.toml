@@ -10,3 +10,4 @@ eyre = "0.6"
 tracing = "0.1"
 
 stackalloc = "1"
+bytemuck = { version = "1", features = ["derive"] }

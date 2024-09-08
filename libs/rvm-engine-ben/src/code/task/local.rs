@@ -3,7 +3,7 @@ use std::fmt::{Debug, Display, Formatter};
 use rvm_core::StackKind;
 use rvm_reader::LocalInst;
 
-use crate::thread::ThreadFrame;
+use crate::thread::{BenFrameMut, ThreadFrame};
 
 #[derive(Debug)]
 pub struct LocalTask {
@@ -49,7 +49,7 @@ impl LocalTask {
 	}
 
 	#[inline(always)]
-	pub fn exec(&self, frame: &mut ThreadFrame) {
+	pub fn exec(&self, frame: &mut BenFrameMut) {
 		let idx = self.idx;
 
 		match self.kind {

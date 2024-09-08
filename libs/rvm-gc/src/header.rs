@@ -1,5 +1,6 @@
-use crate::{align_size, GcUser, ALIGNMENT};
+use crate::{GcUser, ALIGNMENT};
 use bitflags::bitflags;
+use rvm_core::align_size;
 use std::mem::size_of;
 use std::ops::{Deref, DerefMut};
 use std::ptr::null_mut;

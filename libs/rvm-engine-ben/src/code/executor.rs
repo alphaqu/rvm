@@ -1,26 +1,25 @@
 use either::Either;
 use eyre::{bail, Context, ContextCompat};
-use std::borrow::Cow;
 use std::sync::Arc;
-use tracing::{debug, info, trace};
+use tracing::{info, trace};
 
 use crate::code::{CallTask, CallType, Task};
-use crate::thread::{ThreadFrame, ThreadStack};
+use crate::thread::{BenCallStack, BenFrameTicket, FrameHeader};
 use crate::value::StackValue;
 use crate::{BenEngine, BenMethod};
 use rvm_core::{Id, MethodAccessFlags, MethodDescriptor, ObjectType, Type};
 use rvm_runtime::engine::Thread;
 use rvm_runtime::gc::{AllocationError, GcMarker, GcRef, GcSweeper, JavaUser, RootProvider};
 use rvm_runtime::native::{JNIFunction, JNIFunctionSignature};
-use rvm_runtime::{AnyValue, Class, Method, MethodBinding, MethodIdentifier, Reference, Runtime};
+use rvm_runtime::{AnyValue, Class, MethodIdentifier, Reference, Runtime};
 
 /// The executor is where the java code actually executes.
-pub struct Executor<'a> {
+pub struct Executor<'d> {
+	pub call_stack: BenCallStack<'d>,
 	pub thread: Thread,
-	pub stack: &'a mut ThreadStack,
 	pub engine: Arc<BenEngine>,
-	pub runtime: Runtime,
 
+	pub runtime: Runtime,
 	pub runner: ExecutorRunner,
 }
 
@@ -40,20 +39,17 @@ impl ExecutorRunner {
 	}
 }
 
-pub enum MethodScopeResult<'f> {
-	MoveInto(JavaScope<'f>),
+pub enum MethodScopeResult {
+	MoveInto(JavaScope),
 	Finish(Option<AnyValue>),
 }
-pub struct JavaScope<'f> {
-	pub(crate) frame: ThreadFrame<'f>,
+pub struct JavaScope {
+	pub(crate) frame_ticket: BenFrameTicket,
 	method: Arc<BenMethod>,
-	class_id: Id<Class>,
-	method_id: Id<Method>,
-	pub(crate) cursor: usize,
 }
 
-impl<'f> JavaScope<'f> {
-	pub fn run(&mut self, executor: &mut Executor) -> eyre::Result<MethodScopeResult<'f>> {
+impl JavaScope {
+	pub fn run(&mut self, executor: &mut Executor) -> eyre::Result<MethodScopeResult> {
 		let method = self.method.clone();
 		let Some(method) = method.as_java() else {
 			panic!("Method is not java.");
@@ -69,9 +65,8 @@ impl<'f> JavaScope<'f> {
 			}
 			executor.prepare_task();
 
-			let frame = &mut self.frame;
-
-			let task = &method.tasks[self.cursor];
+			let mut frame = executor.call_stack.get_mut(&self.frame_ticket);
+			let task = &method.tasks[frame.cursor];
 			trace!(target: "exe", "s[{}] l[{}] {task}", frame.stack_values_debug(), frame.local_values_debug());
 
 			match task {
@@ -80,20 +75,14 @@ impl<'f> JavaScope<'f> {
 						.runtime
 						.resolve_class(&Type::Object(object.class_name.clone()))?;
 
-					match executor.new_object(id)? {
-						Some(object) => {
-							frame.push(StackValue::Reference(object));
-						}
-						None => {
-							// Retry
-							continue;
-						}
-					}
+					let instance = executor.runtime.alloc_object(id)?;
+					frame.push(StackValue::Reference(*instance.raw()));
 				}
 				Task::Call(task) => {
 					// Details about how this works is in [executor.call_method]!!!
-					match executor.call_method(task, || frame.pop())? {
+					match executor.call_method(task, &self.frame_ticket)? {
 						Either::Left(returned) => {
+							frame = executor.call_stack.get_mut(&self.frame_ticket);
 							if let Some(value) = returned {
 								frame.push(StackValue::from_any(value));
 							}
@@ -112,20 +101,22 @@ impl<'f> JavaScope<'f> {
 					return Ok(MethodScopeResult::Finish(output));
 				}
 				Task::Nop => {}
-				Task::Const(v) => v.exec(frame),
-				Task::Combine(v) => v.exec(frame).wrap_err_with(|| format!("Combine {}", v))?,
-				Task::Local(v) => v.exec(frame),
+				Task::Const(v) => v.exec(&mut frame),
+				Task::Combine(v) => v
+					.exec(&mut frame)
+					.wrap_err_with(|| format!("Combine {}", v))?,
+				Task::Local(v) => v.exec(&mut frame),
 				Task::Jump(task) => {
-					task.exec(self);
+					task.exec(&mut frame);
 					continue;
 				}
 				Task::SwitchTable(v) => {
-					let offset = v.exec(frame);
-					self.cursor = self.cursor.checked_add_signed(offset as isize).unwrap();
+					let offset = v.exec(&mut frame);
+					frame.cursor = frame.cursor.checked_add_signed(offset as isize).unwrap();
 					continue;
 				}
-				Task::Stack(task) => task.exec(frame),
-				Task::Field(task) => task.exec(&executor.runtime, frame)?,
+				Task::Stack(task) => task.exec(&mut frame),
+				Task::Field(task) => task.exec(&executor.runtime, &mut frame)?,
 				Task::Increment(task) => {
 					let value = frame.load(task.local);
 					frame.store(
@@ -133,13 +124,13 @@ impl<'f> JavaScope<'f> {
 						StackValue::Int(value.to_int()? + task.increment as i32),
 					);
 				}
-				Task::ArrayLength(v) => v.exec(frame),
-				Task::ArrayLoad(v) => v.exec(frame),
-				Task::ArrayStore(v) => v.exec(frame)?,
-				Task::ArrayCreate(v) => v.exec(&executor.runtime, frame)?,
-				Task::ArrayCreateRef(v) => v.exec(&executor.runtime, frame)?,
+				Task::ArrayLength(v) => v.exec(&mut frame),
+				Task::ArrayLoad(v) => v.exec(&mut frame),
+				Task::ArrayStore(v) => v.exec(&mut frame)?,
+				Task::ArrayCreate(v) => v.exec(&executor.runtime, &mut frame)?,
+				Task::ArrayCreateRef(v) => v.exec(&executor.runtime, &mut frame)?,
 			};
-			self.cursor += 1;
+			frame.cursor += 1;
 		}
 	}
 }
@@ -177,12 +168,12 @@ impl MethodInputs {
 		})
 	}
 }
-enum Scope<'f> {
-	Java(JavaScope<'f>),
+enum Scope {
+	Java(JavaScope),
 	Return(Option<AnyValue>),
 }
 
-impl<'a> Executor<'a> {
+impl<'d> Executor<'d> {
 	pub fn prepare_task(&mut self) {
 		GcSweeper::yield_gc(self);
 	}
@@ -193,11 +184,11 @@ impl<'a> Executor<'a> {
 		}
 	}
 
-	pub fn call_method<'f>(
+	pub fn call_method(
 		&mut self,
 		task: &CallTask,
-		parameter_getter: impl FnMut() -> StackValue,
-	) -> eyre::Result<Either<Option<AnyValue>, JavaScope<'f>>> {
+		frame: &BenFrameTicket,
+	) -> eyre::Result<Either<Option<AnyValue>, JavaScope>> {
 		// When we first call, the output will be None, it will push a frame onto the stack and start running that method.
 		// When that method returns, it will set the output to Some(Option<Value>) and pop itself out of the stack.
 		// We will come back here (because we never incremented the pointer) and see that our output is now Some.
@@ -211,7 +202,7 @@ impl<'a> Executor<'a> {
 					&task.method,
 					&task.method_descriptor,
 					task.ty,
-					parameter_getter,
+					frame,
 				)?;
 				match scope {
 					Scope::Java(java) => Either::Right(java),
@@ -247,20 +238,21 @@ impl<'a> Executor<'a> {
 			}
 		}
 	}
-	fn create_scope<'f>(
+	fn create_scope(
 		&mut self,
 		ty: &ObjectType,
 		method_ident: &MethodIdentifier,
 		method_descriptor: &MethodDescriptor,
 		call_ty: CallType,
-		parameter_getter: impl FnMut() -> StackValue,
-	) -> eyre::Result<Scope<'f>> {
+		frame: &BenFrameTicket,
+	) -> eyre::Result<Scope> {
 		trace!(target: "exe",  "Creating frame for {ty:?} {method_ident:?}");
 
 		//let desc = MethodDescriptor::parse(&method_ident.descriptor).wrap_err_with(|| {
 		//	format!("Parsing method descriptor \"{}\"", method_ident.descriptor)
 		//})?;
-		let inputs = MethodInputs::flush_from(call_ty, method_descriptor, parameter_getter)
+		let mut frame = self.call_stack.get_mut(frame);
+		let inputs = MethodInputs::flush_from(call_ty, method_descriptor, || frame.pop())
 			.wrap_err_with(|| format!("Method inputs for {method_descriptor}"))?;
 
 		let class_id = if call_ty.is_static() || call_ty.is_special() {
@@ -300,8 +292,20 @@ impl<'a> Executor<'a> {
 					);
 				}
 				assert!(java.max_locals as usize >= inputs.parameters.len());
-				let mut frame = self.stack.create(java.max_stack, java.max_locals);
 
+				let mut scope = self
+					.call_stack
+					.push(
+						java.max_stack,
+						java.max_locals,
+						FrameHeader {
+							class_id,
+							method_id,
+							cursor: 0,
+						},
+					)
+					.unwrap();
+				let mut frame = scope.frame_mut();
 				let mut i = inputs.instance.is_some() as u8 as u16;
 				for value in inputs.parameters.into_iter() {
 					let local_size = value.kind().local_size();
@@ -314,11 +318,8 @@ impl<'a> Executor<'a> {
 				}
 
 				Scope::Java(JavaScope {
-					frame,
+					frame_ticket: scope.to_ticket(),
 					method,
-					class_id,
-					method_id,
-					cursor: 0,
 				})
 			}
 			BenMethod::Binding(binding) => Scope::Return(
@@ -364,14 +365,36 @@ impl<'a> Executor<'a> {
 		method: &MethodIdentifier,
 		mut parameters: Vec<AnyValue>,
 	) -> eyre::Result<Option<AnyValue>> {
+		// Bootstrap
 		info!("Starting execution with {parameters:?}");
+		let mut guard = self
+			.call_stack
+			.push(
+				parameters.len() as u16,
+				0,
+				FrameHeader {
+					class_id: Id::null(),
+					method_id: Id::null(),
+					cursor: usize::MAX,
+				},
+			)
+			.unwrap();
+
+		let mut frame = guard.frame_mut();
+
+		for value in parameters.into_iter() {
+			frame.push(StackValue::from_any(value));
+		}
+
+		let ticket = guard.to_ticket();
+
 		let scope = self
 			.create_scope(
 				ty,
 				method,
 				&MethodDescriptor::parse(&method.descriptor).unwrap(),
 				CallType::Static,
-				|| StackValue::from_any(parameters.pop().expect("Not enough parameters")),
+				&ticket,
 			)
 			.wrap_err("Creating bootstrapping scope")?;
 
@@ -391,7 +414,7 @@ impl<'a> Executor<'a> {
 				}
 				Ok(MethodScopeResult::Finish(value)) => {
 					let scope = scopes.pop().unwrap();
-					self.stack.finish(scope.frame);
+					self.call_stack.pop(scope.frame_ticket);
 
 					assert!(self.runner.last_return.is_none());
 					self.runner.last_return = Some(value);
@@ -399,12 +422,13 @@ impl<'a> Executor<'a> {
 				Err(mut error) => {
 					// Unravel
 					for scope in scopes {
-						let class = self.runtime.classes.get(scope.class_id);
-						let method = class.as_instance().unwrap().methods.get(scope.method_id);
+						let frame = self.call_stack.get_mut(&scope.frame_ticket);
+						let class = self.runtime.classes.get(frame.class_id);
+						let method = class.as_instance().unwrap().methods.get(frame.method_id);
 
 						error =
 							error.wrap_err(format!("In method: {}{:?}", method.name, method.desc));
-						self.stack.finish(scope.frame);
+						self.call_stack.pop(scope.frame_ticket);
 					}
 					return Err(error);
 				}
@@ -415,40 +439,37 @@ impl<'a> Executor<'a> {
 	}
 }
 
-impl<'a> RootProvider<JavaUser> for Executor<'a> {
+impl<'d> RootProvider<JavaUser> for Executor<'d> {
 	fn mark_roots(&mut self, visitor: GcMarker) {
-		self.stack.visit_frames_mut(|frame| {
-			for i in 0..frame.stack_pos {
-				if let StackValue::Reference(reference) = frame.get_stack_value(i) {
-					visitor.mark(*reference);
+		for frame in self.call_stack.iter() {
+			for value in frame.stack_slice() {
+				if let StackValue::Reference(reference) = value {
+					visitor.mark(**reference);
 				}
 			}
 
-			for i in 0..frame.local_size {
-				if let StackValue::Reference(reference) = frame.load(i) {
-					visitor.mark(*reference);
+			for value in frame.local_slice() {
+				if let StackValue::Reference(reference) = value {
+					visitor.mark(**reference);
 				}
 			}
-		});
+		}
 	}
 
 	fn remap_roots(&mut self, mut mapper: impl FnMut(GcRef) -> GcRef) {
-		self.stack.visit_frames_mut(|frame| {
-			for i in 0..frame.stack_pos {
-				if let StackValue::Reference(reference) = frame.get_stack_value(i) {
-					frame.set_stack_value(
-						i,
-						StackValue::Reference(Reference::new(mapper(*reference))),
-					);
+		for mut frame in self.call_stack.iter_mut() {
+			for value in frame.stack_slice_mut() {
+				if let StackValue::Reference(reference) = value {
+					*reference = Reference::new(mapper(**reference));
 				}
 			}
 
-			for i in 0..frame.local_size {
-				if let StackValue::Reference(reference) = frame.load(i) {
-					frame.store(i, StackValue::Reference(reference));
+			for value in frame.local_slice_mut() {
+				if let StackValue::Reference(reference) = value {
+					*reference = Reference::new(mapper(**reference));
 				}
 			}
-		});
+		}
 	}
 
 	fn sweeper(&mut self) -> &mut GcSweeper {

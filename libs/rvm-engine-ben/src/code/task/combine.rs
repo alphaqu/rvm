@@ -1,4 +1,4 @@
-use crate::thread::ThreadFrame;
+use crate::thread::{BenFrameMut, ThreadFrame};
 use crate::value::StackValue;
 use eyre::{bail, Context, ContextCompat};
 use num_traits::{Bounded, PrimInt, Signed, WrappingAdd, WrappingMul, WrappingSub, Zero};
@@ -60,7 +60,7 @@ impl CombineTask {
 	}
 
 	#[inline(always)]
-	pub fn exec(&self, frame: &mut ThreadFrame) -> eyre::Result<()> {
+	pub fn exec(&self, frame: &mut BenFrameMut) -> eyre::Result<()> {
 		let v1 = frame.pop();
 		let v0 = frame.pop();
 
