@@ -1,16 +1,19 @@
-use rvm_runtime::java_bind_method;
-
+use crate::bindings::tests::math::MathTests;
 use crate::launch;
 use crate::tests::consts::Samples;
+use rvm_runtime::java_bind_method;
 
 macro_rules! test_op {
-    ($TY:ty: $METHOD:ident $RUST_METHOD:ident) => {
-		let runtime = launch(1024);
-		let func =
-			java_bind_method!(runtime fn tests::math::MathTests:$METHOD(left: $TY, right: $TY) -> $TY);
+	($TY:ty: $METHOD:ident $RUST_METHOD:ident) => {
+		let mut runtime = launch(1024);
+		//let func =
+		//	java_bind_method!(runtime fn tests::math::MathTests:$METHOD(left: $TY, right: $TY) -> $TY);
 		for v0 in <$TY>::samples() {
 			for v1 in <$TY>::samples() {
-				assert_eq!(func(v0, v1), v0.$RUST_METHOD(v1));
+				assert_eq!(
+					MathTests::$METHOD(&mut runtime, v0, v1).unwrap(),
+					v0.$RUST_METHOD(v1)
+				);
 			}
 		}
 	};
@@ -18,36 +21,36 @@ macro_rules! test_op {
 
 #[test]
 fn add_int() {
-	test_op!(i32: add wrapping_add);
-	test_op!(i32: sub wrapping_sub);
-	test_op!(i32: mul wrapping_mul);
+	test_op!(i32: add_i32_i32 wrapping_add);
+	test_op!(i32: sub_i32_i32 wrapping_sub);
+	test_op!(i32: mul_i32_i32 wrapping_mul);
+	let mut runtime = launch(1024);
 
-	let runtime = launch(1024);
-	let func = java_bind_method!( runtime fn tests :: math :: MathTests : div ( left : i32 , right : i32 ) -> i32 );
 	for v0 in <i32>::samples() {
 		for v1 in <i32>::samples() {
 			if v1 == 0 {
 				continue;
 			}
-			assert_eq!(func(v0, v1), v0.wrapping_div(v1));
+			assert_eq!(
+				MathTests::div_i32_i32(&mut runtime, v0, v1).unwrap(),
+				v0.wrapping_div(v1)
+			);
 		}
 	}
 }
 
 #[test]
 fn add_long() {
-	test_op!(i64: add wrapping_add);
+	test_op!(i64: add_i64_i64 wrapping_add);
 }
 
 #[test]
 fn add_floats() {
-	let runtime = launch(1024);
-	let func =
-		java_bind_method!(runtime fn tests::math::MathTests:add(left: f32, right: f32) -> f32);
+	let mut runtime = launch(1024);
 	for v0 in f32::samples() {
 		for v1 in f32::samples() {
 			let rust = v0 + v1;
-			let java = func(v0, v1);
+			let java = MathTests::add_f32_f32(&mut runtime, v0, v1).unwrap();
 			let is_nan = rust.is_nan();
 			if is_nan {
 				assert!(java.is_nan());
@@ -60,13 +63,11 @@ fn add_floats() {
 
 #[test]
 fn add_doubles() {
-	let runtime = launch(1024);
-	let func =
-		java_bind_method!(runtime fn tests::math::MathTests:add(left: f64, right: f64) -> f64);
+	let mut runtime = launch(1024);
 	for v0 in f64::samples() {
 		for v1 in f64::samples() {
 			let rust = v0 + v1;
-			let java = func(v0, v1);
+			let java = MathTests::add_f64_f64(&mut runtime, v0, v1).unwrap();
 			let is_nan = rust.is_nan();
 			if is_nan {
 				assert!(java.is_nan());

@@ -6,7 +6,7 @@ use eyre::Context;
 use rvm_core::{MethodDescriptor, ObjectType, Type};
 use rvm_engine_ben::BenBinding;
 use rvm_runtime::{
-	AnyValue, ClassSource, JarClassSource, MethodBinding, MethodIdentifier, Runtime,
+	AnyValue, ClassSource, JarClassSource, MethodBinding, MethodIdentifier, Runtime, Vm,
 };
 use std::borrow::Borrow;
 use std::fs::read;
@@ -27,7 +27,7 @@ static RT_ZIP: LazyLock<Arc<JarClassSource>> = LazyLock::new(|| {
 	Arc::new(JarClassSource::new(include_bytes!("../../../rt.zip").to_vec()).unwrap())
 });
 
-pub fn load_sdk(runtime: &Runtime) {
+pub fn load_sdk(runtime: &Vm) {
 	runtime.classes.add_source(Box::new(RT_ZIP.clone()));
 
 	runtime.bindings.bind(
@@ -71,44 +71,20 @@ impl SimpleMethodTest {
 	}
 }
 
-pub fn simple_launch(tests: Vec<SimpleClassTest>) {
-	let mut classes: Vec<String> = tests.iter().map(|v| format!("{}.class", v.name)).collect();
-
-	// Core
-	let runtime = launch(1024);
-
-	for test in tests {
-		let ty = ObjectType::new(test.name);
-		for method in test.methods {
-			runtime
-				.simple_run(
-					ty.clone(),
-					MethodIdentifier {
-						name: method.name.clone().into(),
-						descriptor: MethodDescriptor {
-							parameters: method.parameters.iter().map(|(v, _)| v.clone()).collect(),
-							returns: method.returns.as_ref().map(|(v, _)| v.clone()),
-						}
-						.to_string()
-						.into(),
-					},
-					method.parameters.iter().map(|(_, v)| *v).collect(),
-				)
-				.wrap_err_with(|| format!("Failed to run {}", method.name))
-				.unwrap();
-		}
-	}
-}
-pub fn launch(heap_size: usize) -> Runtime {
+pub fn launch(heap_size: usize) -> Runtime<'static> {
 	rvm_core::init();
-	let runtime = Runtime::new(heap_size, Box::new(BenBinding::new()));
+	let runtime = Vm::new(heap_size, Box::new(BenBinding::new()));
 
 	load_sdk(&runtime);
 	load_test_sdk(&runtime);
-	runtime
+
+	Runtime {
+		vm: runtime,
+		thread: None,
+	}
 }
 
-pub fn compile(runtime: &Runtime, sources: &[(&str, &str)]) -> Result<()> {
+pub fn compile(runtime: &Vm, sources: &[(&str, &str)]) -> Result<()> {
 	todo!()
 	//let mut root = std::env::current_dir().unwrap();
 	//root.push("temp");
@@ -162,9 +138,9 @@ pub fn compile(runtime: &Runtime, sources: &[(&str, &str)]) -> Result<()> {
 	//result
 }
 
-pub fn sample<F, R>(message: &str, times: usize, f: F) -> Vec<R>
+pub fn sample<F, R>(message: &str, times: usize, mut f: F) -> Vec<R>
 where
-	F: Fn() -> R,
+	F: FnMut() -> R,
 {
 	let mut nanos = 0;
 	let mut results = Vec::with_capacity(times);

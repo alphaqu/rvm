@@ -18,10 +18,10 @@ fn ack(m: i32, n: i32) -> i32 {
 
 #[test]
 fn test() -> Result<(), std::io::Error> {
-	let runtime = launch(1024);
+	let mut runtime = launch(1024);
 
 	const SAMPLES: usize = 4;
-	let java_ack = |m, n| Ackermann::ack(&runtime, m, n).unwrap();
+	let mut java_ack = |m, n| Ackermann::ack(&mut runtime, m, n).unwrap();
 	let rust = sample("Rust ackermann", SAMPLES, || ack(3, 4));
 	let java = sample("Java ackermann", SAMPLES, || java_ack(3, 4));
 

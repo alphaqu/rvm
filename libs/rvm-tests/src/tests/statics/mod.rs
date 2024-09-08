@@ -4,7 +4,7 @@ use rvm_runtime::JavaTyped;
 
 #[test]
 fn get_static() {
-	let runtime = launch(1024);
+	let mut runtime = launch(1024);
 
 	let id = runtime.resolve_class(&Java::java_type()).unwrap();
 	let class = runtime.classes.get(id);
@@ -17,12 +17,12 @@ fn get_static() {
 
 	*field = 69;
 
-	assert_eq!(Java::getStatic(&runtime).unwrap(), 69);
+	assert_eq!(Java::getStatic(&mut runtime).unwrap(), 69);
 }
 
 #[test]
 fn set_static() {
-	let runtime = launch(1024);
+	let mut runtime = launch(1024);
 
 	let id = runtime.resolve_class(&Java::java_type()).unwrap();
 	let class = runtime.classes.get(id);
@@ -33,13 +33,13 @@ fn set_static() {
 		.by_name_typed::<i32>("number")
 		.unwrap();
 
-	Java::setStatic(&runtime, 420).unwrap();
+	Java::setStatic(&mut runtime, 420).unwrap();
 	assert_eq!(*field, 420);
 }
 
 #[test]
 fn static_class_init() {
-	let runtime = launch(1024);
+	let mut runtime = launch(1024);
 
 	let id = runtime.resolve_class(&Java::java_type()).unwrap();
 	let class = runtime.classes.get(id);

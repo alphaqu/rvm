@@ -1,12 +1,13 @@
 use bytemuck::Zeroable;
 use derive_more::From;
 use rvm_core::{CastKindError, Kind, StackKind};
-use rvm_runtime::{AnyValue, Reference};
+use rvm_runtime::{AnyValue, Reference, ReferenceKind};
 use std::fmt::{Display, Formatter};
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq, From)]
 pub enum StackValue {
+	Char(u16),
 	Int(i32),
 	Float(f32),
 	Long(i64),
@@ -21,9 +22,12 @@ impl Display for StackValue {
 		match self {
 			StackValue::Int(v) => write!(f, "{v}"),
 			StackValue::Float(v) => write!(f, "{v}F"),
+			StackValue::Char(char) => write!(f, "{}C", char),
 			StackValue::Long(v) => write!(f, "{v}L"),
 			StackValue::Double(v) => write!(f, "{v}.0"),
-			StackValue::Reference(v) => write!(f, "{v:?}"),
+			StackValue::Reference(v) => {
+				write!(f, "{v:?}")
+			}
 		}
 	}
 }
@@ -66,6 +70,7 @@ to_impl!(
 impl StackValue {
 	pub fn kind(&self) -> StackKind {
 		match self {
+			StackValue::Char(_) => StackKind::Char,
 			StackValue::Int(_) => StackKind::Int,
 			StackValue::Float(_) => StackKind::Float,
 			StackValue::Long(_) => StackKind::Long,
@@ -76,6 +81,7 @@ impl StackValue {
 
 	pub fn category(&self) -> u8 {
 		match self {
+			StackValue::Char(_) => 1,
 			StackValue::Int(_) => 1,
 			StackValue::Float(_) => 1,
 			StackValue::Reference(_) => 1,
@@ -102,7 +108,7 @@ impl StackValue {
 			AnyValue::Double(value) => StackValue::Double(value),
 			AnyValue::Boolean(value) => StackValue::Int(value as u8 as i32),
 			AnyValue::Reference(value) => StackValue::Reference(value),
-			_ => todo!(),
+			AnyValue::Char(value) => StackValue::Char(value),
 		}
 	}
 
@@ -162,6 +168,7 @@ impl StackValue {
 
 	pub fn to_any(self) -> AnyValue {
 		match self {
+			StackValue::Char(value) => AnyValue::Char(value),
 			StackValue::Int(value) => AnyValue::Int(value),
 			StackValue::Float(value) => AnyValue::Float(value),
 			StackValue::Long(value) => AnyValue::Long(value),

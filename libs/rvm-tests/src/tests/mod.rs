@@ -9,6 +9,7 @@ mod object;
 mod rni;
 mod switch_statement;
 
+mod argument_order;
 mod constants;
 mod consts;
 mod exception;

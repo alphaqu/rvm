@@ -270,10 +270,11 @@ impl JavaBinder {
 					}
 				}
 
-				pub fn #name(runtime: &rvm_runtime::Runtime, #(#arguments),*) -> eyre::Result<#returns> {
-					let output = runtime.simple_run(
-						<Self as rvm_runtime::InstanceBinding>::ty(),
-						Self::#name_descriptor(),
+				pub fn #name(runtime: &mut rvm_runtime::Runtime, #(#arguments),*) -> eyre::Result<#returns> {
+					let output = runtime.run(
+						rvm_runtime::CallType::Static,
+						&<Self as rvm_runtime::InstanceBinding>::ty(),
+						&Self::#name_descriptor(),
 						vec![
 							#(#argument_call),*
 						],

@@ -13,7 +13,7 @@ use crate::conversion::{FromJava, JavaTyped, ToJava};
 use crate::gc::{InstanceHeader, JavaHeader};
 use crate::{
 	read_arr, write_arr, AnyValue, Castable, Class, Field, InstanceClass, Reference, ReferenceKind,
-	Runtime, UnionValue, Value,
+	UnionValue, Value, Vm,
 };
 
 #[derive(Copy, Clone)]
@@ -123,23 +123,23 @@ impl InstanceRef {
 		V::write(data, value)
 	}
 
-	pub fn resolve(self, runtime: Runtime) -> AnyInstance {
+	pub fn resolve(self, runtime: Vm) -> AnyInstance {
 		AnyInstance::new(runtime, self)
 	}
 
-	pub fn ty(&self, runtime: &Runtime) -> Type {
+	pub fn ty(&self, runtime: &Vm) -> Type {
 		self.resolve(runtime.clone()).ty(runtime)
 	}
 }
 
 impl ToJava for InstanceRef {
-	fn to_java(self, runtime: &Runtime) -> eyre::Result<AnyValue> {
+	fn to_java(self, runtime: &Vm) -> eyre::Result<AnyValue> {
 		self.reference.to_java(runtime)
 	}
 }
 
 impl FromJava for InstanceRef {
-	fn from_java(value: AnyValue, runtime: &Runtime) -> eyre::Result<Self> {
+	fn from_java(value: AnyValue, runtime: &Vm) -> eyre::Result<Self> {
 		let reference = Reference::from_java(value, runtime)?;
 		Ok(reference.to_instance().ok_or_else(|| CastTypeError {
 			expected: ObjectType::Object().into(),
@@ -170,18 +170,18 @@ impl From<AnyInstance> for AnyValue {
 
 #[derive(Clone)]
 pub struct AnyInstance {
-	runtime: Runtime,
+	runtime: Vm,
 	is_static: bool,
 	class: Arc<Class>,
 	raw: InstanceRef,
 }
 
 impl AnyInstance {
-	pub fn new(runtime: Runtime, instance: InstanceRef) -> AnyInstance {
+	pub fn new(runtime: Vm, instance: InstanceRef) -> AnyInstance {
 		Self::try_new(runtime, instance).unwrap()
 	}
 
-	pub fn try_new(runtime: Runtime, instance: InstanceRef) -> Option<AnyInstance> {
+	pub fn try_new(runtime: Vm, instance: InstanceRef) -> Option<AnyInstance> {
 		let arc = runtime.classes.get(instance.class());
 		if !arc.is_instance() {
 			return None;
@@ -224,7 +224,7 @@ impl AnyInstance {
 	pub fn raw(&self) -> InstanceRef {
 		self.raw
 	}
-	pub fn runtime(&self) -> &Runtime {
+	pub fn runtime(&self) -> &Vm {
 		&self.runtime
 	}
 
@@ -248,19 +248,25 @@ impl AnyInstance {
 		Instance::try_new(self).expect("Wrong type!")
 	}
 
-	pub fn ty(&self, _: &Runtime) -> Type {
+	pub fn ty(&self, _: &Vm) -> Type {
 		self.class.cloned_ty()
 	}
 }
+impl Deref for AnyInstance {
+	type Target = InstanceRef;
 
+	fn deref(&self) -> &Self::Target {
+		&self.raw
+	}
+}
 impl ToJava for AnyInstance {
-	fn to_java(self, runtime: &Runtime) -> eyre::Result<AnyValue> {
+	fn to_java(self, runtime: &Vm) -> eyre::Result<AnyValue> {
 		self.raw.to_java(runtime)
 	}
 }
 
 impl FromJava for AnyInstance {
-	fn from_java(value: AnyValue, runtime: &Runtime) -> eyre::Result<Self> {
+	fn from_java(value: AnyValue, runtime: &Vm) -> eyre::Result<Self> {
 		let instance = InstanceRef::from_java(value, runtime)?;
 		Ok(instance.resolve(runtime.clone()))
 	}
@@ -273,13 +279,13 @@ impl JavaTyped for AnyInstance {
 }
 
 impl Castable for InstanceRef {
-	fn cast_from(runtime: &Runtime, value: AnyValue) -> Self {
+	fn cast_from(runtime: &Vm, value: AnyValue) -> Self {
 		let reference = Reference::cast_from(runtime, value);
 		InstanceRef::new(reference)
 	}
 }
 impl Castable for AnyInstance {
-	fn cast_from(runtime: &Runtime, value: AnyValue) -> Self {
+	fn cast_from(runtime: &Vm, value: AnyValue) -> Self {
 		let reference = InstanceRef::cast_from(runtime, value);
 		AnyInstance::new(runtime.clone(), reference)
 	}

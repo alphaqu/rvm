@@ -46,9 +46,9 @@ macro_rules! test_const {
 	($TEST_NAME:ident $EXPECTED:literal) => {
 		#[test]
 		fn $TEST_NAME() {
-			let runtime = launch(128);
+			let mut runtime = launch(128);
 
-			assert_eq!(ConstantTests::$TEST_NAME(&runtime).unwrap(), $EXPECTED);
+			assert_eq!(ConstantTests::$TEST_NAME(&mut runtime).unwrap(), $EXPECTED);
 		}
 	};
 }

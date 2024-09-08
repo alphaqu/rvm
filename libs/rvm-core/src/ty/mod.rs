@@ -172,6 +172,15 @@ impl ObjectType {
 		ObjectType::new("java/lang/Object")
 	}
 
+	#[allow(non_snake_case)]
+	pub fn String() -> ObjectType {
+		ObjectType::new("java/lang/String")
+	}
+
+	#[allow(non_snake_case)]
+	pub fn Class() -> ObjectType {
+		ObjectType::new("java/lang/Class")
+	}
 	pub fn new<V>(value: V) -> ObjectType
 	where
 		Arc<str>: From<V>,

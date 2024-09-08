@@ -3,10 +3,10 @@ use crate::launch;
 
 #[test]
 fn test() -> Result<(), std::io::Error> {
-	let runtime = launch(128);
+	let mut runtime = launch(128);
 
 	// v == 0
-	let func = |v| Java::testZeroEq(&runtime, v).unwrap();
+	let mut func = |v| Java::testZeroEq(&mut runtime, v).unwrap();
 	assert!(func(0));
 	assert!(!func(1));
 	assert!(!func(-1));
@@ -14,7 +14,7 @@ fn test() -> Result<(), std::io::Error> {
 	assert!(!func(i32::MAX));
 
 	// v != 0
-	let func = |v| Java::testZeroNeq(&runtime, v).unwrap();
+	let mut func = |v| Java::testZeroNeq(&mut runtime, v).unwrap();
 	assert!(!func(0));
 	assert!(func(1));
 	assert!(func(-1));
@@ -22,7 +22,7 @@ fn test() -> Result<(), std::io::Error> {
 	assert!(func(i32::MAX));
 
 	// v > 0
-	let func = |v| Java::testZeroGt(&runtime, v).unwrap();
+	let mut func = |v| Java::testZeroGt(&mut runtime, v).unwrap();
 	assert!(!func(0));
 	assert!(!func(-1));
 	assert!(!func(i32::MIN));
@@ -30,7 +30,7 @@ fn test() -> Result<(), std::io::Error> {
 	assert!(func(i32::MAX));
 
 	// v >= 0
-	let func = |v| Java::testZeroGe(&runtime, v).unwrap();
+	let mut func = |v| Java::testZeroGe(&mut runtime, v).unwrap();
 	assert!(!func(-1));
 	assert!(!func(i32::MIN));
 	assert!(func(0));
@@ -38,7 +38,7 @@ fn test() -> Result<(), std::io::Error> {
 	assert!(func(i32::MAX));
 
 	// v < 0
-	let func = |v| Java::testZeroLt(&runtime, v).unwrap();
+	let mut func = |v| Java::testZeroLt(&mut runtime, v).unwrap();
 	assert!(!func(0));
 	assert!(!func(1));
 	assert!(!func(i32::MAX));
@@ -46,7 +46,7 @@ fn test() -> Result<(), std::io::Error> {
 	assert!(func(i32::MIN));
 
 	// v <= 0
-	let func = |v| Java::testZeroLe(&runtime, v).unwrap();
+	let mut func = |v| Java::testZeroLe(&mut runtime, v).unwrap();
 	assert!(!func(1));
 	assert!(!func(i32::MAX));
 	assert!(func(0));

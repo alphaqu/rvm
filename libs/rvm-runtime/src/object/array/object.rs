@@ -1,8 +1,7 @@
 use crate::conversion::{FromJava, JavaTyped, ToJava};
 use crate::gc::{ArrayHeader, JavaHeader};
 use crate::{
-	read_arr, write_arr, AnyValue, Castable, Class, Reference, ReferenceKind, Runtime, UnionValue,
-	Value,
+	read_arr, write_arr, AnyValue, Castable, Class, Reference, ReferenceKind, UnionValue, Value, Vm,
 };
 use eyre::ContextCompat;
 use rvm_core::{
@@ -124,7 +123,7 @@ impl ArrayRef {
 		Array::new(self)
 	}
 
-	pub fn ty(&self, runtime: &Runtime) -> Type {
+	pub fn ty(&self, runtime: &Vm) -> Type {
 		let component_ty = match self.component_kind() {
 			Kind::Reference => {
 				let id = self.component_class().unwrap();
@@ -145,13 +144,13 @@ impl ArrayRef {
 }
 
 impl ToJava for ArrayRef {
-	fn to_java(self, runtime: &Runtime) -> eyre::Result<AnyValue> {
+	fn to_java(self, runtime: &Vm) -> eyre::Result<AnyValue> {
 		self.reference.to_java(runtime)
 	}
 }
 
 impl FromJava for ArrayRef {
-	fn from_java(value: AnyValue, runtime: &Runtime) -> eyre::Result<Self> {
+	fn from_java(value: AnyValue, runtime: &Vm) -> eyre::Result<Self> {
 		let reference = Reference::from_java(value, runtime)?;
 		Ok(reference.to_array().ok_or_else(|| CastTypeError {
 			expected: ArrayType::ObjectArray().into(),
@@ -232,13 +231,13 @@ impl<V: Value> Value for Array<V> {
 	}
 }
 impl<V: Value> ToJava for Array<V> {
-	fn to_java(self, runtime: &Runtime) -> eyre::Result<AnyValue> {
+	fn to_java(self, runtime: &Vm) -> eyre::Result<AnyValue> {
 		self.array.to_java(runtime)
 	}
 }
 
 impl<V: Value> FromJava for Array<V> {
-	fn from_java(value: AnyValue, runtime: &Runtime) -> eyre::Result<Self> {
+	fn from_java(value: AnyValue, runtime: &Vm) -> eyre::Result<Self> {
 		let any_array = ArrayRef::from_java(value, runtime)?;
 		Ok(Array::try_new(any_array).ok_or_else(|| CastTypeError {
 			expected: ArrayType::ObjectArray().into(),
@@ -254,7 +253,7 @@ impl<V: Value + JavaTyped> JavaTyped for Array<V> {
 }
 
 impl<V: Value> Castable for Array<V> {
-	fn cast_from(runtime: &Runtime, value: AnyValue) -> Self {
+	fn cast_from(runtime: &Vm, value: AnyValue) -> Self {
 		let reference = Reference::cast_from(runtime, value);
 		Array::new(reference.to_array().unwrap())
 	}

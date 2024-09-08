@@ -1,14 +1,15 @@
-use parking_lot::Mutex;
-use std::alloc::{alloc_zeroed, dealloc, Layout};
-use std::collections::HashSet;
-use thiserror::Error;
-use tracing::{debug, trace};
-
 use crate::{
 	new_sweeper, GcHeader, GcMarker, GcRef, GcSweeper, GcSweeperHandle, GcUser, ObjectFlags,
 	ObjectSize, ALIGNMENT, ALIGNMENT_BITS,
 };
+use ahash::{HashMap, HashMapExt};
+use parking_lot::Mutex;
 use rvm_core::{Kind, PrimitiveType};
+use std::alloc::{alloc_zeroed, dealloc, Layout};
+use std::collections::HashSet;
+use thiserror::Error;
+use tracing::{debug, trace};
+use uuid::Uuid;
 
 pub const OBJECT_ALIGNMENT: usize = 8;
 
@@ -29,7 +30,7 @@ impl<U: GcUser> GarbageCollector<U> {
 
 		Self {
 			inner: Mutex::new(InnerGarbageCollector {
-				handles: vec![],
+				handles: HashMap::new(),
 				frozen: HashSet::new(),
 				mark: false,
 				size,
@@ -43,6 +44,10 @@ impl<U: GcUser> GarbageCollector<U> {
 
 	pub fn new_sweeper(&self) -> GcSweeper {
 		self.inner.lock().new_sweeper()
+	}
+
+	pub fn remove_sweeper(&self, sweeper: GcSweeper) {
+		self.inner.lock().remove_sweeper(sweeper);
 	}
 
 	pub fn add_frozen(&self, reference: GcRef<U>) {
@@ -71,7 +76,7 @@ impl<U: GcUser> GarbageCollector<U> {
 }
 
 pub struct InnerGarbageCollector<U: GcUser> {
-	handles: Vec<GcSweeperHandle>,
+	handles: HashMap<Uuid, GcSweeperHandle>,
 	frozen: HashSet<GcRef<U>>,
 	mark: bool,
 	size: usize,
@@ -86,8 +91,13 @@ pub struct InnerGarbageCollector<U: GcUser> {
 impl<U: GcUser> InnerGarbageCollector<U> {
 	pub fn new_sweeper(&mut self) -> GcSweeper {
 		let (handle, sweeper) = new_sweeper();
-		self.handles.push(handle);
+		self.handles.insert(sweeper.uuid, handle);
 		sweeper
+	}
+
+	pub fn remove_sweeper(&mut self, mut gc_sweeper: GcSweeper) {
+		assert!(self.handles.remove(&gc_sweeper.uuid).is_some());
+		gc_sweeper.finished = true;
 	}
 
 	pub fn add_frozen(&mut self, reference: GcRef<U>) {
@@ -165,7 +175,7 @@ impl<U: GcUser> InnerGarbageCollector<U> {
 
 		// Stops all threads
 		debug!("Stopping threads");
-		for handle in &self.handles {
+		for handle in self.handles.values() {
 			let new_mark = !self.mark;
 			handle.start(new_mark);
 		}
@@ -174,7 +184,7 @@ impl<U: GcUser> InnerGarbageCollector<U> {
 
 		// Makes all threads start marking
 		debug!("Marking threads");
-		for handle in &self.handles {
+		for handle in self.handles.values() {
 			handle.start_marking();
 		}
 		for reference in &self.frozen {
@@ -237,7 +247,7 @@ impl<U: GcUser> InnerGarbageCollector<U> {
 		self.frozen = new_frozen;
 
 		// This sets the roots to the new references
-		for handle in &self.handles {
+		for handle in self.handles.values() {
 			handle.move_roots();
 		}
 
@@ -269,7 +279,7 @@ impl<U: GcUser> InnerGarbageCollector<U> {
 		self.objects = alive_objects;
 
 		// Release all threads
-		for handle in &self.handles {
+		for handle in self.handles.values() {
 			handle.continue_execution();
 		}
 

@@ -2,7 +2,7 @@ use std::fmt::{Display, Formatter};
 
 use rvm_core::{MethodDescriptor, ObjectType};
 use rvm_reader::{ConstPtr, InterfaceConst, InvokeInst, InvokeInstKind};
-use rvm_runtime::{InstanceClass, MethodIdentifier};
+use rvm_runtime::{CallType, InstanceClass, MethodIdentifier};
 
 #[derive(Debug, Clone)]
 pub struct CallTask {
@@ -16,8 +16,8 @@ impl Display for CallTask {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
 		write!(
 			f,
-			"call {:?} {:?}.{:?}()",
-			self.ty, self.object, self.method
+			"call {:?} {:?}.{}{}()",
+			self.ty, self.object, self.method.name, self.method.descriptor
 		)
 	}
 }
@@ -58,25 +58,5 @@ impl CallTask {
 				InvokeInstKind::Virtual => CallType::Virtual,
 			},
 		}
-	}
-}
-
-#[derive(Debug, Eq, PartialEq, Copy, Clone)]
-pub enum CallType {
-	Virtual,
-	Static,
-	Special,
-	Interface,
-}
-
-impl CallType {
-	pub fn is_static(&self) -> bool {
-		matches!(self, CallType::Static)
-	}
-	pub fn is_special(&self) -> bool {
-		matches!(self, CallType::Special)
-	}
-	pub fn is_interface(&self) -> bool {
-		matches!(self, CallType::Interface)
 	}
 }

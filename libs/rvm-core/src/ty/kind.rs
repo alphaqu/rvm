@@ -99,6 +99,7 @@ impl Display for Kind {
 pub enum StackKind {
 	Int,
 	Long,
+	Char,
 	Float,
 	Double,
 	Reference,
@@ -113,6 +114,7 @@ impl Display for StackKind {
 impl StackKind {
 	pub fn kind(&self) -> Kind {
 		match self {
+			StackKind::Char => Kind::Char,
 			StackKind::Int => Kind::Int,
 			StackKind::Long => Kind::Long,
 			StackKind::Float => Kind::Float,

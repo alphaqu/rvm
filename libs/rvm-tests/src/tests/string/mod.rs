@@ -3,6 +3,6 @@ use crate::launch;
 
 #[test]
 fn ldc() {
-	let runtime = launch(128);
-	Java::ldc(&runtime).unwrap();
+	let mut runtime = launch(1024);
+	Java::ldc(&mut runtime).unwrap();
 }

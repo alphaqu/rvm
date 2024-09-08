@@ -1,22 +1,26 @@
 use std::fmt::{Display, Formatter};
 
-use rvm_core::{ArrayType, Kind, ObjectType, PrimitiveType, Type};
-use rvm_reader::{ClassConst, ConstPtr};
-use rvm_runtime::{Class, InstanceClass, Runtime};
-
+use crate::code::Executor;
 use crate::thread::{BenFrameMut, ThreadFrame};
 use crate::value::StackValue;
+use rvm_core::{ArrayType, Kind, ObjectType, PrimitiveType, Type};
+use rvm_reader::{ClassConst, ConstPtr};
+use rvm_runtime::{Class, InstanceClass, Vm};
 
 #[derive(Debug)]
 pub struct ArrayCreateTask(pub PrimitiveType);
 
 impl ArrayCreateTask {
 	#[inline(always)]
-	pub fn exec(&self, runtime: &Runtime, frame: &mut BenFrameMut) -> eyre::Result<()> {
+	pub fn exec(&self, executor: &mut Executor) -> eyre::Result<()> {
+		let mut frame = executor.current_frame();
 		let length = frame.pop().to_int()?;
-		let array = runtime
-			.gc
+
+		let array = executor
+			.runtime()
 			.alloc_array(&Class::Primitive(self.0), length as u32)?;
+
+		let mut frame = executor.current_frame();
 		frame.push(StackValue::Reference(*array));
 		Ok(())
 	}
@@ -38,13 +42,16 @@ impl ArrayCreateRefTask {
 		ArrayCreateRefTask(ObjectType::new(name.to_string()))
 	}
 
-	pub fn exec(&self, runtime: &Runtime, frame: &mut BenFrameMut) -> eyre::Result<()> {
+	pub fn exec(&self, executor: &mut Executor) -> eyre::Result<()> {
+		let mut frame = executor.current_frame();
 		let length = frame.pop().to_int()?;
 
-		let component_id = runtime.resolve_class(&Type::Object(self.0.clone()))?;
-		let component_class = runtime.classes.get(component_id);
+		let mut ctx = executor.runtime();
+		let component_id = ctx.resolve_class(&Type::Object(self.0.clone()))?;
+		let component_class = ctx.vm.classes.get(component_id);
+		let array = ctx.alloc_array(&component_class, length as u32)?;
 
-		let array = runtime.gc.alloc_array(&component_class, length as u32)?;
+		let mut frame = executor.current_frame();
 		frame.push(StackValue::Reference(*array));
 
 		Ok(())
@@ -65,7 +72,7 @@ impl ArrayLengthTask {
 	pub fn exec(&self, frame: &mut BenFrameMut) {
 		let reference = frame.pop().to_ref().unwrap();
 		let option = reference.to_array();
-		let array = option.unwrap();
+		let array = option.expect("Expected array");
 		let length = array.length();
 		frame.push(StackValue::Int(length));
 	}

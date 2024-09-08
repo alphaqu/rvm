@@ -5,7 +5,7 @@ use crate::{compile, launch};
 
 #[test]
 fn test() -> Result<(), std::io::Error> {
-	let runtime = launch(128);
+	let mut runtime = launch(128);
 
 	let rust = {
 		let mut i = 3.14159265358979323846f64;
@@ -32,7 +32,7 @@ fn test() -> Result<(), std::io::Error> {
 		i
 	};
 
-	assert_eq!(rust, Java::get(&runtime).unwrap());
+	assert_eq!(rust, Java::get(&mut runtime).unwrap());
 
 	Ok(())
 }

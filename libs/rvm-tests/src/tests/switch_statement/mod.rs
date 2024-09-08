@@ -3,8 +3,8 @@ use crate::launch;
 
 #[test]
 fn basic_switch() {
-	let runtime = launch(1024);
-	let test_switch = |v| SwitchTest::testSwitch(&runtime, v).unwrap();
+	let mut runtime = launch(1024);
+	let mut test_switch = |v| SwitchTest::testSwitch(&mut runtime, v).unwrap();
 
 	assert_eq!(test_switch(0), 420);
 	assert_eq!(test_switch(1), 3);

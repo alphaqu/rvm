@@ -1,6 +1,6 @@
 mod multi;
 
-use crate::{AnyValue, Reference, Runtime};
+use crate::{AnyValue, Reference, Vm};
 pub use multi::*;
 use rvm_core::{CastKindError, Kind, ObjectType, PrimitiveType, Type};
 use std::sync::Arc;
@@ -13,22 +13,22 @@ pub trait JavaTyped {
 	fn java_type() -> Type;
 }
 pub trait ToJava: Sized {
-	fn to_java(self, runtime: &Runtime) -> eyre::Result<AnyValue>;
+	fn to_java(self, runtime: &Vm) -> eyre::Result<AnyValue>;
 }
 
 pub trait FromJava: Sized {
-	fn from_java(value: AnyValue, runtime: &Runtime) -> eyre::Result<Self>;
+	fn from_java(value: AnyValue, runtime: &Vm) -> eyre::Result<Self>;
 }
 
 macro_rules! impl_simple {
 	($KIND:ident $($JAVA_TY:block)? $TY:ty) => {
 		impl ToJava for $TY {
-			fn to_java(self, _: &Runtime) -> eyre::Result<AnyValue> {
+			fn to_java(self, _: &Vm) -> eyre::Result<AnyValue> {
 				Ok(AnyValue::$KIND(self))
 			}
 		}
 		impl FromJava for $TY {
-			fn from_java(value: AnyValue, _: &Runtime) -> eyre::Result<Self> {
+			fn from_java(value: AnyValue, _: &Vm) -> eyre::Result<Self> {
 				match value {
 					AnyValue::$KIND(v) => Ok(v),
 					_ => Err(CastKindError {

@@ -15,21 +15,21 @@ unsafe fn create_ticket<U: StackUser>(pos: usize, stack: &CallStack<U>) -> Optio
 	Some(FrameTicket::new(pos))
 }
 
-pub struct CallStackIter<'a, 'd, U: StackUser> {
-	stack: &'a CallStack<'d, U>,
+pub struct CallStackIter<'a, U: StackUser> {
+	stack: &'a CallStack<U>,
 	current_pos: usize,
 }
 
-impl<'a, 'd, U: StackUser> CallStackIter<'a, 'd, U> {
-	pub(crate) fn new(stack: &'a CallStack<'d, U>) -> Self {
+impl<'a, U: StackUser> CallStackIter<'a, U> {
+	pub(crate) fn new(stack: &'a CallStack<U>) -> Self {
 		CallStackIter {
 			stack,
 			current_pos: 0,
 		}
 	}
 }
-impl<'a, 'd, U: StackUser> Iterator for CallStackIter<'a, 'd, U> {
-	type Item = Frame<'a, 'd, U>;
+impl<'a, U: StackUser> Iterator for CallStackIter<'a, U> {
+	type Item = Frame<'a, U>;
 
 	fn next(&mut self) -> Option<Self::Item> {
 		let ticket = unsafe {
@@ -43,13 +43,13 @@ impl<'a, 'd, U: StackUser> Iterator for CallStackIter<'a, 'd, U> {
 	}
 }
 
-pub struct CallStackIterMut<'a, 'd, U: StackUser> {
-	stack: &'a mut CallStack<'d, U>,
+pub struct CallStackIterMut<'a, U: StackUser> {
+	stack: &'a mut CallStack<U>,
 	current_pos: usize,
 }
 
-impl<'a, 'd, U: StackUser> CallStackIterMut<'a, 'd, U> {
-	pub(crate) fn new(stack: &'a mut CallStack<'d, U>) -> Self {
+impl<'a, U: StackUser> CallStackIterMut<'a, U> {
+	pub(crate) fn new(stack: &'a mut CallStack<U>) -> Self {
 		CallStackIterMut {
 			stack,
 			current_pos: 0,
@@ -57,8 +57,8 @@ impl<'a, 'd, U: StackUser> CallStackIterMut<'a, 'd, U> {
 	}
 }
 
-impl<'a, 'd, U: StackUser> Iterator for CallStackIterMut<'a, 'd, U> {
-	type Item = FrameMut<'a, 'd, U>;
+impl<'a, U: StackUser> Iterator for CallStackIterMut<'a, U> {
+	type Item = FrameMut<'a, U>;
 
 	fn next(&mut self) -> Option<Self::Item> {
 		let ticket = unsafe {
@@ -68,6 +68,6 @@ impl<'a, 'd, U: StackUser> Iterator for CallStackIterMut<'a, 'd, U> {
 
 		let frame = self.stack.get_mut(&ticket);
 		self.current_pos += frame.frame_size();
-		Some(unsafe { transmute::<FrameMut<'_, '_, U>, FrameMut<'_, '_, U>>(frame) })
+		Some(unsafe { transmute::<FrameMut<'_, U>, FrameMut<'_, U>>(frame) })
 	}
 }

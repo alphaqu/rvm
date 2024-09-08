@@ -5,6 +5,7 @@ use rvm_core::{Id, Kind};
 pub use rvm_gc::*;
 
 pub type GcRef = rvm_gc::GcRef<JavaUser>;
+
 pub struct GarbageCollector {
 	gc: rvm_gc::GarbageCollector<JavaUser>,
 }
@@ -18,6 +19,10 @@ impl GarbageCollector {
 
 	pub fn new_sweeper(&self) -> GcSweeper {
 		self.gc.new_sweeper()
+	}
+
+	pub fn remove_sweeper(&self, sweeper: GcSweeper) {
+		self.gc.remove_sweeper(sweeper);
 	}
 
 	pub fn add_frozen(&self, reference: Reference) {

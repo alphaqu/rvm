@@ -13,7 +13,7 @@ use rvm_core::{Id, MethodAccessFlags, MethodDescriptor, Storage, StorageValue};
 use rvm_reader::ConstantPool;
 use rvm_runtime::engine::{Engine, ThreadConfig, ThreadHandle};
 use rvm_runtime::native::JNIFunction;
-use rvm_runtime::{Class, Method, MethodBinding, MethodCode, MethodIdentifier, Runtime};
+use rvm_runtime::{Class, Method, MethodBinding, MethodCode, MethodIdentifier, Vm};
 
 mod code;
 mod method;
@@ -27,7 +27,7 @@ pub struct BenEngine {
 impl BenEngine {
 	pub fn resolve_method(
 		&self,
-		runtime: &Runtime,
+		runtime: &Vm,
 		mut class_id: Id<Class>,
 		method: &MethodIdentifier,
 	) -> Option<(Id<Class>, Id<Method>)> {
@@ -56,7 +56,7 @@ impl BenEngine {
 
 	pub fn compile_method(
 		&self,
-		runtime: &Runtime,
+		runtime: &Vm,
 		id: Id<Class>,
 		method_id: Id<Method>,
 	) -> Arc<BenMethod> {
@@ -142,13 +142,13 @@ impl BenBinding {
 }
 
 impl Engine for BenBinding {
-	fn create_thread(&self, runtime: Runtime, config: ThreadConfig) -> ThreadHandle {
+	fn create_thread(&self, runtime: Vm, config: ThreadConfig) -> ThreadHandle {
 		spawn(runtime, config, 1024 * 1024, self.engine.clone())
 	}
 
 	fn compile_method(
 		&self,
-		_runtime: &Pin<&Runtime>,
+		_runtime: &Pin<&Vm>,
 		_method: &Method,
 		_cp: &Arc<ConstantPool>,
 	) -> *const c_void {

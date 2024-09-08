@@ -1,4 +1,4 @@
-use crate::{AnyValue, Reference, Runtime};
+use crate::{AnyValue, Reference, Vm};
 use rvm_core::Kind;
 use std::mem::transmute;
 use std::sync::Arc;
@@ -26,7 +26,7 @@ impl JNIFunction {
 
 	pub fn call(
 		&self,
-		runtime: &Runtime,
+		runtime: &Vm,
 		parameters: &[AnyValue],
 		returns: Option<Kind>,
 	) -> Option<AnyValue> {

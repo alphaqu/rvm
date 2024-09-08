@@ -1,5 +1,5 @@
 use crate::conversion::{FromJava, JavaTyped, ToJava};
-use crate::{AnyInstance, AnyValue, Class, InstanceRef, Returnable, Runtime};
+use crate::{AnyInstance, AnyValue, Class, InstanceRef, Returnable, Vm};
 use rvm_core::{CastTypeError, Id, ObjectType, Type, Typed};
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
@@ -10,7 +10,7 @@ pub trait InstanceBinding {
 }
 
 impl<B: InstanceBinding> Returnable for Instance<B> {
-	fn from_value(runtime: &Runtime, value: Option<AnyValue>) -> Self {
+	fn from_value(runtime: &Vm, value: Option<AnyValue>) -> Self {
 		let instance = AnyInstance::from_value(runtime, value);
 		Instance::try_new(instance).unwrap()
 	}
@@ -62,13 +62,13 @@ impl<B: InstanceBinding> Instance<B> {
 	}
 }
 impl<B: InstanceBinding> ToJava for Instance<B> {
-	fn to_java(self, runtime: &Runtime) -> eyre::Result<AnyValue> {
+	fn to_java(self, runtime: &Vm) -> eyre::Result<AnyValue> {
 		self.instance.to_java(runtime)
 	}
 }
 
 impl<B: InstanceBinding> FromJava for Instance<B> {
-	fn from_java(value: AnyValue, runtime: &Runtime) -> eyre::Result<Self> {
+	fn from_java(value: AnyValue, runtime: &Vm) -> eyre::Result<Self> {
 		let instance = AnyInstance::from_java(value, runtime)?;
 		Ok(Self::try_new(instance)?)
 	}

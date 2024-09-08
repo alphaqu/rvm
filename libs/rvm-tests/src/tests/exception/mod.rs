@@ -4,5 +4,5 @@ use crate::launch;
 #[test]
 fn basic() {
 	let mut runtime = launch(128);
-	let basic1 = Java::basic(&runtime, true);
+	let basic1 = Java::basic(&mut runtime, true);
 }

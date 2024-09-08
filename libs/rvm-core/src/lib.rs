@@ -21,9 +21,10 @@ pub fn init() {
 	START.call_once(|| {
 		let filter = filter::Targets::new()
 			.with_default(Level::TRACE)
-			.with_target("rvm_gc", Level::DEBUG)
-			.with_target("exe", Level::INFO)
-			.with_target("exec", Level::DEBUG);
+			.with_target("rvm_gc", Level::INFO)
+			.with_target("rvm_stack", Level::DEBUG)
+			.with_target("exe", Level::TRACE)
+			.with_target("exec", Level::TRACE);
 		let layered = tracing_subscriber::registry()
 			.with(tracing_subscriber::fmt::layer())
 			.with(filter);

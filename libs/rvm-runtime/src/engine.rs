@@ -11,22 +11,21 @@ use rvm_gc::GcSweeper;
 use rvm_reader::ConstantPool;
 
 use crate::value::AnyValue;
-use crate::Runtime;
+use crate::Vm;
 use crate::{Method, MethodIdentifier};
 
 pub trait Engine: Send + Sync {
-	fn create_thread(&self, runtime: Runtime, config: ThreadConfig) -> ThreadHandle;
+	fn create_thread(&self, runtime: Vm, config: ThreadConfig) -> ThreadHandle;
 
 	fn compile_method(
 		&self,
-		runtime: &Pin<&Runtime>,
+		runtime: &Pin<&Vm>,
 		method: &Method,
 		cp: &Arc<ConstantPool>,
 	) -> *const c_void;
 }
 
 pub struct Thread {
-	pub gc: GcSweeper,
 	pub config: Arc<ThreadConfig>,
 	pub receiver: Receiver<ThreadCommand>,
 }
@@ -39,7 +38,6 @@ pub struct ThreadHandle {
 
 impl ThreadHandle {
 	pub fn new(
-		runtime: Runtime,
 		config: ThreadConfig,
 		func: impl FnOnce(Thread) -> eyre::Result<Option<AnyValue>> + Send + 'static,
 	) -> ThreadHandle {
@@ -47,10 +45,8 @@ impl ThreadHandle {
 		let (sender, receiver) = unbounded();
 		let data2 = data.clone();
 
-		let sweeper = runtime.gc.new_sweeper();
 		let handle = spawn(|| {
 			func(Thread {
-				gc: sweeper,
 				config: data2,
 				receiver,
 			})

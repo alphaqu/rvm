@@ -1,10 +1,14 @@
-use std::fmt::{Display, Formatter};
-
-use rvm_reader::{ConstInst, ConstantInfo};
-use rvm_runtime::{InstanceClass, Reference};
-
+use crate::code::Executor;
 use crate::thread::{BenFrameMut, ThreadFrame};
 use crate::value::StackValue;
+use rvm_core::{ObjectType, PrimitiveType};
+use rvm_reader::{ConstInst, ConstantInfo};
+use rvm_runtime::{
+	AnyValue, CallType, InstanceClass, MethodIdentifier, Reference, ReferenceKind, ThreadContext,
+};
+use std::fmt::{Display, Formatter};
+use std::sync::Arc;
+use tracing::info;
 
 #[derive(Debug)]
 pub enum ConstTask {
@@ -14,6 +18,7 @@ pub enum ConstTask {
 	Float(f32),
 	Double(f64),
 	String(String),
+	Class(ObjectType),
 }
 
 impl Display for ConstTask {
@@ -28,6 +33,7 @@ impl Display for ConstTask {
 				ConstTask::Float(v) => v.to_string(),
 				ConstTask::Double(v) => v.to_string(),
 				ConstTask::String(v) => format!("\"{v:?}\""),
+				ConstTask::Class(v) => format!("class:{v:?}"),
 			}
 		)
 	}
@@ -51,8 +57,12 @@ impl ConstTask {
 					ConstantInfo::String(value) => {
 						ConstTask::String(class.cp[value.string].to_string())
 					}
-					_ => {
-						panic!();
+					ConstantInfo::Class(value) => {
+						let string = class.cp[value.name].to_string();
+						ConstTask::Class(ObjectType::new(string))
+					}
+					v => {
+						panic!("{v:?}");
 					}
 				}
 			}
@@ -60,7 +70,8 @@ impl ConstTask {
 	}
 
 	#[inline(always)]
-	pub fn exec(&self, frame: &mut BenFrameMut) {
+	pub fn exec(&self, executor: &mut Executor) -> eyre::Result<()> {
+		let mut frame = executor.current_frame();
 		match self {
 			ConstTask::Null => {
 				frame.push(StackValue::Reference(Reference::NULL));
@@ -69,7 +80,50 @@ impl ConstTask {
 			ConstTask::Long(v) => frame.push(StackValue::Long(*v)),
 			ConstTask::Float(v) => frame.push(StackValue::Float(*v)),
 			ConstTask::Double(v) => frame.push(StackValue::Double(*v)),
-			ConstTask::String(v) => {}
+			ConstTask::String(v) => {
+				info!("CREATING STYRING");
+
+				// TODO not create string instances every time ldc gets hit
+				let mut runtime = executor.runtime();
+
+				let array =
+					runtime.alloc_array(&PrimitiveType::Char.into(), v.chars().count() as u32)?;
+
+				executor.frozen_references.push(*array);
+				let i = executor.frozen_references.len();
+
+				let mut runtime = executor.runtime();
+
+				assert_eq!((*array).reference_kind(), Some(ReferenceKind::Array));
+				let id = runtime.resolve_class(&ObjectType::String().into())?;
+				let class = runtime.classes.get(id);
+				let class = class.to_instance();
+
+				let string = runtime.alloc_object(class)?;
+
+				assert_eq!(i, executor.frozen_references.len());
+				executor.frozen_references.pop();
+				let mut runtime = executor.runtime();
+
+				assert_eq!((*array).reference_kind(), Some(ReferenceKind::Array));
+				let _ = runtime.run(
+					CallType::Special,
+					&ObjectType::String(),
+					&MethodIdentifier {
+						name: Arc::from("<init>"),
+						descriptor: Arc::from("([C)V"),
+					},
+					vec![AnyValue::Reference(**string), AnyValue::Reference(*array)],
+				)?;
+
+				let mut frame = executor.current_frame();
+				frame.push(StackValue::Reference(**string));
+			}
+			ConstTask::Class(_) => {
+				frame.push(StackValue::Reference(Reference::NULL));
+			}
 		}
+
+		Ok(())
 	}
 }

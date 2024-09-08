@@ -1,11 +1,11 @@
-use rvm_core::{ObjectType, Type};
-use rvm_reader::{FieldInst, FieldInstKind};
-use rvm_runtime::{AnyInstance, Class, InstanceClass, Runtime};
-use std::fmt::{Display, Formatter};
-use std::sync::Arc;
-
+use crate::code::Executor;
 use crate::thread::{BenFrameMut, ThreadFrame};
 use crate::value::StackValue;
+use rvm_core::{ObjectType, Type};
+use rvm_reader::{FieldInst, FieldInstKind};
+use rvm_runtime::{AnyInstance, Class, InstanceClass, Vm};
+use std::fmt::{Display, Formatter};
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct FieldTask {
@@ -45,9 +45,13 @@ impl FieldTask {
 	}
 
 	#[inline(always)]
-	pub fn exec(&self, runtime: &Runtime, frame: &mut BenFrameMut) -> eyre::Result<()> {
-		let id = runtime.resolve_class(&Type::Object(self.source.clone()))?;
-		let arc = runtime.classes.get(id);
+	pub fn exec(&self, executor: &mut Executor) -> eyre::Result<()> {
+		let mut ctx = executor.runtime();
+		let id = ctx.resolve_class(&Type::Object(self.source.clone()))?;
+		let arc = ctx.vm.classes.get(id);
+
+		let runtime = ctx.vm.clone();
+		let mut frame = executor.current_frame();
 		match &*arc {
 			Class::Instance(object) => {
 				if self.instance {

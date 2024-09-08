@@ -1,44 +1,44 @@
 use crate::conversion::JavaTyped;
 use crate::object::Reference;
-use crate::Runtime;
+use crate::Vm;
 use rvm_core::{Kind, PrimitiveType, ResultUnwrapOrErr, Type};
 use rvm_gc::GcRef;
 use std::ptr::{read, write};
 use std::sync::Arc;
 
 pub trait Castable {
-	fn cast_from(runtime: &Runtime, value: AnyValue) -> Self;
+	fn cast_from(runtime: &Vm, value: AnyValue) -> Self;
 }
 
 pub trait CastableExt<V> {
-	fn cast_into(self, runtime: &Runtime) -> V;
+	fn cast_into(self, runtime: &Vm) -> V;
 }
 
 impl<V: Castable> CastableExt<V> for AnyValue {
-	fn cast_into(self, runtime: &Runtime) -> V {
+	fn cast_into(self, runtime: &Vm) -> V {
 		V::cast_from(runtime, self)
 	}
 }
 
 pub trait Returnable {
-	fn from_value(runtime: &Runtime, value: Option<AnyValue>) -> Self;
+	fn from_value(runtime: &Vm, value: Option<AnyValue>) -> Self;
 }
 
 impl<C: Castable> Returnable for C {
-	fn from_value(runtime: &Runtime, value: Option<AnyValue>) -> Self {
+	fn from_value(runtime: &Vm, value: Option<AnyValue>) -> Self {
 		let value = value.unwrap();
 		C::cast_from(runtime, value)
 	}
 }
 
 impl Returnable for () {
-	fn from_value(_: &Runtime, value: Option<AnyValue>) -> Self {
+	fn from_value(_: &Vm, value: Option<AnyValue>) -> Self {
 		assert!(value.is_none());
 		()
 	}
 }
 impl<R: Returnable> Returnable for Option<R> {
-	fn from_value(runtime: &Runtime, value: Option<AnyValue>) -> Self {
+	fn from_value(runtime: &Vm, value: Option<AnyValue>) -> Self {
 		value.map(|_| R::from_value(runtime, value))
 	}
 }
@@ -114,7 +114,7 @@ pub union UnionValue {
 macro_rules! impl_from {
 	($TY:ty, $KIND:ident) => {
 		impl Castable for $TY {
-			fn cast_from(_: &Runtime, value: AnyValue) -> Self {
+			fn cast_from(_: &Vm, value: AnyValue) -> Self {
 				value.try_into().unwrap()
 			}
 		}
@@ -149,7 +149,7 @@ impl_from!(bool, Boolean);
 impl_from!(Reference, Reference);
 
 impl AnyValue {
-	pub fn ty(&self, runtime: &Runtime) -> Type {
+	pub fn ty(&self, runtime: &Vm) -> Type {
 		match self {
 			AnyValue::Byte(_) => Type::Primitive(PrimitiveType::Byte),
 			AnyValue::Short(_) => Type::Primitive(PrimitiveType::Short),

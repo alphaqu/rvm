@@ -12,8 +12,6 @@ pub use value::*;
 
 use bytemuck::Zeroable;
 use rvm_core::align_size;
-use stackalloc::alloca_zeroed;
-use std::intrinsics::transmute;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::slice::{from_raw_parts, from_raw_parts_mut};
@@ -26,31 +24,38 @@ pub trait StackUser {
 	type FrameHeader: Sized + Clone + Copy;
 }
 
-pub struct CallStack<'d, U> {
+pub struct CallStack<U> {
+	ptr: *mut [u8],
 	aligned_ptr: *mut u8,
 	size: usize,
 	pos: usize,
-	_p: PhantomData<&'d mut [u8]>,
 	_u: PhantomData<fn() -> U>,
 }
 
-impl<'d, U: StackUser> CallStack<'d, U> {
-	pub fn new_on_stack<O>(size: usize, func: impl FnOnce(CallStack<U>) -> O) -> O {
-		alloca_zeroed(size, |v| {
-			let stack = CallStack::new(v);
-			func(stack)
-		})
+impl<U> Drop for CallStack<U> {
+	fn drop(&mut self) {
+		unsafe {
+			// drop the box
+			let _ = Box::from_raw(self.ptr);
+		}
 	}
+}
+impl<U: StackUser> CallStack<U> {
+	//pub fn new_on_stack<O>(size: usize, func: impl FnOnce(CallStack<U>) -> O) -> O {
+	//	alloca_zeroed(size, |v| {
+	//		let stack = CallStack::new(v);
+	//		func(stack)
+	//	})
+	//}
 
-	pub fn new_on_heap<O>(size: usize, func: impl FnOnce(CallStack<U>) -> O) -> O {
+	pub fn new_on_heap(size: usize) -> CallStack<U> {
 		let values = Box::<[u8]>::new_uninit_slice(size);
-		let mut values = unsafe {
+		let values = unsafe {
 			// We don't care about init because our stack zeroes out the data on frame creation.
 			values.assume_init()
 		};
 
-		let stack = CallStack::new(values.as_mut());
-		func(stack)
+		CallStack::new(values)
 	}
 	//
 	// 	pub fn new_heap(size: usize) {
@@ -66,7 +71,7 @@ impl<'d, U: StackUser> CallStack<'d, U> {
 	// 		}
 	// 	}
 
-	pub fn new(data: &'d mut [u8]) -> Self {
+	pub fn new(mut data: Box<[u8]>) -> Self {
 		let unaligned_ptr = data.as_mut_ptr();
 		let padding = unaligned_ptr.align_offset(FRAME_ALIGNMENT);
 		if padding == usize::MAX || padding > data.len() {
@@ -75,12 +80,13 @@ impl<'d, U: StackUser> CallStack<'d, U> {
 
 		info!("Padding: {padding}");
 
-		let ptr = unsafe { (data as *mut [u8] as *mut u8).add(padding) };
+		let raw = Box::into_raw(data);
+		let aligned_ptr = unsafe { (raw as *mut u8).add(padding) };
 		let stack = CallStack {
-			aligned_ptr: ptr,
-			size: data.len() - padding,
+			aligned_ptr,
+			size: raw.len() - padding,
+			ptr: raw,
 			pos: 0,
-			_p: Default::default(),
 			_u: Default::default(),
 		};
 
@@ -92,7 +98,7 @@ impl<'d, U: StackUser> CallStack<'d, U> {
 		self.size
 	}
 
-	pub fn get(&self, id: &FrameTicket<U>) -> Frame<'_, 'd, U> {
+	pub fn get(&self, id: &FrameTicket<U>) -> Frame<'_, U> {
 		unsafe {
 			let pointer = self.aligned_ptr.add(id.start_pos());
 
@@ -106,7 +112,7 @@ impl<'d, U: StackUser> CallStack<'d, U> {
 		}
 	}
 
-	pub fn get_mut(&mut self, id: &FrameTicket<U>) -> FrameMut<'_, 'd, U> {
+	pub fn get_mut(&mut self, id: &FrameTicket<U>) -> FrameMut<'_, U> {
 		unsafe {
 			let pointer = self.aligned_ptr.add(id.start_pos());
 			FrameMut {
@@ -142,7 +148,7 @@ impl<'d, U: StackUser> CallStack<'d, U> {
 		stack_size: u16,
 		local_size: u16,
 		header: U::FrameHeader,
-	) -> Option<FrameGuard<'_, 'd, U>> {
+	) -> Option<FrameGuard<'_, U>> {
 		let frame_size = RawFrame::<U>::size(stack_size, local_size);
 		let remaining = self.size() - self.pos;
 
@@ -171,11 +177,11 @@ impl<'d, U: StackUser> CallStack<'d, U> {
 		Some(frame)
 	}
 
-	pub fn iter(&self) -> CallStackIter<'_, 'd, U> {
+	pub fn iter(&self) -> CallStackIter<'_, U> {
 		CallStackIter::new(self)
 	}
 
-	pub fn iter_mut(&mut self) -> CallStackIterMut<'_, 'd, U> {
+	pub fn iter_mut(&mut self) -> CallStackIterMut<'_, U> {
 		CallStackIterMut::new(self)
 	}
 }
@@ -390,12 +396,12 @@ where
 	}
 }
 
-pub struct Frame<'a, 'd, U: StackUser> {
+pub struct Frame<'a, U: StackUser> {
 	raw: RawFrame<U>,
-	_p: PhantomData<&'a CallStack<'d, U>>,
+	_p: PhantomData<&'a CallStack<U>>,
 }
 
-impl<'a, 'd, U: StackUser> Deref for Frame<'a, 'd, U> {
+impl<'a, U: StackUser> Deref for Frame<'a, U> {
 	type Target = RawFrame<U>;
 
 	fn deref(&self) -> &Self::Target {
@@ -403,45 +409,45 @@ impl<'a, 'd, U: StackUser> Deref for Frame<'a, 'd, U> {
 	}
 }
 
-pub struct FrameMut<'a, 'd, U: StackUser> {
+pub struct FrameMut<'a, U: StackUser> {
 	raw: RawFrame<U>,
-	_p: PhantomData<&'a mut CallStack<'d, U>>,
+	_p: PhantomData<&'a mut CallStack<U>>,
 }
 
-impl<'a, 'd, U: StackUser> Deref for FrameMut<'a, 'd, U> {
+impl<'a, U: StackUser> Deref for FrameMut<'a, U> {
 	type Target = RawFrame<U>;
 
 	fn deref(&self) -> &Self::Target {
 		&self.raw
 	}
 }
-impl<'a, 'd, U: StackUser> DerefMut for FrameMut<'a, 'd, U> {
+impl<'a, 'd, U: StackUser> DerefMut for FrameMut<'a, U> {
 	fn deref_mut(&mut self) -> &mut Self::Target {
 		&mut self.raw
 	}
 }
 
-pub struct FrameGuard<'a, 'd, U: StackUser> {
-	pub stack: &'a mut CallStack<'d, U>,
+pub struct FrameGuard<'a, U: StackUser> {
+	pub stack: &'a mut CallStack<U>,
 	ticket: Option<FrameTicket<U>>,
 }
 
-impl<'a, 'd, U: StackUser> FrameGuard<'a, 'd, U> {
+impl<'a, U: StackUser> FrameGuard<'a, U> {
 	#[must_use = "Must use ticket and CallStack::pop when the frame has been finished. Else you risk loosing the frame chain."]
 	pub fn to_ticket(mut self) -> FrameTicket<U> {
 		self.ticket.take().unwrap()
 	}
 
-	pub fn frame(&self) -> Frame<'_, 'd, U> {
+	pub fn frame(&self) -> Frame<'_, U> {
 		self.stack.get(self.ticket.as_ref().unwrap())
 	}
 
-	pub fn frame_mut(&mut self) -> FrameMut<'_, 'd, U> {
+	pub fn frame_mut(&mut self) -> FrameMut<'_, U> {
 		self.stack.get_mut(self.ticket.as_ref().unwrap())
 	}
 }
 
-impl<'a, 'd, U: StackUser> Drop for FrameGuard<'a, 'd, U> {
+impl<'a, 'd, U: StackUser> Drop for FrameGuard<'a, U> {
 	fn drop(&mut self) {
 		if let Some(ticket) = self.ticket.take() {
 			self.stack.pop(ticket);
@@ -477,9 +483,7 @@ mod tests {
 	fn compile() {
 		rvm_core::init();
 
-		let mut data = vec![0u8; 1024];
-
-		let mut stack = CallStack::<Hi>::new(&mut data);
+		let mut stack = CallStack::<Hi>::new_on_heap(1024);
 		let mut scope = stack.push(4, 4, [4, 4, 2]).expect("Frame allocation error");
 
 		let mut frame = scope.frame_mut();

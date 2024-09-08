@@ -1,6 +1,6 @@
 use crate::object::Class;
 use crate::{
-	ClassMethods, ClassResolver, FieldData, FieldLayout, FieldTable, InstanceRef, Runtime,
+	ClassMethods, ClassResolver, FieldData, FieldLayout, FieldTable, InstanceRef, Runtime, Vm,
 };
 use eyre::{Context, ContextCompat};
 use rvm_core::{Id, ObjectType, Type};
@@ -118,6 +118,9 @@ impl InstanceClass {
 		);
 		let static_field_layout = FieldLayout::new_static(&fields);
 
+		// Class
+		//cl.resolve(&Type::Object(ObjectType::new("java/lang/Class")))?;
+
 		Ok(InstanceClass {
 			id,
 			ty: ObjectType::new(name.to_string()),
@@ -133,10 +136,15 @@ impl InstanceClass {
 		})
 	}
 
-	pub fn link(&mut self, runtime: &Runtime) -> eyre::Result<()> {
-		let instance_ref = runtime.gc.alloc_static_instance(self)?;
+	pub fn link(&mut self, ctx: &mut Runtime) -> eyre::Result<()> {
+		let class = ctx.std().c_class;
+		let class = ctx.classes.get(class);
+		let class = class.to_instance();
+
+		let result = ctx.alloc_object(class)?;
 		self.companion = Some(ClassCompanion {
-			static_ref: instance_ref,
+			static_ref: ctx.alloc_static_instance(self)?,
+			class: result.raw(),
 		});
 		Ok(())
 	}
@@ -155,6 +163,7 @@ impl InstanceClass {
 
 pub struct ClassCompanion {
 	pub static_ref: InstanceRef,
+	pub class: InstanceRef,
 }
 
 impl ClassCompanion {}

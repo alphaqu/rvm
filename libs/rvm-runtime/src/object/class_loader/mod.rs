@@ -12,7 +12,7 @@ use rvm_core::{Id, Kind, ObjectType, Storage, Type};
 use rvm_reader::ClassInfo;
 
 use crate::object::class::Class;
-use crate::{ArrayClass, InstanceClass, MethodIdentifier, Runtime};
+use crate::{ArrayClass, CallType, InstanceClass, MethodIdentifier, Runtime, Vm};
 
 pub use source::*;
 
@@ -37,11 +37,17 @@ impl ClassLoader {
 		if id == Id::null() {
 			panic!("Null value");
 		}
-		self.classes
-			.read()
-			.get(id)
-			.clone()
-			.expect("Class never loaded")
+		let guard = self.classes.read();
+		let value = guard.get(id).clone();
+		if value.is_none() {
+			for (id2, ty, _) in guard.iter_keys_unordered() {
+				if id2 == id {
+					panic!("Class {ty:?} is not available");
+				}
+			}
+		}
+
+		value.unwrap()
 	}
 
 	pub fn get_named(&self, ty: &Type) -> Option<Id<Class>> {
@@ -199,7 +205,36 @@ impl<'a> ClassResolver<'a> {
 		}
 	}
 
-	pub fn link_all(mut self, runtime: &Runtime) -> eyre::Result<()> {
+	fn scope<O>(
+		cl: &ClassLoader,
+		id: Id<Class>,
+		func: impl FnOnce(&mut Class) -> eyre::Result<O>,
+	) -> eyre::Result<O> {
+		let mut guard = cl.classes.write();
+
+		let slot = guard.get_mut(id);
+		let class = slot.take().unwrap();
+		let mut class = Arc::try_unwrap(class)
+			.ok()
+			.wrap_err("Class has arc references")?;
+
+		drop(guard);
+
+		let output = func(&mut class)?;
+
+		let mut guard = cl.classes.write();
+		let slot = guard.get_mut(id);
+
+		let class = Arc::new(class);
+		*slot = Some(class.clone());
+
+		Ok(output)
+	}
+
+	pub fn link_all(mut self, ctx: &mut Runtime) -> eyre::Result<()> {
+		if self.to_link.is_empty() {
+			return Ok(());
+		}
 		info!("Linking all");
 
 		let class_init = MethodIdentifier {
@@ -207,44 +242,31 @@ impl<'a> ClassResolver<'a> {
 			descriptor: "()V".into(),
 		};
 		// Linking
-		let mut guard = self.cl.classes.write();
 		let mut to_initialize = Vec::new();
 		for id in self.to_link.drain(..) {
-			let slot = guard.get_mut(id);
-			let class = slot.take().unwrap();
-			let mut class = Arc::try_unwrap(class)
-				.ok()
-				.wrap_err("Class has arc references")?;
+			Self::scope(self.cl, id, |class| {
+				let ty = class.cloned_ty();
 
-			let ty = class.cloned_ty();
+				info!("Linking class {ty}");
+				if let Class::Instance(class) = class {
+					class.link(ctx).wrap_err_with(|| format!("Linking {ty}"))?;
 
-			info!("Linking class {ty}");
-			if let Class::Instance(class) = &mut class {
-				class
-					.link(runtime)
-					.wrap_err_with(|| format!("Linking {ty}"))?;
-			}
-
-			let class = Arc::new(class);
-			*slot = Some(class.clone());
-
-			if let Some(instance) = class.as_instance() {
-				if instance.methods.contains(&class_init) {
-					to_initialize.push(class);
+					if class.methods.contains(&class_init) {
+						to_initialize.push(id);
+					}
 				}
-			}
-		}
 
-		drop(guard);
+				Ok(())
+			})?;
+		}
 
 		// Initializing
 		for class in to_initialize {
+			let class = self.cl.classes.read().get(class).as_ref().unwrap().clone();
 			let class = class.as_instance().unwrap();
 			info!("Initializing class {}", class.ty);
 
-			// TODO some form of jvm thread which handles these kinds of tasks
-			runtime
-				.simple_run(class.ty.clone(), class_init.clone(), vec![])
+			ctx.run(CallType::Static, &class.ty, &class_init, vec![])
 				.wrap_err("<clinit>")?;
 		}
 		Ok(())

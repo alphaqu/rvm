@@ -1,6 +1,6 @@
 use crate::conversion::JavaTyped;
 use crate::gc::{JavaHeader, JavaUser};
-use crate::{ArrayRef, InstanceRef, Runtime};
+use crate::{ArrayRef, InstanceRef, Vm};
 use rvm_core::{ArrayType, ObjectType, Type, Typed};
 use rvm_gc::GcRef;
 use std::fmt::{Debug, Formatter};
@@ -71,7 +71,7 @@ impl Reference {
 		}
 	}
 
-	pub fn ty(&self, runtime: &Runtime) -> Type {
+	pub fn ty(&self, runtime: &Vm) -> Type {
 		match self.reference_kind() {
 			None => {
 				// When its null, its just a regular untyped object
@@ -105,7 +105,12 @@ pub enum ReferenceKind {
 
 impl Debug for Reference {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-		write!(f, "{:?}", self.0)
+		let option = self.reference_kind();
+		match option {
+			None => write!(f, "null"),
+			Some(ReferenceKind::Array) => write!(f, "arr{:?}", self.0),
+			Some(ReferenceKind::Instance) => write!(f, "obj{:?}", self.0),
+		}
 	}
 }
 

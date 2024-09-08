@@ -7,7 +7,8 @@ use crate::reference::GcRef;
 use crate::{GcUser, RootProvider};
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use crossbeam::sync::{Parker, Unparker};
-use tracing::{trace, warn};
+use tracing::{debug, trace};
+use uuid::Uuid;
 
 pub(super) fn new_sweeper() -> (GcSweeperHandle, GcSweeper) {
 	let complete_parker: Parker = Default::default();
@@ -18,14 +19,18 @@ pub(super) fn new_sweeper() -> (GcSweeperHandle, GcSweeper) {
 	let should_yield: Arc<AtomicBool> = Arc::new(Default::default());
 
 	let (sender, receiver) = unbounded();
+	let uuid = Uuid::new_v4();
 	(
 		GcSweeperHandle {
+			uuid,
 			unparker,
 			complete_parker,
 			sender,
 			should_yield: should_yield.clone(),
 		},
 		GcSweeper {
+			uuid,
+			finished: false,
 			receiver,
 			should_yield: should_yield.clone(),
 			parker,
@@ -35,6 +40,7 @@ pub(super) fn new_sweeper() -> (GcSweeperHandle, GcSweeper) {
 }
 
 pub struct GcSweeperHandle {
+	pub(super) uuid: Uuid,
 	pub(super) unparker: Unparker,
 	pub(super) complete_parker: Parker,
 	pub(super) sender: Sender<bool>,
@@ -45,6 +51,7 @@ impl GcSweeperHandle {
 	pub(super) fn start(&self, mark: bool) {
 		self.should_yield.store(true, Ordering::Relaxed);
 		self.sender.send(mark).unwrap();
+		debug!("Waiting for {}", self.uuid);
 		self.complete_parker.park();
 		self.should_yield.store(false, Ordering::Relaxed);
 	}
@@ -65,11 +72,21 @@ impl GcSweeperHandle {
 }
 
 pub struct GcSweeper {
+	pub(super) uuid: Uuid,
+	pub(super) finished: bool,
 	// Gives which mark
 	pub(super) receiver: Receiver<bool>,
 	pub(super) should_yield: Arc<AtomicBool>,
 	pub(super) parker: Parker,
 	pub(super) complete: Unparker,
+}
+
+impl Drop for GcSweeper {
+	fn drop(&mut self) {
+		if !self.finished {
+			panic!("Sweeper has not been removed from garbage collector");
+		}
+	}
 }
 
 impl GcSweeper {

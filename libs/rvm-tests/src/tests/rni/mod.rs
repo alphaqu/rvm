@@ -5,7 +5,7 @@ use crate::launch;
 
 #[test]
 pub fn basic() -> eyre::Result<()> {
-	let runtime = launch(1024);
+	let mut runtime = launch(1024);
 
 	runtime.bindings.bind(
 		"tests/rni/RniTests",
@@ -17,7 +17,7 @@ pub fn basic() -> eyre::Result<()> {
 		),
 	);
 
-	let i = RniTests::test(&runtime, 69, 50, 12)?;
+	let i = RniTests::test(&mut runtime, 69, 50, 12)?;
 
 	assert_eq!(i, 69 + 50 * 12);
 	Ok(())

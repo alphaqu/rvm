@@ -1,4 +1,4 @@
-use crate::{AnyValue, FromJavaMulti, JavaTypedMulti, Runtime, ToJavaMulti};
+use crate::{AnyValue, FromJavaMulti, JavaTypedMulti, ToJavaMulti, Vm};
 use ahash::HashMap;
 use parking_lot::RwLock;
 use rvm_core::{MethodDescriptor, Type};
@@ -89,7 +89,7 @@ pub struct RustBinderInner {
 }
 
 pub struct MethodBinding {
-	function: Box<dyn Fn(&Runtime, Vec<AnyValue>) -> eyre::Result<Option<AnyValue>> + Send + Sync>,
+	function: Box<dyn Fn(&Vm, Vec<AnyValue>) -> eyre::Result<Option<AnyValue>> + Send + Sync>,
 	signature: MethodDescriptor,
 }
 
@@ -105,12 +105,12 @@ fn single_or_none<V>(mut vec: Vec<V>) -> Option<V> {
 impl MethodBinding {
 	pub fn new<I, O, F>(function: F) -> Self
 	where
-		F: Fn(&Runtime, I) -> O + Send + Sync + 'static,
+		F: Fn(&Vm, I) -> O + Send + Sync + 'static,
 		I: FromJavaMulti + JavaTypedMulti,
 		O: ToJavaMulti + JavaTypedMulti,
 	{
 		let function =
-			move |runtime: &Runtime, values: Vec<AnyValue>| -> eyre::Result<Option<AnyValue>> {
+			move |runtime: &Vm, values: Vec<AnyValue>| -> eyre::Result<Option<AnyValue>> {
 				let input = I::from_vec(values, runtime)?;
 				let output = function(runtime, input);
 				let result = output.to_vec(runtime)?;
@@ -133,11 +133,7 @@ impl MethodBinding {
 		}
 	}
 
-	pub fn call(
-		&self,
-		runtime: &Runtime,
-		parameters: Vec<AnyValue>,
-	) -> eyre::Result<Option<AnyValue>> {
+	pub fn call(&self, runtime: &Vm, parameters: Vec<AnyValue>) -> eyre::Result<Option<AnyValue>> {
 		(self.function)(runtime, parameters)
 	}
 }

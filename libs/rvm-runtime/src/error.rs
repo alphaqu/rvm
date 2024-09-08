@@ -4,7 +4,7 @@ use std::fmt::Write;
 use rvm_core::Id;
 
 use crate::object::{Class, Method};
-use crate::Runtime;
+use crate::Vm;
 
 pub type JResult<V> = Result<V, JError>;
 
@@ -26,7 +26,7 @@ impl JError {
 }
 
 impl JError {
-	pub fn fmt(&self, f: &mut String, runtime: &Runtime) -> std::fmt::Result {
+	pub fn fmt(&self, f: &mut String, runtime: &Vm) -> std::fmt::Result {
 		writeln!(
 			f,
 			"Exception in thread \"main\" java.lang.FuckThisShitException: {}",
@@ -47,7 +47,7 @@ pub struct TraceEntry {
 }
 
 impl TraceEntry {
-	fn fmt(&self, f: &mut String, runtime: &Runtime) -> std::fmt::Result {
+	fn fmt(&self, f: &mut String, runtime: &Vm) -> std::fmt::Result {
 		let class = runtime.classes.get(self.class);
 
 		match &*class {
