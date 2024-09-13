@@ -97,6 +97,7 @@ impl Executor {
 						let returned = match returned.take() {
 							Some(returned) => returned,
 							None => {
+								let frame_id = self.current_frame().method_id;
 								let scope = self.push_scope(
 									&task.object,
 									&task.method,
@@ -111,6 +112,7 @@ impl Executor {
 									}
 									ScopeResult::Return(returned) => {
 										frame = self.current_frame();
+										assert_eq!(frame_id, frame.method_id);
 										returned
 									}
 								}
@@ -188,6 +190,7 @@ impl Executor {
 						v.exec(self)?;
 						frame = self.current_frame();
 					}
+					Task::Unsupported(v) => todo!("{v:?}"),
 				};
 				frame.cursor += 1;
 			}
@@ -291,7 +294,7 @@ impl Executor {
 			self.runtime().resolve_class(&Type::Object(ty.clone()))?
 		} else {
 			let reference = inputs.instance.unwrap();
-			let class_object = reference.to_instance().unwrap();
+			let class_object = reference.to_instance()?;
 			class_object.class()
 		};
 

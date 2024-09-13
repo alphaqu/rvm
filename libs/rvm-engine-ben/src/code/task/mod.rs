@@ -51,6 +51,7 @@ pub enum Task {
 	ArrayLoad(ArrayLoadTask),
 	ArrayStore(ArrayStoreTask),
 	SwitchTable(SwitchTableTask),
+	Unsupported(Inst),
 }
 
 impl Display for Task {
@@ -73,6 +74,7 @@ impl Display for Task {
 			Task::ArrayCreate(v) => v.fmt(f),
 			Task::ArrayCreateRef(v) => v.fmt(f),
 			Task::SwitchTable(v) => v.fmt(f),
+			Task::Unsupported(v) => write!(f, "Unsupported {v:?}"),
 		}
 	}
 }
@@ -116,7 +118,7 @@ impl Task {
 				Task::ArrayCreateRef(ArrayCreateRefTask::new(ptr, class))
 			}
 			Inst::TableSwitch(inst) => Task::SwitchTable(SwitchTableTask::new(inst)),
-			_ => todo!("{inst:?}"),
+			i => Task::Unsupported(i.clone()),
 		}
 	}
 }

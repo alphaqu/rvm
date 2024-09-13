@@ -9,6 +9,7 @@ use crate::code::Code;
 use crate::consts::{ConstantInfo, ConstantPool};
 use crate::{be_cp, ConstPtr, IResult, UTF8Const};
 
+#[derive(Clone)]
 pub struct AttributeException {
 	start_pc: u16,
 	end_pc: u16,

@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 rvm-core = { path = "../rvm-core" }
 rvm-gc = { path = "../rvm-gc" }
+rvm-class = { path = "../rvm-class" }
 rvm-reader = { path = "../rvm-reader" }
 rvm-macro = { path = "../rvm-macro" }
 

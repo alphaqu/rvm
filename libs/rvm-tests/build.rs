@@ -188,6 +188,8 @@ fn main() {
 		//root.insert(ClassData { info, source: buf });
 	}
 
+	binder.bind(&ObjectType::Class()).unwrap();
+
 	let rust_file = binder.compile();
 
 	let out_dir = env::var_os("OUT_DIR").unwrap();

@@ -6,7 +6,8 @@ use eyre::Context;
 use rvm_core::{MethodDescriptor, ObjectType, Type};
 use rvm_engine_ben::BenBinding;
 use rvm_runtime::{
-	AnyValue, ClassSource, JarClassSource, MethodBinding, MethodIdentifier, Runtime, Vm,
+	AnyValue, ClassSource, Instance, JarClassSource, MethodBinding, MethodIdentifier, Reference,
+	Runtime, Vm,
 };
 use std::borrow::Borrow;
 use std::fs::read;
@@ -36,6 +37,25 @@ pub fn load_sdk(runtime: &Vm) {
 		MethodBinding::new(|runtime, _: ()| {
 			info!("Hi natives");
 		}),
+	);
+
+	runtime.bindings.bind(
+		"java/lang/Class",
+		"registerNatives",
+		MethodBinding::new(|runtime, _: ()| {
+			info!("Hi natives");
+		}),
+	);
+
+	runtime.bindings.bind(
+		"java/lang/Class",
+		"desiredAssertionStatus0",
+		MethodBinding::new(
+			|runtime, class: Instance<bindings::java::lang::Class>| -> bool {
+				info!("Assertion!!");
+				false
+			},
+		),
 	);
 }
 

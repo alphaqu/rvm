@@ -135,11 +135,17 @@ impl JavaBinder {
 		let mut fields: Vec<TokenStream> = class
 			.fields
 			.iter()
-			.map(|TokenizedField { ident, ty }| {
-				quote! {
-					pub #ident: rvm_runtime::TypedField<#ty>
-				}
-			})
+			.map(
+				|TokenizedField {
+				     ident,
+				     bind_type: bind_ty,
+				     ..
+				 }| {
+					quote! {
+						pub #ident: <#bind_ty as rvm_runtime::Bindable>::Cell
+					}
+				},
+			)
 			.collect();
 
 		if let Some(BaseClass {
@@ -156,7 +162,7 @@ impl JavaBinder {
 		}
 
 		quote! {
-			#[derive(Copy, Clone)]
+			#[derive(Clone)]
 			pub struct #ident {
 				#(#fields),*
 			}
@@ -168,12 +174,16 @@ impl JavaBinder {
 		let mut field_bindings: Vec<TokenStream> = class
 			.fields
 			.iter()
-			.map(|TokenizedField { ident, .. }| {
-				let field_lit = ident.to_string();
-				quote! {
-					#ident: fields.by_name_typed(#field_lit).unwrap()
-				}
-			})
+			.map(
+				|TokenizedField {
+				     ident, bind_type, ..
+				 }| {
+					let field_lit = ident.to_string();
+					quote! {
+						#ident: fields.by_name_binded::<#bind_type>(instance.vm(), #field_lit).unwrap()
+					}
+				},
+			)
 			.collect();
 
 		if let Some(BaseClass {
@@ -418,13 +428,21 @@ pub struct BaseClass {
 pub struct TokenizedField {
 	ident: Ident,
 	ty: TokenStream,
+	bind_type: TokenStream,
 }
 
 impl TokenizedField {
 	pub fn new(ctx: &Ctx, name: &str, ty: &Type) -> Option<Self> {
 		let ident = rust_ident(name, Span::call_site());
-		let ty = ctx.ty_to_rust(ty)?;
-		Some(Self { ident, ty })
+
+		let ty_ts = ctx.ty_to_rust(ty)?;
+		let bind_type = ctx.ty_to_rust_binding(ty)?;
+
+		Some(Self {
+			ident,
+			bind_type,
+			ty: ty_ts,
+		})
 	}
 	pub fn from_class(ctx: &Ctx, field: &Field) -> Option<Self> {
 		Self::new(ctx, &field.name, &field.ty)
@@ -622,6 +640,46 @@ pub struct Ctx<'a> {
 }
 
 impl<'a> Ctx<'a> {
+	pub fn ty_to_rust_binding(&self, ty: &Type) -> Option<TokenStream> {
+		Some(match ty {
+			Type::Primitive(primitive) => {
+				let inner = match primitive {
+					PrimitiveType::Boolean => tokenize("bool"),
+					PrimitiveType::Byte => tokenize("i8"),
+					PrimitiveType::Short => tokenize("i16"),
+					PrimitiveType::Int => tokenize("i32"),
+					PrimitiveType::Long => tokenize("i64"),
+					PrimitiveType::Char =>
+					/*tokenize("char")*/
+					{
+						return None;
+					}
+					PrimitiveType::Float => tokenize("f32"),
+					PrimitiveType::Double => tokenize("f64"),
+				};
+
+				quote! {
+					#inner
+				}
+			}
+			Type::Object(object) => {
+				if object == &ObjectType::Object() {
+					tokenize("rvm_runtime::Reference")
+				} else {
+					let binding = self.class_ident_to_rust(object)?;
+					quote! {
+					#binding
+					}
+				}
+			}
+			Type::Array(array) => {
+				let component = self.ty_to_rust_binding(array.component())?;
+				quote! {
+					rvm_runtime::Array<#component>
+				}
+			}
+		})
+	}
 	pub fn ty_to_rust(&self, ty: &Type) -> Option<TokenStream> {
 		Some(match ty {
 			Type::Primitive(primitive) => match primitive {

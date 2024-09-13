@@ -7,7 +7,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 pub use binding::{Instance, InstanceBinding};
-pub use field::{DynField, FieldTable, TypedField};
+pub use field::*;
 
 use crate::conversion::{FromJava, JavaTyped, ToJava};
 use crate::gc::{InstanceHeader, JavaHeader};
@@ -38,7 +38,7 @@ impl InstanceRef {
 		Reference::HEADER_SIZE + Self::CLASS_ID_SIZE + Self::REF_FIELD_HEADER_SIZE;
 
 	pub fn new(reference: Reference) -> InstanceRef {
-		Self::try_new(reference).unwrap()
+		reference.to_instance().unwrap()
 	}
 
 	pub fn try_new(reference: Reference) -> Option<InstanceRef> {
@@ -98,7 +98,7 @@ impl InstanceRef {
 		}
 	}
 
-	pub(super) unsafe fn get_mut_ptr<V: Value>(&self, offset: usize) -> *mut V {
+	pub(crate) unsafe fn get_mut_ptr<V: Value>(&self, offset: usize) -> *mut V {
 		let data = self.fields().add(offset);
 		V::cast_pointer(data)
 	}
@@ -141,7 +141,7 @@ impl ToJava for InstanceRef {
 impl FromJava for InstanceRef {
 	fn from_java(value: AnyValue, runtime: &Vm) -> eyre::Result<Self> {
 		let reference = Reference::from_java(value, runtime)?;
-		Ok(reference.to_instance().ok_or_else(|| CastTypeError {
+		Ok(reference.to_instance().ok().ok_or_else(|| CastTypeError {
 			expected: ObjectType::Object().into(),
 			found: value.ty(runtime),
 		})?)
@@ -170,10 +170,10 @@ impl From<AnyInstance> for AnyValue {
 
 #[derive(Clone)]
 pub struct AnyInstance {
-	runtime: Vm,
+	vm: Vm,
 	is_static: bool,
 	class: Arc<Class>,
-	raw: InstanceRef,
+	pub(crate) raw: InstanceRef,
 }
 
 impl AnyInstance {
@@ -188,7 +188,7 @@ impl AnyInstance {
 		}
 
 		Some(AnyInstance {
-			runtime,
+			vm: runtime,
 			is_static: matches!(
 				instance.reference.header().user(),
 				JavaHeader::InstanceStatic(_)
@@ -214,7 +214,7 @@ impl AnyInstance {
 			}
 
 			if let Some(super_class) = &instance_class.super_class {
-				class = self.runtime.classes.get(super_class.id);
+				class = self.vm.classes.get(super_class.id);
 			} else {
 				return false;
 			}
@@ -224,8 +224,8 @@ impl AnyInstance {
 	pub fn raw(&self) -> InstanceRef {
 		self.raw
 	}
-	pub fn runtime(&self) -> &Vm {
-		&self.runtime
+	pub fn vm(&self) -> &Vm {
+		&self.vm
 	}
 
 	pub fn class(&self) -> &InstanceClass {

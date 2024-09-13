@@ -1,12 +1,33 @@
 use crate::conversion::{FromJava, JavaTyped, ToJava};
-use crate::{AnyInstance, AnyValue, Class, InstanceRef, Returnable, Vm};
-use rvm_core::{CastTypeError, Id, ObjectType, Type, Typed};
+use crate::object::bindable::Bindable;
+use crate::{
+	AnyInstance, AnyValue, Class, InstanceCell, JavaKind, Reference, Returnable, ValueCell, Vm,
+};
+use rvm_core::{CastTypeError, Id, Kind, ObjectType, Type, Typed};
 use std::ops::{Deref, DerefMut};
-use std::sync::Arc;
 
 pub trait InstanceBinding {
 	fn ty() -> ObjectType;
 	fn bind(instance: &AnyInstance) -> Self;
+}
+
+impl<B: InstanceBinding> JavaKind for B {
+	fn kind() -> Kind {
+		Kind::Reference
+	}
+}
+
+impl<B: InstanceBinding> Bindable for B {
+	type Cell = InstanceCell<B>;
+	type Value = Reference;
+
+	fn ty() -> Type {
+		Type::Object(B::ty())
+	}
+
+	fn bind(vm: &Vm, value: ValueCell<Self::Value>) -> Self::Cell {
+		InstanceCell::new(vm, value)
+	}
 }
 
 impl<B: InstanceBinding> Returnable for Instance<B> {
@@ -25,13 +46,13 @@ impl<B: InstanceBinding> From<Instance<B>> for AnyValue {
 #[derive(Clone)]
 pub struct Instance<B: InstanceBinding> {
 	instance: AnyInstance,
-	binding: B,
+	binding: Box<B>,
 }
 
 impl<B: InstanceBinding> Instance<B> {
 	pub fn try_new(instance: AnyInstance) -> Result<Self, CastTypeError> {
 		let target_class = instance
-			.runtime
+			.vm
 			.classes
 			.get_named(&B::ty().into())
 			.expect("Class is not found loaded");
@@ -44,7 +65,7 @@ impl<B: InstanceBinding> Instance<B> {
 		}
 
 		Ok(Instance {
-			binding: B::bind(&instance),
+			binding: Box::new(B::bind(&instance)),
 			instance,
 		})
 	}

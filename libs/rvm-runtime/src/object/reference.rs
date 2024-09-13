@@ -8,6 +8,7 @@ use std::mem::size_of;
 use std::ops::Deref;
 use std::ptr::null_mut;
 use std::sync::Arc;
+use thiserror::Error;
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 #[repr(transparent)]
@@ -16,6 +17,17 @@ pub struct Reference(GcRef<JavaUser>);
 unsafe impl Send for Reference {}
 
 unsafe impl Sync for Reference {}
+
+#[derive(Debug, Error)]
+pub enum ReferenceKindError {
+	#[error("Null pointer exception")]
+	Null,
+	#[error("Expected {expected:?} but found {found:?}")]
+	WrongType {
+		expected: ReferenceKind,
+		found: ReferenceKind,
+	},
+}
 
 impl Reference {
 	pub const HEADER_SIZE: usize = size_of::<u8>();
@@ -43,12 +55,30 @@ impl Reference {
 		self.0.is_null()
 	}
 
-	pub fn to_instance(&self) -> Option<InstanceRef> {
-		InstanceRef::try_new(*self)
+	pub fn to_instance(&self) -> Result<InstanceRef, ReferenceKindError> {
+		match InstanceRef::try_new(*self) {
+			Some(value) => Ok(value),
+			None => Err(match self.reference_kind() {
+				None => ReferenceKindError::Null,
+				Some(value) => ReferenceKindError::WrongType {
+					expected: ReferenceKind::Instance,
+					found: value,
+				},
+			}),
+		}
 	}
 
-	pub fn to_array(&self) -> Option<ArrayRef> {
-		ArrayRef::try_new(*self)
+	pub fn to_array(&self) -> Result<ArrayRef, ReferenceKindError> {
+		match ArrayRef::try_new(*self) {
+			Some(value) => Ok(value),
+			None => Err(match self.reference_kind() {
+				None => ReferenceKindError::Null,
+				Some(value) => ReferenceKindError::WrongType {
+					expected: ReferenceKind::Array,
+					found: value,
+				},
+			}),
+		}
 	}
 
 	pub fn visit_refs(&self, visitor: impl FnMut(Reference)) {

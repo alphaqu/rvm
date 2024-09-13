@@ -1,7 +1,7 @@
 use crate::code::Executor;
 use crate::thread::{BenFrameMut, ThreadFrame};
 use crate::value::StackValue;
-use rvm_core::{ObjectType, PrimitiveType};
+use rvm_core::{ObjectType, PrimitiveType, Type};
 use rvm_reader::{ConstInst, ConstantInfo};
 use rvm_runtime::{
 	AnyValue, CallType, InstanceClass, MethodIdentifier, Reference, ReferenceKind, ThreadContext,
@@ -119,8 +119,14 @@ impl ConstTask {
 				let mut frame = executor.current_frame();
 				frame.push(StackValue::Reference(**string));
 			}
-			ConstTask::Class(_) => {
-				frame.push(StackValue::Reference(Reference::NULL));
+			ConstTask::Class(ty) => {
+				let mut runtime = executor.runtime();
+				let id = runtime.resolve_class(&Type::Object(ty.clone()))?;
+				let class = runtime.classes.get(id);
+				let companion = class.to_instance().companion();
+
+				let mut frame = executor.current_frame();
+				frame.push(StackValue::Reference(*companion.class));
 			}
 		}
 

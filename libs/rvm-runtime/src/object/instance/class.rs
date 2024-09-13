@@ -1,24 +1,22 @@
 use crate::object::Class;
 use crate::{
-	ClassMethods, ClassResolver, FieldData, FieldLayout, FieldTable, InstanceRef, Runtime, Vm,
+	ClassLoader, ClassMethods, ClassResolver, FieldData, FieldLayout, FieldTable, InstanceRef,
+	Runtime, Vm,
 };
 use eyre::{Context, ContextCompat};
 use rvm_core::{Id, ObjectType, Type};
 use rvm_reader::{ClassInfo, ConstantPool};
 use std::sync::Arc;
+use tracing::trace;
 
 #[non_exhaustive]
+#[derive(Clone)]
 pub struct ResolvedClassId {
 	pub ty: ObjectType,
 	pub id: Id<Class>,
 }
 
-impl ResolvedClassId {
-	pub fn new(ty: ObjectType) -> ResolvedClassId {
-		ResolvedClassId { ty, id: Id::null() }
-	}
-}
-
+#[derive(Clone)]
 pub struct InstanceClass {
 	pub id: Id<Class>,
 	pub ty: ObjectType,
@@ -27,12 +25,12 @@ pub struct InstanceClass {
 	pub interfaces: Vec<ResolvedClassId>,
 
 	pub cp: Arc<ConstantPool>,
+
 	pub field_layout: FieldLayout,
 	pub static_field_layout: FieldLayout,
 
 	pub methods: ClassMethods,
 
-	// Linking
 	companion: Option<ClassCompanion>,
 }
 
@@ -42,14 +40,14 @@ unsafe impl Sync for InstanceClass {}
 
 struct ResolvedSuper {
 	id: Id<Class>,
-	class: Arc<Class>,
 	ty: ObjectType,
 }
+
 impl InstanceClass {
 	fn resolve_super(
 		info: &ClassInfo,
 		cl: &mut ClassResolver,
-	) -> eyre::Result<Option<ResolvedSuper>> {
+	) -> eyre::Result<Option<ResolvedClassId>> {
 		let Some(super_class) = info.cp.get(info.super_class) else {
 			return Ok(None);
 		};
@@ -57,9 +55,8 @@ impl InstanceClass {
 		let super_ty = ObjectType::new(info.cp[super_class.name].to_string());
 		let super_id = cl.resolve(&Type::Object(super_ty.clone()))?;
 
-		Ok(Some(ResolvedSuper {
+		Ok(Some(ResolvedClassId {
 			id: super_id,
-			class: cl.get(super_id),
 			ty: super_ty,
 		}))
 	}
@@ -75,22 +72,28 @@ impl InstanceClass {
 				let class_name = &info.cp[class.name];
 
 				let object_type = ObjectType::new(class_name.to_string());
-				let id = cl
+				let class = cl
 					.resolve(&object_type.clone().into())
 					.wrap_err_with(|| format!("Failed to resolve interface {object_type}"))?;
 
 				Ok(ResolvedClassId {
 					ty: object_type,
-					id,
+					id: class,
 				})
 			})
 			.try_collect()
 	}
 
-	fn resolve_fields(info: &ClassInfo, _cl: &mut ClassResolver) -> eyre::Result<Vec<FieldData>> {
+	fn resolve_fields(info: &ClassInfo, _cl: &ClassLoader) -> eyre::Result<Vec<FieldData>> {
 		info.fields
 			.iter()
-			.map(|v| FieldData::from_info(v, &info.cp).wrap_err("Failed to parse descriptor"))
+			.map(|v| {
+				let field =
+					FieldData::from_info(v, &info.cp).wrap_err("Failed to parse descriptor")?;
+				trace!("field: {:?} {}", field.ty, field.name);
+
+				Ok(field)
+			})
 			.try_collect()
 	}
 	pub fn new(
@@ -110,11 +113,13 @@ impl InstanceClass {
 			Self::resolve_interfaces(&info, cl).wrap_err("Resolving interfaces")?;
 
 		// Create field layouts
+		let super_instance = super_class.as_ref().map(|v| cl.get(v.id));
+
 		let field_layout = FieldLayout::new_instance(
 			&fields,
-			super_class
+			super_instance
 				.as_ref()
-				.map(|v| &v.class.as_instance().unwrap().field_layout),
+				.map(|v| &v.to_instance().field_layout),
 		);
 		let static_field_layout = FieldLayout::new_static(&fields);
 
@@ -136,17 +141,21 @@ impl InstanceClass {
 		})
 	}
 
-	pub fn link(&mut self, ctx: &mut Runtime) -> eyre::Result<()> {
+	pub fn initialize(&self, ctx: &mut Runtime) -> eyre::Result<InstanceClass> {
 		let class = ctx.std().c_class;
 		let class = ctx.classes.get(class);
 		let class = class.to_instance();
 
 		let result = ctx.alloc_object(class)?;
-		self.companion = Some(ClassCompanion {
+		let companion = ClassCompanion {
 			static_ref: ctx.alloc_static_instance(self)?,
 			class: result.raw(),
-		});
-		Ok(())
+		};
+
+		Ok(InstanceClass {
+			companion: Some(companion),
+			..self.clone()
+		})
 	}
 
 	pub fn companion(&self) -> &ClassCompanion {
@@ -161,6 +170,7 @@ impl InstanceClass {
 	}
 }
 
+#[derive(Clone)]
 pub struct ClassCompanion {
 	pub static_ref: InstanceRef,
 	pub class: InstanceRef,

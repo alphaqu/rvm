@@ -47,6 +47,10 @@ impl Type {
 			Type::Array(ty) => ty.to_java(),
 		}
 	}
+
+	pub fn is_primitive(&self) -> bool {
+		matches!(self, Type::Primitive(_))
+	}
 }
 
 impl Debug for Type {

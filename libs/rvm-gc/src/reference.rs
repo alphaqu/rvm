@@ -38,9 +38,13 @@ impl<U: GcUser> GcRef<U> {
 	///
 	/// # Safety
 	/// The pointer needs to be pointing to a valid location to the garbage collector.
-	pub const unsafe fn from_ptr(head: *mut u8) -> Result<Self, Self> {
+	pub unsafe fn from_ptr(head: *mut u8) -> Result<Self, Self> {
 		if mem::transmute::<_, usize>(head.cast::<()>()) == 0 {
 			return Err(GcRef::NULL);
+		}
+
+		if (head as usize) < 1000 {
+			panic!();
 		}
 		Ok(Self {
 			data_ptr: head.add(GcHeader::<U>::SIZE),
@@ -131,7 +135,10 @@ impl<U: GcUser> GcRef<U> {
 	}
 
 	pub fn is_null(&self) -> bool {
-		self.data_ptr.is_null()
+		if self.data_ptr.is_null() {
+			return true;
+		}
+		unsafe { self.data_ptr.sub(GcHeader::<U>::SIZE) }.is_null()
 	}
 
 	pub fn visit_refs(&self, visitor: impl FnMut(GcRef<U>)) {

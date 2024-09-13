@@ -244,20 +244,41 @@ impl<'a> ClassResolver<'a> {
 		// Linking
 		let mut to_initialize = Vec::new();
 		for id in self.to_link.drain(..) {
-			Self::scope(self.cl, id, |class| {
-				let ty = class.cloned_ty();
+			let class = self.cl.get(id);
+			let ty = class.cloned_ty();
 
-				info!("Linking class {ty}");
-				if let Class::Instance(class) = class {
-					class.link(ctx).wrap_err_with(|| format!("Linking {ty}"))?;
+			info!("Linking class {ty}");
+			if let Class::Instance(class) = &*class {
+				let new_class = class
+					.initialize(ctx)
+					.wrap_err_with(|| format!("Linking {ty}"))?;
 
-					if class.methods.contains(&class_init) {
-						to_initialize.push(id);
-					}
+				if class.methods.contains(&class_init) {
+					to_initialize.push(id);
 				}
 
-				Ok(())
-			})?;
+				self.cl
+					.classes
+					.write()
+					.insert(ty, Some(Arc::new(Class::Instance(new_class))));
+			}
+
+			//Self::scope(self.cl, id, |class| {
+			//	let ty = class.cloned_ty();
+			//
+			//	info!("Linking class {ty}");
+			//	if let Class::Instance(class) = class {
+			//		class
+			//			.initialize(ctx)
+			//			.wrap_err_with(|| format!("Linking {ty}"))?;
+			//
+			//		if class.methods.contains(&class_init) {
+			//			to_initialize.push(id);
+			//		}
+			//	}
+			//
+			//	Ok(())
+			//})?;
 		}
 
 		// Initializing

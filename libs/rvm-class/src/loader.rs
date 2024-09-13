@@ -61,7 +61,7 @@ impl ClassLoader {
 		}
 	}
 
-	pub fn resolve(&self, id: Id<Class>, mut func: &mut ClassResolver) -> eyre::Result<()> {
+	pub fn resolve(&self, id: Id<Class>, func: &mut ClassResolver) -> eyre::Result<()> {
 		self.modify(id, |class| class.resolve(func))
 	}
 

@@ -54,7 +54,7 @@ impl ClassSuperface {
 		let cp = &info.cp;
 		let super_class = info.super_class.ty(cp);
 		Ok(ClassSuperface {
-			superclass: super_class.map(|v| Superface::new(v)),
+			superclass: super_class.map(Superface::new),
 			interfaces: info
 				.interfaces
 				.iter()

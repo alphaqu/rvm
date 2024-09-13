@@ -20,6 +20,7 @@ impl<V: Castable> CastableExt<V> for AnyValue {
 	}
 }
 
+// TODO remove this
 pub trait Returnable {
 	fn from_value(runtime: &Vm, value: Option<AnyValue>) -> Self;
 }
@@ -43,8 +44,11 @@ impl<R: Returnable> Returnable for Option<R> {
 	}
 }
 
-pub trait Value: Sized + Copy {
+pub trait JavaKind {
 	fn kind() -> Kind;
+}
+
+pub trait Value: Sized + Copy + JavaKind {
 	unsafe fn write(ptr: *mut UnionValue, value: Self);
 	unsafe fn read(ptr: UnionValue) -> Self;
 	unsafe fn cast_pointer(ptr: *mut UnionValue) -> *mut Self {
@@ -207,11 +211,12 @@ impl AnyValue {
 
 macro_rules! impl_value {
 	($VAR:ident $FIELD:ident $TY:ty) => {
-		impl Value for $TY {
+		impl JavaKind for $TY {
 			fn kind() -> Kind {
 				Kind::$VAR
 			}
-
+		}
+		impl Value for $TY {
 			unsafe fn write(ptr: *mut UnionValue, value: Self) {
 				(*ptr).$FIELD = value;
 			}

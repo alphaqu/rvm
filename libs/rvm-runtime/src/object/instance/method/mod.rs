@@ -6,6 +6,7 @@ use rvm_reader::{AttributeInfo, Code, ConstantPool, MethodInfo, NameAndTypeConst
 use std::ops::Deref;
 use std::sync::Arc;
 
+#[derive(Clone)]
 pub struct ClassMethods {
 	storage: Storage<MethodIdentifier, Method>,
 }
@@ -49,11 +50,12 @@ impl Deref for ClassMethods {
 	}
 }
 
+#[derive(Clone)]
 pub struct Method {
 	pub name: String,
 	pub desc: MethodDescriptor,
 	pub flags: MethodAccessFlags,
-	pub code: Option<Code>,
+	pub code: Option<Arc<Code>>,
 }
 
 impl Method {
@@ -95,7 +97,7 @@ impl Method {
 		} else {
 			for attribute in info.attributes {
 				if let AttributeInfo::CodeAttribute { code: c } = attribute {
-					code = Some(c);
+					code = Some(Arc::new(c));
 				}
 			}
 		}

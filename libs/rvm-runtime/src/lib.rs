@@ -26,6 +26,7 @@ use tracing::debug;
 pub use value::*;
 
 mod binding;
+mod class_loader;
 mod conversion;
 pub mod engine;
 pub mod error;

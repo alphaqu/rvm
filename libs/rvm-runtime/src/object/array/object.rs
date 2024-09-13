@@ -1,7 +1,9 @@
 use crate::conversion::{FromJava, JavaTyped, ToJava};
 use crate::gc::{ArrayHeader, JavaHeader};
+use crate::object::bindable::Bindable;
 use crate::{
-	read_arr, write_arr, AnyValue, Castable, Class, Reference, ReferenceKind, UnionValue, Value, Vm,
+	read_arr, write_arr, AnyValue, Castable, Class, JavaKind, Reference, ReferenceKind, UnionValue,
+	Value, ValueCell, Vm,
 };
 use eyre::ContextCompat;
 use rvm_core::{
@@ -152,7 +154,7 @@ impl ToJava for ArrayRef {
 impl FromJava for ArrayRef {
 	fn from_java(value: AnyValue, runtime: &Vm) -> eyre::Result<Self> {
 		let reference = Reference::from_java(value, runtime)?;
-		Ok(reference.to_array().ok_or_else(|| CastTypeError {
+		Ok(reference.to_array().ok().ok_or_else(|| CastTypeError {
 			expected: ArrayType::ObjectArray().into(),
 			found: value.ty(runtime),
 		})?)
@@ -165,19 +167,19 @@ impl JavaTyped for ArrayRef {
 	}
 }
 
-#[derive(Copy, Clone)]
-pub struct Array<V: Value> {
+#[derive(Clone, Copy)]
+pub struct Array<V> {
 	array: ArrayRef,
 	_p: PhantomData<V>,
 }
 
-impl<V: Value> Array<V> {
-	pub fn new(array: ArrayRef) -> Array<V> {
+impl<K: JavaKind> Array<K> {
+	pub fn new(array: ArrayRef) -> Array<K> {
 		Self::try_new(array).unwrap()
 	}
 
-	pub fn try_new(array: ArrayRef) -> Option<Array<V>> {
-		if array.component_kind() == V::kind() {
+	pub fn try_new(array: ArrayRef) -> Option<Array<K>> {
+		if array.component_kind() == K::kind() {
 			Some(Array {
 				array,
 				_p: Default::default(),
@@ -187,79 +189,89 @@ impl<V: Value> Array<V> {
 		}
 	}
 
-	pub fn get(&self, index: i32) -> Option<V> {
-		if index >= 0 && index < self.array.length() {
-			unsafe { Some(self.data().add(index as usize).read()) }
-		} else {
-			None
-		}
-	}
-
-	pub fn set(&mut self, index: i32, value: V) {
+	unsafe fn slot<V: Value>(&self, index: i32) -> Option<ValueCell<V>> {
 		if index >= 0 && index < self.array.length() {
 			unsafe {
-				self.data_mut().add(index as usize).write(value);
+				Some(ValueCell::new(
+					(self.array.data_ptr() as *mut V).add(index as usize),
+				))
 			}
+		} else {
+			None
 		}
 	}
 
 	pub fn length(&self) -> i32 {
 		self.array.length()
 	}
+}
 
-	pub unsafe fn data(&self) -> *const V {
-		self.array.data_ptr() as *const V
-	}
-
-	pub unsafe fn data_mut(&mut self) -> *mut V {
-		self.array.data_ptr() as *mut V
+impl<B: Bindable + JavaKind> Array<B> {
+	pub fn bind(&self, index: i32, vm: &Vm) -> Option<B::Cell> {
+		let field = unsafe { self.slot::<B::Value>(index)? };
+		Some(B::bind(vm, field))
 	}
 }
 
-impl<V: Value> Value for Array<V> {
-	fn kind() -> Kind {
-		Kind::Reference
+impl<V: Value> Array<V> {
+	pub fn get(&self, index: i32) -> Option<V> {
+		let field = unsafe { self.slot(index)? };
+		Some(*field)
 	}
 
-	unsafe fn write(ptr: *mut UnionValue, value: Self) {
-		Reference::write(ptr, value.reference)
-	}
+	pub fn set(&mut self, index: i32, value: V) {
+		let cell = unsafe { self.slot(index) };
+		let Some(mut field) = cell else {
+			return;
+		};
 
-	unsafe fn read(ptr: UnionValue) -> Self {
-		let reference = Reference::read(ptr);
-		Array::new(ArrayRef::new(reference))
+		*field = value;
 	}
 }
-impl<V: Value> ToJava for Array<V> {
+//impl<V: Value> Value for Array<V> {
+// 	fn kind() -> Kind {
+// 		Kind::Reference
+// 	}
+//
+// 	unsafe fn write(ptr: *mut UnionValue, value: Self) {
+// 		Reference::write(ptr, value.reference)
+// 	}
+//
+// 	unsafe fn read(ptr: UnionValue) -> Self {
+// 		let reference = Reference::read(ptr);
+// 		Array::new(ArrayRef::new(reference))
+// 	}
+// }
+impl<V> ToJava for Array<V> {
 	fn to_java(self, runtime: &Vm) -> eyre::Result<AnyValue> {
 		self.array.to_java(runtime)
 	}
 }
 
-impl<V: Value> FromJava for Array<V> {
-	fn from_java(value: AnyValue, runtime: &Vm) -> eyre::Result<Self> {
-		let any_array = ArrayRef::from_java(value, runtime)?;
+impl<V: JavaKind> FromJava for Array<V> {
+	fn from_java(value: AnyValue, vm: &Vm) -> eyre::Result<Self> {
+		let any_array = ArrayRef::from_java(value, vm)?;
 		Ok(Array::try_new(any_array).ok_or_else(|| CastTypeError {
 			expected: ArrayType::ObjectArray().into(),
-			found: value.ty(runtime),
+			found: value.ty(vm),
 		})?)
 	}
 }
 
-impl<V: Value + JavaTyped> JavaTyped for Array<V> {
+impl<V: Bindable + JavaTyped> JavaTyped for Array<V> {
 	fn java_type() -> Type {
 		ArrayType::from_component(V::java_type()).into()
 	}
 }
 
-impl<V: Value> Castable for Array<V> {
-	fn cast_from(runtime: &Vm, value: AnyValue) -> Self {
-		let reference = Reference::cast_from(runtime, value);
+impl<V: JavaKind> Castable for Array<V> {
+	fn cast_from(vm: &Vm, value: AnyValue) -> Self {
+		let reference = Reference::cast_from(vm, value);
 		Array::new(reference.to_array().unwrap())
 	}
 }
 
-impl<V: Value> Deref for Array<V> {
+impl<V> Deref for Array<V> {
 	type Target = ArrayRef;
 
 	fn deref(&self) -> &Self::Target {
@@ -267,9 +279,9 @@ impl<V: Value> Deref for Array<V> {
 	}
 }
 
-impl<V: Value + Typed> Typed for Array<V> {
+impl<V: Typed> Typed for Array<V> {
 	fn ty() -> Type {
-		Type::Array(ArrayType::from_component(V::ty()))
+		Type::Array(ArrayType::from_component(<V as Typed>::ty()))
 	}
 }
 
@@ -288,7 +300,7 @@ impl Into<AnyValue> for ArrayRef {
 	}
 }
 
-impl<V: Value> TryFrom<AnyValue> for Array<V> {
+impl<V: JavaKind> TryFrom<AnyValue> for Array<V> {
 	type Error = AnyValue;
 
 	fn try_from(value: AnyValue) -> Result<Self, Self::Error> {
@@ -297,7 +309,7 @@ impl<V: Value> TryFrom<AnyValue> for Array<V> {
 	}
 }
 
-impl<V: Value> Into<AnyValue> for Array<V> {
+impl<V: JavaKind> Into<AnyValue> for Array<V> {
 	fn into(self) -> AnyValue {
 		AnyValue::Reference(self.array.reference)
 	}
